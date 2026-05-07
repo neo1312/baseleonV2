@@ -1,0 +1,68 @@
+{% extends 'create.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>{{ title }}</h4>
+                </div>
+                <div class="card-body">
+                    <form method="get" id="poForm">
+                        <div class="form-group mb-3">
+                            <label for="provider_id">Select Provider:</label>
+                            <select class="form-control" id="provider_id" name="provider_id" required>
+                                <option value="">Choose a provider...</option>
+                                {% for provider in providers %}
+                                <option value="{{ provider.id }}">{{ provider.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="method">Order Method:</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" id="manual" name="method" value="manual" checked>
+                                <label class="btn btn-outline-primary" for="manual">Manual (Edit quantities)</label>
+
+                                <input type="radio" class="btn-check" id="auto" name="method" value="auto">
+                                <label class="btn btn-outline-primary" for="auto">Auto (From Forecast)</label>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info mt-3">
+                            <strong>Manual:</strong> Enter quantities for each product<br>
+                            <strong>Auto:</strong> Uses demand forecast EOQ recommendations
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-success btn-lg w-100">
+                                <i class="fas fa-arrow-right"></i> Continue
+                            </button>
+                            <a href="/" class="btn btn-secondary w-100 mt-2">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('poForm').onsubmit = function(e) {
+    const provider_id = document.getElementById('provider_id').value;
+    const method = document.querySelector('input[name="method"]:checked').value;
+    
+    if (!provider_id) {
+        e.preventDefault();
+        alert('Please select a provider');
+        return false;
+    }
+    
+    // Redirect to items list
+    window.location.href = `/po/items/${provider_id}/?method=${method}`;
+    return false;
+};
+</script>
+{% endblock %}

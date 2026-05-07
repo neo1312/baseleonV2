@@ -1,0 +1,93 @@
+{% extends 'new.html' %}
+
+{% block content %}
+<div class="card-body bg-white">
+{%block botones%}
+
+<div class="container-fluid my-4">
+  <div class="card border-info shadow-sm">
+    <div class="card-header bg-info text-white">
+      <h5 class="mb-0"><i class="fas fa-quote-left"></i> Nueva Cotización</h5>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+
+        <!-- 1. Cliente -->
+        <div class="col-md-4">
+          <label for="clientId" class="form-label fw-bold">
+            <i class="fas fa-user"></i> Seleccionar cliente
+          </label>
+          <select class="form-select form-select-lg" id="clientId" name="clientId">
+            <option value="">-- Seleccione un cliente --</option>
+            {% for client in clients %}
+              <option value="{{ client.id }}">{{ client.name }}</option>
+            {% endfor %}
+          </select>
+          <small class="form-text text-muted d-block mt-2">Por defecto: "Mostrador" (Cliente ID: 1)</small>
+        </div>
+
+        <!-- 2. Tipo de cotización -->
+        <div class="col-md-4">
+          <label for="tipoVenta" class="form-label fw-bold">
+            <i class="fas fa-tag"></i> Tipo de cotización
+          </label>
+          <select id="tipoVenta" class="form-select form-select-lg">
+            <option value="menudeo" selected>Menudeo</option>
+            <option value="mayoreo">Mayoreo</option>
+          </select>
+          <small class="form-text text-muted d-block mt-2">Menudeo: precios unitarios | Mayoreo: precios al por mayor</small>
+        </div>
+
+        <!-- 3. Monedero -->
+        <div class="col-md-4">
+          <label for="btnMonedero" class="form-label fw-bold">
+            <i class="fas fa-wallet"></i> Uso de monedero
+          </label>
+          <select class="form-select form-select-lg" id="btnMonedero">
+            <option value="0" selected>No monedero</option>
+            <option value="1">Compra con monedero</option>
+          </select>
+          <small class="form-text text-muted d-block mt-2">Aplicar saldo del cliente en la cotización</small>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{%endblock%}
+
+</div>
+
+{%block lastBotones%}
+<div class="card-footer">
+  <div class="row">
+    <div class="col-12">
+      <!-- Buttons Section -->
+      <div class="d-flex justify-content-center">
+        <button type="button" class="btn btn-info btn-lg px-5 mx-4" id="btnOrderList">
+          <i class="fas fa-plus mr-2"></i> Nueva Cotización
+        </button>
+        <a href="/quote/last" class="btn btn-info btn-lg px-5 mx-4">
+          <i class="fas fa-folder-open"></i> Última Cotización
+        </a>
+      </div>
+    </div>
+    <div class="col-12 mt-4">
+      <!-- Date Filter Form -->
+      <form method="get" action="{% url 'crm:quoteList' %}" class="d-flex align-items-center gap-2 justify-content-center">
+        <label for="start_date" class="me-0 fw-bold">Desde:</label>
+        <input type="date" id="start_date" name="start_date" value="{{ start_date|default_if_none:'' }}" class="form-control" style="width: 150px;">
+        
+        <label for="end_date" class="me-0 fw-bold">Hasta:</label>
+        <input type="date" id="end_date" name="end_date" value="{{ end_date|default_if_none:'' }}" class="form-control" style="width: 150px;">
+        
+        <button type="submit" class="btn btn-info">
+          <i class="fas fa-filter"></i> Filtrar
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{%endblock%}
+{% endblock %}

@@ -1,0 +1,284 @@
+{% extends 'body.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4>Placed Purchase Orders</h4>
+                    <a href="{% url 'scm:po_placed_orders' %}" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus"></i> New Order
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- Date & Status Filter -->
+                    <div class="mb-3">
+                        <form method="GET" action="{% url 'scm:po_placed_orders' %}" class="row g-3 align-items-end">
+                            <div class="col-md-2">
+                                <label for="date_from" class="form-label">From Date</label>
+                                <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="date_to" class="form-label">To Date</label>
+                                <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="status" class="form-label">Status</label>
+                                <select class="form-control" id="status" name="status">
+                                    <option value="">All Statuses</option>
+                                    <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                                    <option value="sent" {% if status_filter == 'sent' %}selected{% endif %}>Sent</option>
+                                    <option value="received" {% if status_filter == 'received' %}selected{% endif %}>Received</option>
+                                    <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-auto">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter"></i> Filter
+                                </button>
+                                <a href="{% url 'scm:po_placed_orders' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Clear
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    {% if purchase_orders %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>PO #</th>
+                                    <th>Provider</th>
+                                    <th>Status</th>
+                                    <th>Items</th>
+                                    <th>Order Date</th>
+                                    <th>Total Value</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for po in purchase_orders %}
+                                <tr>
+                                    <td><strong>#{{ po.id }}</strong></td>
+                                    <td>{{ po.provider.name }}</td>
+                                    <td>
+                                        <span class="badge badge-pill 
+                                            {% if po.status == 'approved' %}badge-info
+                                            {% elif po.status == 'sent' %}badge-warning
+                                            {% elif po.status == 'received' %}badge-success
+                                            {% endif %}">
+                                            {{ po.get_status_display|upper }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-secondary">
+                                            {{ po.items.count }} items
+                                        </span>
+                                    </td>
+                                    <td>{{ po.created_date|date:"M d, Y" }}</td>
+                                    <td class="text-end">${{ po.total_ordered_cost|floatformat:2 }}</td>
+                                    <td>
+                                        {% if po.status == 'approved' %}
+                                            <button type="button" class="btn btn-sm btn-warning" data-toggle="modal" data-target="#sendModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}" data-provider-phone="{{ po.provider.phoneNumber }}">
+                                                <i class="fas fa-paper-plane"></i> Send
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-danger" data-toggle="modal" data-target="#deleteModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        {% elif po.status == 'sent' %}
+                                            <a href="{% url 'scm:po_receive' po.id %}" class="btn btn-sm btn-info">
+                                                <i class="fas fa-download"></i> Receive
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-danger" data-toggle="modal" data-target="#deleteModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        {% elif po.status == 'received' %}
+                                            <a href="{% url 'scm:po_receive' po.id %}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-check-circle"></i> Complete
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No active purchase orders.
+                        <a href="{% url 'scm:po_create' %}" class="alert-link">Create one now</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Send Options Modal -->
+<div class="modal fade" id="sendModal" tabindex="-1" role="dialog" aria-labelledby="sendModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title" id="sendModalLabel">Send Purchase Order</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>How would you like to send PO <strong id="sendPoNumberDisplay"></strong>?</p>
+                <p><small class="text-muted">Provider: <span id="sendProviderPhoneDisplay"></span></small></p>
+                <div class="form-group">
+                    <div class="custom-control custom-radio mb-3">
+                        <input type="radio" id="pdf_only" name="send_method" class="custom-control-input" value="pdf" checked>
+                        <label class="custom-control-label" for="pdf_only">
+                            <i class="fas fa-file-pdf"></i> <strong>PDF Only</strong>
+                            <br><small class="text-muted">Generate and download PDF</small>
+                        </label>
+                    </div>
+                    <div class="custom-control custom-radio mb-3">
+                        <input type="radio" id="whatsapp_only" name="send_method" class="custom-control-input" value="whatsapp">
+                        <label class="custom-control-label" for="whatsapp_only">
+                            <i class="fab fa-whatsapp"></i> <strong>WhatsApp Only</strong>
+                            <br><small class="text-muted">Send via WhatsApp to provider</small>
+                        </label>
+                    </div>
+                    <div class="custom-control custom-radio mb-3">
+                        <input type="radio" id="both" name="send_method" class="custom-control-input" value="both">
+                        <label class="custom-control-label" for="both">
+                            <i class="fas fa-clone"></i> <strong>Both PDF & WhatsApp</strong>
+                            <br><small class="text-muted">Generate PDF and send via WhatsApp</small>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <form id="sendForm" method="POST" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="send_method" id="sendMethodInput" value="pdf">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-paper-plane"></i> Send
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">Delete Purchase Order</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> This action cannot be undone!
+                </div>
+                <p>Are you sure you want to delete PO <strong id="poNumberDisplay"></strong>?</p>
+                <p>This will also delete all associated inventory tracking units.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete PO
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Handle send modal
+$(document).ready(function() {
+    $('#sendModal').on('show.bs.modal', function(e) {
+        var button = $(e.relatedTarget);
+        var poId = button.data('po-id');
+        var poNumber = button.data('po-number');
+        var phone = button.data('provider-phone');
+        
+        $('#sendPoNumberDisplay').text(poNumber);
+        $('#sendProviderPhoneDisplay').text(phone);
+        $('#sendForm').attr('action', '/po/send/' + poId + '/');
+        
+        // Update method input when radio selection changes
+        $('input[name="send_method"]').on('change', function() {
+            $('#sendMethodInput').val($(this).val());
+        });
+    });
+    
+    // Handle form submission - close modal, send AJAX, reload page
+    $('#sendForm').on('submit', function(e) {
+        e.preventDefault();  // Prevent normal form submission
+        
+        var form = $(this);
+        var action = form.attr('action');
+        var method = $('#sendMethodInput').val();
+        
+        // Close modal immediately
+        $('#sendModal').modal('hide');
+        
+        // Send AJAX request
+        $.ajax({
+            type: 'POST',
+            url: action,
+            data: {
+                send_method: method,
+                csrfmiddlewaretoken: $('[name="csrfmiddlewaretoken"]').val()
+            },
+            xhrFields: {
+                responseType: 'blob'  // Handle binary PDF data
+            },
+            success: function(response, status, xhr) {
+                // If PDF, trigger download
+                if (method === 'pdf' || method === 'both') {
+                    var poNumber = $('#sendPoNumberDisplay').text();
+                    var blob = new Blob([response], {type: 'application/pdf'});
+                    var url = window.URL.createObjectURL(blob);
+                    var link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'PO-' + poNumber + '.pdf';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                }
+                
+                // Reload page after brief delay to ensure file starts downloading
+                setTimeout(function() {
+                    location.reload();
+                }, 500);
+            },
+            error: function(xhr, status, error) {
+                alert('Error: ' + (xhr.responseJSON?.error || error));
+                location.reload();  // Reload even on error
+            }
+        });
+        
+        return false;
+    });
+    
+    // Handle delete modal
+    $('#deleteModal').on('show.bs.modal', function(e) {
+        var button = $(e.relatedTarget);
+        var poId = button.data('po-id');
+        var poNumber = button.data('po-number');
+        
+        $('#poNumberDisplay').text(poNumber);
+        $('#deleteForm').attr('action', '/po/delete/' + poId + '/');
+    });
+});
+</script>
+{% endblock %}
+

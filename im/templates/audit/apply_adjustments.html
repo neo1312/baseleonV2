@@ -1,0 +1,135 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">{{ title }}</h1>
+
+    <div class="alert alert-info">
+        <strong>Audit #{{ audit.id }}</strong> | 
+        {{ total_adjustments }} adjustment(s) ready to apply | 
+        Auditor: {{ audit.auditor }}
+    </div>
+
+    <div class="table-responsive mb-4">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Product</th>
+                    <th class="text-center" style="width: 120px;">Quantity Change</th>
+                    <th>Reason</th>
+                    <th>Unit Cost</th>
+                    <th class="text-right" style="width: 150px;">Impact</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>
+                        <strong>{{ item.product.name }}</strong>
+                        {% if item.product.barcode %}
+                            <br><code class="small">{{ item.product.barcode }}</code>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <span {% if item.discrepancy > 0 %}class="text-success fw-bold"{% elif item.discrepancy < 0 %}class="text-danger fw-bold"{% endif %}>
+                            {% if item.discrepancy > 0 %}
+                                +{{ item.discrepancy }}
+                            {% else %}
+                                {{ item.discrepancy }}
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">{{ item.get_adjustment_reason_display }}</span>
+                    </td>
+                    <td>${{ item.product.costo|default:"0.00"|floatformat:2 }}</td>
+                    <td class="text-right">
+                        <strong {% if item.discrepancy > 0 %}class="text-success"{% elif item.discrepancy < 0 %}class="text-danger"{% endif %}>
+                            {% if item.discrepancy > 0 %}
+                                +${{ item.impact|floatformat:2 }}
+                            {% else %}
+                                -${{ item.impact_abs|floatformat:2 }}
+                            {% endif %}
+                        </strong>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card mb-4 bg-light">
+        <div class="card-header">
+            <h5 class="mb-0">Impact Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>Total Adjustments:</strong>
+                    <h5>{{ total_adjustments }}</h5>
+                </div>
+                <div class="col-md-3">
+                    <strong>Items Affected:</strong>
+                    <h5>{{ items.count }}</h5>
+                </div>
+                <div class="col-md-3">
+                    <strong>Total Value Impact:</strong>
+                    <h5 class="text-danger">
+                        ${{ total_impact|floatformat:2 }}
+                    </h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-warning">
+        <strong><i class="fas fa-exclamation-triangle"></i> Important:</strong>
+        Once you apply these adjustments, the inventory system will be updated immediately. 
+        Retired inventory items will be marked and cannot be recovered.
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="apply_adjustments" id="apply_yes" value="yes" required>
+                <label class="form-check-label" for="apply_yes">
+                    <strong>Apply all adjustments</strong>
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="apply_adjustments" id="apply_no" value="no">
+                <label class="form-check-label" for="apply_no">
+                    <strong>Skip adjustments (audit only)</strong>
+                </label>
+            </div>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <a href="{% url 'im:audit_review' audit.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+            <button type="submit" class="btn btn-danger btn-lg" id="submit_btn" disabled>
+                <i class="fas fa-check-circle"></i> Complete Audit
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const radioButtons = document.querySelectorAll('input[name="apply_adjustments"]');
+    const submitBtn = document.getElementById('submit_btn');
+
+    radioButtons.forEach(radio => {
+        radio.addEventListener('change', function() {
+            submitBtn.disabled = false;
+        });
+    });
+});
+</script>
+{% endblock %}

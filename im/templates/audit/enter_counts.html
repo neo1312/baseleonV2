@@ -1,0 +1,124 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">{{ title }}</h1>
+
+    <div class="alert alert-info">
+        <strong>Audit #{{ audit.id }}</strong> | 
+        {{ items.count }} product(s) to count | 
+        Started on {{ audit.started_at|date:"M d, Y H:i" }}
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Product</th>
+                        <th>SKU/Barcode</th>
+                        <th class="text-center" style="width: 150px;">System Count</th>
+                        <th class="text-center" style="width: 150px;">Physical Count <span class="text-danger">*</span></th>
+                        <th class="text-center" style="width: 120px;">Discrepancy</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.product.name }}</strong>
+                            {% if item.product.descripcion %}
+                                <br><small class="text-muted">{{ item.product.descripcion|truncatewords:10 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.product.barcode %}
+                                <code>{{ item.product.barcode }}</code>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <strong>{{ item.system_count }}</strong>
+                        </td>
+                        <td class="text-center">
+                            <input type="number" 
+                                   name="physical_count_{{ item.id }}" 
+                                   class="form-control text-center physical-count" 
+                                   min="0" 
+                                   value="{% if item.physical_count %}{{ item.physical_count }}{% else %}{{ item.system_count }}{% endif %}"
+                                   data-item-id="{{ item.id }}"
+                                   data-system-count="{{ item.system_count }}"
+                                   required>
+                        </td>
+                        <td class="text-center">
+                            <span class="discrepancy-display" data-item-id="{{ item.id }}">
+                                <span class="text-muted">—</span>
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <a href="{% url 'im:audit_list' %}" class="btn btn-outline-secondary">
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-arrow-right"></i> Review Discrepancies
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const inputs = document.querySelectorAll('.physical-count');
+
+    // Function to calculate and display discrepancy
+    function updateDiscrepancy(input) {
+        const itemId = input.dataset.itemId;
+        const systemCount = parseInt(input.dataset.systemCount);
+        const physicalCount = parseInt(input.value) || 0;
+        const discrepancy = physicalCount - systemCount;
+
+        const display = document.querySelector(`.discrepancy-display[data-item-id="${itemId}"]`);
+        if (display) {
+            let className = '';
+            if (discrepancy > 0) {
+                className = 'text-success';
+            } else if (discrepancy < 0) {
+                className = 'text-danger';
+            }
+            display.innerHTML = `<strong class="${className}">${discrepancy}</strong>`;
+        }
+    }
+
+    // Initialize discrepancies on page load
+    inputs.forEach(input => {
+        updateDiscrepancy(input);
+    });
+
+    // Update discrepancies on change
+    inputs.forEach(input => {
+        input.addEventListener('change', function() {
+            updateDiscrepancy(this);
+        });
+    });
+});
+</script>
+
+<style>
+    input[type="number"] {
+        font-size: 1.1rem;
+        padding: 0.5rem;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,249 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-2 px-sm-4">
+    <div class="row mb-4 align-items-center">
+        <div class="col-12 col-sm-6 mb-3 mb-sm-0">
+            <h1 class="h3 mb-0">{{ title }}</h1>
+        </div>
+        <div class="col-12 col-sm-6 text-sm-end">
+            <a href="{% url 'im:audit_start' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> <span class="d-none d-sm-inline">Iniciar Nueva</span> Auditoría
+            </a>
+        </div>
+    </div>
+
+    <!-- Status Filter - Mobile Responsive -->
+    <div class="mb-3 d-flex flex-wrap gap-2">
+        <a href="{% url 'im:audit_list' %}" class="btn btn-outline-secondary btn-sm {% if not current_status %}active{% endif %}">
+            Todos
+        </a>
+        {% for status_choice, status_label in status_choices %}
+            <a href="?status={{ status_choice }}" class="btn btn-outline-secondary btn-sm {% if current_status == status_choice %}active{% endif %}">
+                {{ status_label }}
+            </a>
+        {% endfor %}
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="card mb-3">
+        <div class="card-body p-3">
+            <form method="get" class="row g-3 align-items-end">
+                <!-- Preserve status filter if set -->
+                {% if current_status %}
+                    <input type="hidden" name="status" value="{{ current_status }}">
+                {% endif %}
+                
+                <div class="col-12 col-sm-auto">
+                    <label for="from_date" class="form-label mb-2 mb-sm-0">Desde:</label>
+                    <input type="date" id="from_date" name="from_date" class="form-control form-control-sm" value="{{ from_date }}">
+                </div>
+                
+                <div class="col-12 col-sm-auto">
+                    <label for="to_date" class="form-label mb-2 mb-sm-0">Hasta:</label>
+                    <input type="date" id="to_date" name="to_date" class="form-control form-control-sm" value="{{ to_date }}">
+                </div>
+                
+                <div class="col-12 col-sm-auto">
+                    <button type="submit" class="btn btn-sm btn-primary w-100 w-sm-auto">
+                        <i class="fas fa-filter"></i> Filtrar
+                    </button>
+                </div>
+                
+                <div class="col-12 col-sm-auto">
+                    <a href="{% url 'im:audit_list' %}" class="btn btn-sm btn-outline-secondary w-100 w-sm-auto">
+                        <i class="fas fa-redo"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Audits Table - Mobile Card View on Small Screens -->
+    <div class="d-none d-md-block table-responsive">
+        <table class="table table-hover table-sm">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th class="d-none d-lg-table-cell">Auditor</th>
+                    <th class="text-center">Productos</th>
+                    <th class="text-center">Discrepancias</th>
+                    <th class="text-end">Valor</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for audit in audits %}
+                <tr>
+                    <td><strong>#{{ audit.id }}</strong></td>
+                    <td>{{ audit.audit_date|date:"d/m/y" }}</td>
+                    <td><span class="badge bg-info">{{ audit.get_audit_type_display }}</span></td>
+                    <td>
+                        {% if audit.status == 'draft' %}
+                            <span class="badge bg-secondary">Borrador</span>
+                        {% elif audit.status == 'in_progress' %}
+                            <span class="badge bg-warning text-dark">En Progreso</span>
+                        {% elif audit.status == 'under_review' %}
+                            <span class="badge bg-info">En Revisión</span>
+                        {% elif audit.status == 'completed' %}
+                            <span class="badge bg-success">Completada</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ audit.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="d-none d-lg-table-cell small">{{ audit.auditor }}</td>
+                    <td class="text-center"><strong>{{ audit.total_items_audited }}</strong></td>
+                    <td class="text-center">
+                        {% if audit.total_discrepancies > 0 %}
+                            <span class="badge bg-danger">{{ audit.total_discrepancies }}</span>
+                        {% else %}
+                            <span class="text-muted">{{ audit.total_discrepancies }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end"><strong>${{ audit.total_adjustment_value|floatformat:0 }}</strong></td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="{% url 'im:audit_summary' audit.id %}" class="btn btn-outline-primary" title="Ver">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if audit.status == 'draft' %}
+                                <a href="{% url 'im:audit_select_products' audit.id %}" class="btn btn-outline-success" title="Continuar">
+                                    <i class="fas fa-arrow-right"></i>
+                                </a>
+                            {% endif %}
+                            {% if audit.status != 'completed' %}
+                                <button class="btn btn-outline-danger" data-toggle="modal" data-target="#deleteAuditModal{{ audit.id }}" title="Eliminar">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">
+                        No hay auditorías. <a href="{% url 'im:audit_start' %}">Comienza una ahora</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile Card View -->
+    <div class="d-md-none">
+        {% for audit in audits %}
+        <div class="card mb-3 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h6 class="card-title mb-0"><strong>Auditoría #{{ audit.id }}</strong></h6>
+                    <span class="badge bg-info">{{ audit.get_audit_type_display }}</span>
+                </div>
+                
+                <div class="row g-2 mb-3 small">
+                    <div class="col-6">
+                        <div class="text-muted">Fecha</div>
+                        <strong>{{ audit.audit_date|date:"d/m/y" }}</strong>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted">Estado</div>
+                        {% if audit.status == 'draft' %}
+                            <span class="badge bg-secondary">Borrador</span>
+                        {% elif audit.status == 'in_progress' %}
+                            <span class="badge bg-warning text-dark">En Progreso</span>
+                        {% elif audit.status == 'under_review' %}
+                            <span class="badge bg-info">En Revisión</span>
+                        {% elif audit.status == 'completed' %}
+                            <span class="badge bg-success">Completada</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-3 small">
+                    <div class="col-4">
+                        <div class="text-muted">Productos</div>
+                        <strong>{{ audit.total_items_audited }}</strong>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-muted">Discrepancias</div>
+                        {% if audit.total_discrepancies > 0 %}
+                            <span class="badge bg-danger">{{ audit.total_discrepancies }}</span>
+                        {% else %}
+                            <span class="text-muted">{{ audit.total_discrepancies }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-4">
+                        <div class="text-muted">Valor</div>
+                        <strong>${{ audit.total_adjustment_value|floatformat:0 }}</strong>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <a href="{% url 'im:audit_summary' audit.id %}" class="btn btn-sm btn-outline-primary flex-grow-1">
+                        <i class="fas fa-eye"></i> Ver
+                    </a>
+                    {% if audit.status == 'draft' %}
+                        <a href="{% url 'im:audit_select_products' audit.id %}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    {% endif %}
+                    {% if audit.status != 'completed' %}
+                        <button class="btn btn-sm btn-outline-danger" data-toggle="modal" data-target="#deleteAuditModal{{ audit.id }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="alert alert-info text-center">
+            <p class="mb-2">No hay auditorías</p>
+            <a href="{% url 'im:audit_start' %}" class="btn btn-sm btn-primary">Iniciar Auditoría</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Delete Confirmation Modals -->
+{% for audit in audits %}
+{% if audit.status != 'completed' %}
+<div class="modal fade" id="deleteAuditModal{{ audit.id }}" tabindex="-1" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Eliminar Auditoría</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea eliminar la auditoría <strong>#{{ audit.id }}</strong>?</p>
+                <p class="text-muted small mb-0">Esta acción no se puede deshacer y también eliminará todos los elementos y transacciones asociados.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <form method="post" action="{% url 'im:audit_delete' audit.id %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<style>
+    @media (max-width: 576px) {
+        .container-fluid { padding-left: 8px; padding-right: 8px; }
+        .table-sm { font-size: 0.8rem; }
+        .badge { font-size: 0.7rem; padding: 0.25rem 0.5rem; }
+    }
+</style>
+{% endblock %}

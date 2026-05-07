@@ -1,0 +1,86 @@
+{% extends 'new.html' %}
+
+{% block dateFilter %}
+<div class="card mt-3">
+    <div class="card-header bg-secondary text-white">
+        <h6><i class="fas fa-calendar-alt"></i> Filtrar por Fecha</h6>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="form-inline flex-wrap">
+            <div class="form-group mr-3 mb-2">
+                <label for="date_from" class="mr-2"><strong>Desde:</strong></label>
+                <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="form-group mr-3 mb-2">
+                <label for="date_to" class="mr-2"><strong>Hasta:</strong></label>
+                <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <button type="submit" class="btn btn-primary mb-2">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+            {% if date_from or date_to %}
+            <a href="{% url 'scm:purchasenew' %}" class="btn btn-secondary ml-2 mb-2">
+                <i class="fas fa-times"></i> Limpiar
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Purchases List (only show when filtering) -->
+{% if show_list %}
+<div class="card mt-3" id="purchasesList">
+    <div class="card-header bg-info text-white">
+        <h6><i class="fas fa-list"></i> Listado de Compras <span class="badge badge-light">{{ purchases|length }} Resultados</span></h6>
+    </div>
+    {% if purchases %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Fecha</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for purchase in purchases %}
+                <tr id="purchase-row-{{ purchase.id }}">
+                    <td><strong>#{{ purchase.id }}</strong></td>
+                    <td>{{ purchase.date_created|date:"d/m/Y H:i" }}</td>
+                    <td><span class="badge badge-info">{{ purchase.purchaseitem_set.count }}</span></td>
+                    <td><strong>${{ purchase.get_cart_total|floatformat:2 }}</strong></td>
+                    <td>
+                        <a href="{% url 'scm:purchaseEdit' purchase.id %}" class="btn btn-sm btn-primary" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{% url 'scm:purchaseDelete' purchase.id %}" class="btn btn-sm btn-danger" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card-body text-center text-muted py-4">
+        <i class="fas fa-box-open fa-2x mb-2"></i>
+        <p>No hay compras en este rango de fechas</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+// Removed: Modal and ready-to-sale button functionality
+// Items are now automatically marked as ready_to_sale when PO is completed
+</script>
+
+{% endblock %}
+
+
+
+

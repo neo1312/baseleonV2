@@ -1,0 +1,103 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-2 px-sm-4">
+    <h1 class="h3 mb-4">{{ title }}</h1>
+
+    <div class="row">
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Nueva Auditoría de Inventario</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="audit_type" class="form-label">Tipo de Auditoría <span class="text-danger">*</span></label>
+                            <select class="form-select" id="audit_type" name="audit_type" required>
+                                <option value="">-- Selecciona Tipo de Auditoría --</option>
+                                {% for value, label in audit_types %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted d-block mt-2">
+                                <strong>Aleatoria (20):</strong> Contar 20 productos al azar<br>
+                                <strong>Aleatoria (Custom):</strong> Contar N productos al azar<br>
+                                <strong>Completa:</strong> Contar todos los productos<br>
+                                <strong>Por Categoría:</strong> Contar por categoría<br>
+                                <strong>Manual:</strong> Seleccionar productos específicos
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="auditor" class="form-label">Nombre del Auditor</label>
+                            <input type="text" class="form-control" id="auditor" name="auditor" 
+                                   placeholder="Dejar en blanco para usar usuario actual" value="{{ request.user }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notas</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"
+                                      placeholder="Razón de la auditoría, áreas a enfocarse, etc."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-play"></i> Iniciar Auditoría
+                            </button>
+                            <a href="{% url 'im:audit_list' %}" class="btn btn-outline-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6 mb-4">
+            <div class="card bg-light shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Proceso de Auditoría</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0 ps-3">
+                        <li><strong>Iniciar:</strong> Selecciona tipo de auditoría y auditor</li>
+                        <li><strong>Seleccionar Productos:</strong> Elige qué productos contar</li>
+                        <li><strong>Ingresar Conteos:</strong> Registra conteos físicos del inventario</li>
+                        <li><strong>Revisar Discrepancias:</strong> Aprueba o rechaza ajustes</li>
+                        <li><strong>Aplicar Ajustes:</strong> Actualiza el sistema de inventario</li>
+                        <li><strong>Ver Resumen:</strong> Consulta resultados de la auditoría</li>
+                    </ol>
+
+                    <hr class="my-3">
+
+                    <h6 class="mt-3">¿Por qué Auditar?</h6>
+                    <ul class="small mb-0 ps-3">
+                        <li>Detectar robos, daños o pérdidas</li>
+                        <li>Verificar precisión del sistema</li>
+                        <li>Reconciliar discrepancias</li>
+                        <li>Seguimiento de pérdidas por merma</li>
+                        <li>Mantener integridad del inventario</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media (max-width: 576px) {
+        .container-fluid { padding-left: 8px; padding-right: 8px; }
+        .card { margin-bottom: 1.5rem; }
+        .card-body { padding: 1rem; }
+        .form-label { font-size: 0.95rem; font-weight: 600; }
+        .form-text { font-size: 0.8rem; }
+        ol, ul { margin-bottom: 0; }
+    }
+</style>
+{% endblock %}

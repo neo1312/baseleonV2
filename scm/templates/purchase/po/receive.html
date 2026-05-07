@@ -1,0 +1,359 @@
+{% extends 'create.html' %}
+{% load scm_filters %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>Receive Purchase Order #{{ po.id }}</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="alert alert-info">
+                            <strong>Provider:</strong> {{ po.provider.name }}<br>
+                            <strong>Status:</strong> <span class="badge badge-pill badge-info">{{ po.get_status_display|upper }}</span>
+                        </div>
+
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Product</th>
+                                        <th class="text-center">SKU</th>
+                                        <th class="text-center">Ordered Qty</th>
+                                        <th class="text-center">Received Qty</th>
+                                        <th class="text-center">Ordered Cost/Unit</th>
+                                        <th class="text-center">Received Cost/Unit</th>
+                                        <th class="text-end">Line Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in po.items.all %}
+                                    <tr data-item-id="{{ item.id }}">
+                                        <td>
+                                            <small><strong>{{ item.product.full_name }}</strong></small>
+                                        </td>
+                                        <td class="text-center"><small>{{ item.product|get_provider_pv1:po.provider }}</small></td>
+                                        <td class="text-center">
+                                            <strong>{{ item.ordered_quantity }}</strong>
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="number" 
+                                                   name="received_qty_{{ item.id }}" 
+                                                   class="form-control form-control-sm received-qty-input" 
+                                                   value="{% if item.received_quantity %}{{ item.received_quantity }}{% else %}{{ item.ordered_quantity }}{% endif %}" 
+                                                   min="0" 
+                                                   step="1"
+                                                   data-item-id="{{ item.id }}"
+                                                   onchange="updateLineTotal(this)">
+                                        </td>
+                                        <td class="text-end">
+                                            <strong>${{ item.ordered_cost_per_unit|floatformat:2 }}</strong>
+                                        </td>
+                                        <td class="text-end">
+                                            <input type="number" 
+                                                   name="received_cost_{{ item.id }}" 
+                                                   class="form-control form-control-sm received-cost-input" 
+                                                   value="{% if item.received_cost_per_unit %}{{ item.received_cost_per_unit|floatformat:2 }}{% else %}{{ item.ordered_cost_per_unit|floatformat:2 }}{% endif %}" 
+                                                   min="0" 
+                                                   step="0.01"
+                                                   data-item-id="{{ item.id }}"
+                                                   onchange="updateLineTotal(this)">
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="line-total fw-bold" data-item-id="{{ item.id }}">
+                                                $0.00
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr class="table-active">
+                                        <td colspan="6" class="text-end"><strong>ORDER TOTAL:</strong></td>
+                                        <td class="text-end">
+                                            <strong class="h5" id="order-total">$0.00</strong>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="notes">Notes (optional):</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                      placeholder="Any notes about the receipt..."></textarea>
+                        </div>
+
+                        <div class="mt-4">
+                            <input type="hidden" id="action-field" name="action" value="">
+                            
+                            {% if po.status == 'sent' %}
+                                <button type="button" class="btn btn-success btn-lg" data-toggle="modal" data-target="#confirmReceiveModal">
+                                    <i class="fas fa-check"></i> Mark as Received
+                                </button>
+                            {% elif po.status == 'received' %}
+                                <button type="button" class="btn btn-success btn-lg" data-toggle="modal" data-target="#confirmCompleteModal">
+                                    <i class="fas fa-check-double"></i> Confirm & Complete Order (Create Purchase)
+                                </button>
+                                <button type="submit" name="action" value="receive" class="btn btn-warning btn-lg">
+                                    <i class="fas fa-edit"></i> Edit & Re-Mark as Received
+                                </button>
+                            {% else %}
+                                <div class="alert alert-danger">
+                                    <strong>Workflow Error:</strong> This PO cannot be received from its current status ({{ po.get_status_display }}).
+                                    Please send it first using the Placed Orders page.
+                                </div>
+                            {% endif %}
+                            
+                            <a href="{% url 'scm:po_placed_orders' %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal: Mark as Received -->
+<div class="modal fade" id="confirmReceiveModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">Confirm Receipt of Purchase Order</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <strong>PO #{{ po.id }}</strong> from <strong>{{ po.provider.name }}</strong>
+                </div>
+                <p><strong>Review the received quantities and costs below:</strong></p>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end">Cost/Unit</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="confirmReceiveTable">
+                            {% for item in po.items.all %}
+                            <tr data-item-id="{{ item.id }}">
+                                <td><small>{{ item.product.full_name }}</small></td>
+                                <td class="text-center modal-qty">-</td>
+                                <td class="text-end modal-cost">-</td>
+                                <td class="text-end"><span class="modal-line-total">$0.00</span></td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-active">
+                                <td colspan="3" class="text-end"><strong>TOTAL:</strong></td>
+                                <td class="text-end"><strong id="modal-order-total">$0.00</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-info-circle"></i> After confirming receipt, the order will be marked as "Received" and inventory items will be created and ready for sale.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success btn-lg" onclick="submitForm('receive')">
+                    <i class="fas fa-check"></i> Confirm Receipt
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal: Complete Order -->
+<div class="modal fade" id="confirmCompleteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Complete Purchase Order & Create Purchase</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-success">
+                    <strong>PO #{{ po.id }}</strong> from <strong>{{ po.provider.name }}</strong>
+                </div>
+                <p><strong>Ready to complete? This will:</strong></p>
+                <ul>
+                    <li>✅ Create a Purchase record for accounting</li>
+                    <li>✅ Generate InventoryUnits with individual tracking IDs</li>
+                    <li>✅ Mark all items ready for sale</li>
+                    <li>✅ Close this purchase order</li>
+                </ul>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th class="text-center">Units</th>
+                                <th class="text-end">Cost/Unit</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="confirmCompleteTable">
+                            {% for item in po.items.all %}
+                            <tr data-item-id="{{ item.id }}">
+                                <td><small>{{ item.product.full_name }}</small></td>
+                                <td class="text-center modal-qty">-</td>
+                                <td class="text-end modal-cost">-</td>
+                                <td class="text-end"><span class="modal-line-total">$0.00</span></td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-active">
+                                <td colspan="3" class="text-end"><strong>TOTAL:</strong></td>
+                                <td class="text-end"><strong id="complete-order-total">$0.00</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success btn-lg" onclick="submitForm('complete')">
+                    <i class="fas fa-check-double"></i> Complete Order & Create Purchase
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Populate modal data from form inputs when modal is shown
+document.addEventListener('DOMContentLoaded', function() {
+    const receiveModal = document.getElementById('confirmReceiveModal');
+    const completeModal = document.getElementById('confirmCompleteModal');
+    
+    if (receiveModal) {
+        $(receiveModal).on('show.bs.modal', function() {
+            populateModalFromForm('confirmReceiveTable');
+        });
+    }
+    
+    if (completeModal) {
+        $(completeModal).on('show.bs.modal', function() {
+            populateModalFromForm('confirmCompleteTable');
+        });
+    }
+});
+
+// Submit the main form with the specified action
+function submitForm(action) {
+    const actionField = document.getElementById('action-field');
+    if (actionField) {
+        actionField.value = action;
+    }
+    
+    // Find and submit the main form
+    const form = document.querySelector('form[method="post"]');
+    if (form) {
+        form.submit();
+    }
+}
+
+function updateLineTotal(input) {
+    const itemId = input.dataset.itemId;
+    const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
+    if (!row) return;
+    
+    const qtyInput = row.querySelector(`input[name="received_qty_${itemId}"]`);
+    const costInput = row.querySelector(`input[name="received_cost_${itemId}"]`);
+    
+    if (qtyInput && costInput) {
+        const qty = parseFloat(qtyInput.value) || 0;
+        const cost = parseFloat(costInput.value) || 0;
+        const lineTotal = qty * cost;
+        
+        // Update line total display
+        const lineTotalElement = row.querySelector('.line-total');
+        if (lineTotalElement) {
+            lineTotalElement.textContent = '$' + lineTotal.toFixed(2);
+        }
+    }
+    
+    // Recalculate order total
+    updateOrderTotal();
+}
+
+function updateOrderTotal() {
+    let total = 0;
+    document.querySelectorAll('tr[data-item-id]').forEach(row => {
+        const lineTotalElement = row.querySelector('.line-total');
+        if (lineTotalElement) {
+            const text = lineTotalElement.textContent.replace('$', '');
+            total += parseFloat(text) || 0;
+        }
+    });
+    
+    const totalElement = document.getElementById('order-total');
+    if (totalElement) {
+        totalElement.textContent = '$' + total.toFixed(2);
+    }
+}
+
+function populateModalFromForm(tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    
+    let total = 0;
+    const rows = table.querySelectorAll('tbody tr[data-item-id]');
+    
+    rows.forEach(row => {
+        const itemId = row.dataset.itemId;
+        
+        // Get values from form inputs
+        const qtyInput = document.querySelector(`input[name="received_qty_${itemId}"]`);
+        const costInput = document.querySelector(`input[name="received_cost_${itemId}"]`);
+        
+        if (qtyInput && costInput) {
+            const qty = parseFloat(qtyInput.value) || 0;
+            const cost = parseFloat(costInput.value) || 0;
+            const lineTotal = qty * cost;
+            
+            // Update modal row
+            row.querySelector('.modal-qty').textContent = qty;
+            row.querySelector('.modal-cost').textContent = '$' + cost.toFixed(2);
+            row.querySelector('.modal-line-total').textContent = '$' + lineTotal.toFixed(2);
+            
+            total += lineTotal;
+        }
+    });
+    
+    // Update total
+    const totalId = tableId === 'confirmReceiveTable' ? 'modal-order-total' : 'complete-order-total';
+    const totalElement = document.getElementById(totalId);
+    if (totalElement) {
+        totalElement.textContent = '$' + total.toFixed(2);
+    }
+}
+
+// Initialize line totals on page load
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('tr[data-item-id]').forEach(row => {
+        updateLineTotal(row.querySelector('.received-qty-input'));
+    });
+});
+</script>
+
+<style>
+.line-total {
+    min-width: 80px;
+    display: inline-block;
+}
+
+.received-qty-input,
+.received-cost-input {
+    text-align: right;
+}
+</style>
+{% endblock %}

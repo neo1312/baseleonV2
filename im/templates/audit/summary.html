@@ -1,0 +1,267 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 gap-2">
+        <h1>{{ title }}</h1>
+        <div class="d-flex gap-2">
+            {% if audit.status != 'completed' %}
+            <button class="btn btn-outline-danger" data-toggle="modal" data-target="#deleteAuditModal" title="Eliminar">
+                <i class="fas fa-trash"></i> <span class="d-none d-sm-inline">Eliminar</span>
+            </button>
+            {% endif %}
+            <a href="{% url 'im:audit_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-list"></i> <span class="d-none d-sm-inline">Volver</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Audit Info -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Audit Details</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Type:</strong> <span class="badge bg-info">{{ audit.get_audit_type_display }}</span></p>
+                    <p><strong>Status:</strong> 
+                        {% if audit.status == 'completed' %}
+                            <span class="badge bg-success">Completed</span>
+                        {% else %}
+                            <span class="badge bg-{{ audit.status }}">{{ audit.get_status_display }}</span>
+                        {% endif %}
+                    </p>
+                    <p><strong>Auditor:</strong> {{ audit.auditor }}</p>
+                    {% if audit.reviewed_by %}<p><strong>Reviewed by:</strong> {{ audit.reviewed_by }}</p>{% endif %}
+                    <p><strong>Date:</strong> {{ audit.audit_date|date:"M d, Y" }}</p>
+                    {% if audit.notes %}<p><strong>Notes:</strong> {{ audit.notes }}</p>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Quick Stats</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col">
+                            <h6 class="text-muted">Total Items</h6>
+                            <h3>{{ audit.total_items_audited }}</h3>
+                        </div>
+                        <div class="col">
+                            <h6 class="text-muted">Discrepancies</h6>
+                            <h3 class="text-danger">{{ audit.total_discrepancies }}</h3>
+                        </div>
+                        <div class="col">
+                            <h6 class="text-muted">Total Impact</h6>
+                            <h3 class="text-warning">${{ audit.total_adjustment_value|floatformat:2 }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discrepancy Breakdown -->
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Discrepancy Summary</h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        <strong>Over Count (Surplus):</strong>
+                        <span class="badge bg-success fs-6">+{{ positive_discrepancies }}</span>
+                    </p>
+                    <p class="mb-0">
+                        <strong>Under Count (Shortage):</strong>
+                        <span class="badge bg-danger fs-6">{{ negative_discrepancies }}</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Reasons for Discrepancies</h5>
+                </div>
+                <div class="card-body">
+                    {% if by_reason %}
+                        {% for reason, count in by_reason.items %}
+                            <p class="mb-2">
+                                <strong>{{ reason }}:</strong>
+                                <span class="badge bg-info">{{ count }}</span>
+                            </p>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No discrepancies recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Items -->
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Audit Items</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Product</th>
+                        <th class="text-center" style="width: 100px;">System</th>
+                        <th class="text-center" style="width: 100px;">Physical</th>
+                        <th class="text-center" style="width: 100px;">Discrepancy</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.product.name }}</strong>
+                            {% if item.product.barcode %}
+                                <br><code class="small">{{ item.product.barcode }}</code>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ item.system_count }}</td>
+                        <td class="text-center">{{ item.physical_count }}</td>
+                        <td class="text-center">
+                            <span {% if item.discrepancy > 0 %}class="text-success fw-bold"{% elif item.discrepancy < 0 %}class="text-danger fw-bold"{% else %}class="text-muted"{% endif %}>
+                                {% if item.discrepancy > 0 %}
+                                    +{{ item.discrepancy }}
+                                {% elif item.discrepancy < 0 %}
+                                    {{ item.discrepancy }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if item.adjustment_reason %}
+                                <span class="badge bg-secondary">{{ item.get_adjustment_reason_display }}</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.adjustment_status == 'approved' %}
+                                <span class="badge bg-success">Approved</span>
+                            {% elif item.adjustment_status == 'applied' %}
+                                <span class="badge bg-info">Applied</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ item.get_adjustment_status_display }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No items in this audit.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Adjustments Applied -->
+    {% if adjustments %}
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Adjustments Applied</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Product</th>
+                        <th class="text-center" style="width: 100px;">Qty</th>
+                        <th class="text-center" style="width: 120px;">Unit Cost</th>
+                        <th class="text-center" style="width: 120px;">Total Value</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Applied At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adj in adjustments %}
+                    <tr>
+                        <td><strong>{{ adj.product.name }}</strong></td>
+                        <td class="text-center">
+                            <span {% if adj.quantity_adjusted > 0 %}class="text-success"{% else %}class="text-danger"{% endif %}>
+                                {% if adj.quantity_adjusted > 0 %}+{% endif %}{{ adj.quantity_adjusted }}
+                            </span>
+                        </td>
+                        <td class="text-center">${{ adj.unit_cost|floatformat:2 }}</td>
+                        <td class="text-center">
+                            <strong class="{% if adj.quantity_adjusted > 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ adj.total_value|floatformat:2 }}
+                            </strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ adj.get_adjustment_reason_display }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ adj.status }}">{{ adj.get_status_display }}</span>
+                        </td>
+                        <td>{{ adj.applied_at|date:"M d, Y H:i"|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+{% if audit.status != 'completed' %}
+<div class="modal fade" id="deleteAuditModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Eliminar Auditoría</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea eliminar la auditoría <strong>#{{ audit.id }}</strong>?</p>
+                <p class="text-muted small mb-0">Esta acción no se puede deshacer y también eliminará todos los elementos y transacciones asociados.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <form method="post" action="{% url 'im:audit_delete' audit.id %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+    .badge {
+        font-size: 0.85rem;
+        padding: 0.35rem 0.65rem;
+    }
+    .badge.fs-6 {
+        font-size: 1rem !important;
+        padding: 0.5rem 0.75rem;
+    }
+</style>
+{% endblock %}

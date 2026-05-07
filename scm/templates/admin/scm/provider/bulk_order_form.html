@@ -1,0 +1,151 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block title %}Create Purchase Order{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .bulk-order-form {
+        max-width: 1200px;
+        margin: 20px auto;
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .form-section {
+        margin-bottom: 30px;
+    }
+    .form-section h2 {
+        border-bottom: 2px solid #eaeaea;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+        color: #333;
+    }
+    .provider-select {
+        width: 100%;
+        max-width: 400px;
+        padding: 8px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .product-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    .product-table th {
+        background: #f8f8f8;
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+        font-weight: 600;
+    }
+    .product-table td {
+        border: 1px solid #ddd;
+        padding: 10px;
+    }
+    .product-table tr:nth-child(even) {
+        background: #fafafa;
+    }
+    .qty-input {
+        width: 80px;
+        padding: 6px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .button-group {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+    }
+    .submit-btn {
+        background: #417690;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+    .submit-btn:hover {
+        background: #205067;
+    }
+    .cancel-btn {
+        background: #999;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .cancel-btn:hover {
+        background: #777;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bulk-order-form">
+    <h1>📦 Create Purchase Order</h1>
+    
+    <form method="post" action="">
+        {% csrf_token %}
+        
+        <div class="form-section">
+            <h2>Provider Selection</h2>
+            <label for="provider_id">Select Provider:</label>
+            <select name="provider_id" id="provider_id" class="provider-select" required>
+                <option value="">-- Choose a Provider --</option>
+                {% for provider in providers %}
+                    <option value="{{ provider.id }}">{{ provider.name }} ({{ provider.phoneNumber }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-section">
+            <h2>Order Items</h2>
+            <p>Enter quantities for products you want to order. Leave blank or 0 to skip.</p>
+            <table class="product-table">
+                <thead>
+                    <tr>
+                        <th>Product ID</th>
+                        <th>Product Name</th>
+                        <th>Category</th>
+                        <th>Current Cost</th>
+                        <th>Quantity to Order</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ product.id }}</td>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.category.name|default:"N/A" }}</td>
+                        <td>${{ product.costo }}</td>
+                        <td>
+                            <input 
+                                type="number" 
+                                name="qty_{{ product.id }}" 
+                                class="qty-input"
+                                min="0"
+                                step="1"
+                                placeholder="0"
+                            />
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="button-group">
+            <button type="submit" name="apply" class="submit-btn">✓ Create Purchase Order</button>
+            <a href="/admin/" class="cancel-btn">✕ Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

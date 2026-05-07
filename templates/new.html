@@ -1,0 +1,32 @@
+{% extends 'body.html' %}
+{%load static%}
+
+{%block head%}
+<script type="text/javascript" src= {{url_js}}></script>
+{%endblock%}
+
+{% block content %}
+
+<div class="card-body bg-white">
+{%block botones%}
+{%endblock%}
+
+<div class="card-footer bg-light mt-3 border-top">
+<a href="{{url_create}}" class="btn btn-primary btn-md font-weight-bold" id="{{btnId}}">
+<i class="fas fa-plus mr-2"></i> Nuevo {{newBtn}}</a>
+{%block ventasMayoreo%}
+{%endblock%}
+</div>
+</div>
+
+{%block lastBotones%}
+{%endblock%}
+
+
+{%block dateFilter%}
+{%endblock%}
+
+{% endblock %}
+
+{%block javascrip%}
+{%endblock%}

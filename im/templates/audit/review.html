@@ -1,0 +1,113 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">{{ title }}</h1>
+
+    <div class="alert alert-warning">
+        <strong>Audit #{{ audit.id }}</strong> | 
+        {{ items.count }} discrepancies found | 
+        Auditor: {{ audit.auditor }}
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Product</th>
+                        <th class="text-center" style="width: 100px;">System</th>
+                        <th class="text-center" style="width: 100px;">Physical</th>
+                        <th class="text-center" style="width: 100px;">Discrepancy</th>
+                        <th style="width: 200px;">Adjustment Reason <span class="text-danger">*</span></th>
+                        <th style="width: 200px;">Notes</th>
+                        <th style="width: 100px;">Approve?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.product.name }}</strong>
+                            {% if item.product.barcode %}
+                                <br><code class="small">{{ item.product.barcode }}</code>
+                            {% endif %}
+                        </td>
+                        <td class="text-center"><strong>{{ item.system_count }}</strong></td>
+                        <td class="text-center"><strong>{{ item.physical_count }}</strong></td>
+                        <td class="text-center">
+                            <span {% if item.discrepancy > 0 %}class="text-success fw-bold"{% elif item.discrepancy < 0 %}class="text-danger fw-bold"{% endif %}>
+                                {% if item.discrepancy > 0 %}
+                                    +{{ item.discrepancy }}
+                                {% else %}
+                                    {{ item.discrepancy }}
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm" 
+                                    name="adjustment_reason_{{ item.id }}" 
+                                    required>
+                                <option value="">-- Select Reason --</option>
+                                {% for value, label in adjustment_reasons %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <textarea class="form-control form-control-sm" 
+                                      name="notes_{{ item.id }}" 
+                                      rows="2"
+                                      placeholder="Additional notes..."></textarea>
+                        </td>
+                        <td class="text-center">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       class="form-check-input" 
+                                       name="approved_{{ item.id }}" 
+                                       id="approve_{{ item.id }}"
+                                       value="on"
+                                       style="width: 2rem; height: 2rem;">
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="alert alert-info mt-3">
+            <strong>Tips:</strong>
+            <ul class="mb-0 small">
+                <li>Select a reason for each discrepancy (damaged, stolen, expired, etc.)</li>
+                <li>Add notes if there's a specific explanation</li>
+                <li>Check the checkbox to approve the adjustment</li>
+                <li>Approved adjustments will update the inventory system</li>
+            </ul>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <a href="{% url 'im:audit_enter_counts' audit.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-check"></i> Approve & Continue
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .form-select-sm {
+        font-size: 0.875rem;
+    }
+    .form-control-sm {
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends 'create.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4><i class="fab fa-whatsapp"></i> Test WhatsApp Integration</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Configuration Status -->
+                    <div class="alert alert-info">
+                        <h6>🔐 Twilio Configuration Status</h6>
+                        <ul class="mb-0">
+                            <li>Account SID: <strong>{% if account_sid_set %}✓ Set{% else %}✗ Not set{% endif %}</strong></li>
+                            <li>Auth Token: <strong>{% if auth_token_set %}✓ Set{% else %}✗ Not set{% endif %}</strong></li>
+                            <li>From Number: <strong>{% if from_number %}{{ from_number }}{% else %}✗ Not set{% endif %}</strong></li>
+                        </ul>
+                    </div>
+
+                    {% if not account_sid_set or not auth_token_set or not from_number %}
+                    <div class="alert alert-warning">
+                        <strong>⚠️ WhatsApp Not Fully Configured</strong>
+                        <p>To enable WhatsApp delivery, set these environment variables:</p>
+                        <pre><code>WHATSAPP_ACCOUNT_SID=your_account_sid
+WHATSAPP_AUTH_TOKEN=your_auth_token
+WHATSAPP_FROM_NUMBER=whatsapp:+1234567890</code></pre>
+                    </div>
+                    {% endif %}
+
+                    <!-- Test Form -->
+                    <form method="POST" class="mt-4">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="po_id"><strong>Select Purchase Order:</strong></label>
+                            <select name="po_id" id="po_id" class="form-control" required>
+                                <option value="">-- Choose a PO --</option>
+                                {% for po in purchase_orders %}
+                                <option value="{{ po.id }}">
+                                    PO #{{ po.po_number }} - {{ po.provider.name }} ({{ po.get_status_display }})
+                                    {% if po.provider.phoneNumber %}
+                                        [{{ po.provider.phoneNumber }}]
+                                    {% else %}
+                                        [NO PHONE]
+                                    {% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if not purchase_orders %}
+                            <div class="alert alert-warning mt-2">No purchase orders found</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group">
+                            <label><strong>Test Method:</strong></label>
+                            <div class="custom-control custom-radio">
+                                <input type="radio" id="pdf" name="send_method" class="custom-control-input" value="pdf">
+                                <label class="custom-control-label" for="pdf">
+                                    <i class="fas fa-file-pdf"></i> PDF Only (test PDF generation)
+                                </label>
+                            </div>
+                            <div class="custom-control custom-radio">
+                                <input type="radio" id="whatsapp" name="send_method" class="custom-control-input" value="whatsapp" checked>
+                                <label class="custom-control-label" for="whatsapp">
+                                    <i class="fab fa-whatsapp"></i> WhatsApp Only (test message sending)
+                                </label>
+                            </div>
+                            <div class="custom-control custom-radio">
+                                <input type="radio" id="both" name="send_method" class="custom-control-input" value="both">
+                                <label class="custom-control-label" for="both">
+                                    <i class="fas fa-clone"></i> Both PDF & WhatsApp
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <i class="fas fa-flask"></i> Test Now
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Messages -->
+                    {% if messages %}
+                    <div class="mt-4">
+                        {% for message in messages %}
+                        <div class="alert alert-{% if 'Error' in message.tags or '✗' in message.tags %}danger{% elif '✓' in message.tags %}success{% else %}info{% endif %} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="close" data-dismiss="alert">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Help Section -->
+                    <div class="card mt-4 bg-light">
+                        <div class="card-header">
+                            <h6>📝 Debugging Guide</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>If WhatsApp not configured:</strong> Check environment variables in your .env file</p>
+                            <p><strong>If phone number error:</strong> Make sure provider has a phone number set in Admin</p>
+                            <p><strong>Phone format accepted:</strong></p>
+                            <ul>
+                                <li>+52 7751234567 (with country code)</li>
+                                <li>7751234567 (without country code, assumes Mexico +52)</li>
+                                <li>01234567 (with leading 0, will be stripped)</li>
+                            </ul>
+                            <p><strong>Verify via logs:</strong> Run: <code>python manage.py test_whatsapp --po-id={id}</code></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

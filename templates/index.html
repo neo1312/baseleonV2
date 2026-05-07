@@ -1,0 +1,163 @@
+{% extends 'home.html' %}
+{% load static %}
+{% load role_tags %}
+
+{% block head %}
+<style>
+    .dashboard-container {
+        background: linear-gradient(135deg, #F5F5DC 0%, #E8DCC8 100%);
+        min-height: 100vh;
+        padding-top: 20px;
+    }
+    
+    .welcome-section {
+        background: white;
+        border-radius: 10px;
+        padding: 40px;
+        margin-bottom: 40px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .welcome-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #DC143C;
+        margin-bottom: 10px;
+    }
+    
+    .welcome-subtitle {
+        font-size: 1.1rem;
+        color: #666;
+    }
+    
+    .menu-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .menu-card {
+        background: white;
+        border-radius: 10px;
+        padding: 30px;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: inherit;
+        border-top: 4px solid #ddd;
+    }
+    
+    .menu-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .menu-card.sales { border-top-color: #DC143C; }
+    .menu-card.quotes { border-top-color: #B8221C; }
+    .menu-card.devolutions { border-top-color: #8B1414; }
+    .menu-card.products { border-top-color: #D84E4E; }
+    .menu-card.clients { border-top-color: #C41C38; }
+    .menu-card.purchases { border-top-color: #A61E2C; }
+    .menu-card.providers { border-top-color: #8B0000; }
+    .menu-card.categories { border-top-color: #CA1B31; }
+    .menu-card.reports { border-top-color: #DC143C; }
+    .menu-card.audit { border-top-color: #4169E1; }
+    
+    .menu-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        display: block;
+    }
+    
+    .menu-card.sales .menu-icon { color: #DC143C; }
+    .menu-card.quotes .menu-icon { color: #B8221C; }
+    .menu-card.devolutions .menu-icon { color: #8B1414; }
+    .menu-card.products .menu-icon { color: #D84E4E; }
+    .menu-card.clients .menu-icon { color: #C41C38; }
+    .menu-card.purchases .menu-icon { color: #A61E2C; }
+    .menu-card.providers .menu-icon { color: #8B0000; }
+    .menu-card.categories .menu-icon { color: #CA1B31; }
+    .menu-card.reports .menu-icon { color: #DC143C; }
+    .menu-card.audit .menu-icon { color: #4169E1; }
+    
+    .menu-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    
+    .menu-description {
+        font-size: 0.9rem;
+        color: #999;
+    }
+    
+    .container-full {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<body class="dashboard-container">
+    <div class="wrapper">
+        {% include 'header.html' %}
+        
+        <div class="content-wrapper" style="background-color: transparent;">
+            <div class="content pt-4">
+                <div class="container-full">
+                    <!-- Welcome Section -->
+                    <div class="welcome-section">
+                        <h1 class="welcome-title">
+                            <i class="fas fa-hammer mr-3"></i>Bienvenido, {{ request.user.username }}
+                        </h1>
+                        <p class="welcome-subtitle">
+                            {% if request.user|user_role %}
+                                Panel de {{ request.user|user_role }}
+                            {% else %}
+                                Sistema de Gestión de Ferretería León
+                            {% endif %}
+                        </p>
+                        <hr class="my-3">
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Selecciona una opción del menú a continuación para comenzar
+                        </p>
+                    </div>
+                    
+                    <!-- Dynamic Dashboard based on Role -->
+                    {% if user_dashboard %}
+                        {% for section in user_dashboard.cards %}
+                            <h3 class="text-white font-weight-bold mb-3 mt-4">
+                                <i class="fas fa-arrow-right mr-2"></i>{{ section.category }}
+                            </h3>
+                            <div class="menu-grid">
+                                {% for item in section.items %}
+                                    <a href="{{ item.url }}" class="menu-card" style="border-top-color: {{ item.color }};">
+                                        <span class="menu-icon" style="color: {{ item.color }}; font-size: 2rem;">{{ item.icon }}</span>
+                                        <div class="menu-title">{{ item.title }}</div>
+                                        <div class="menu-description">{{ item.description }}</div>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            No role assigned. Please contact an administrator.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        {% include 'footer.html' %}
+    </div>
+</body>
+{% endblock %}

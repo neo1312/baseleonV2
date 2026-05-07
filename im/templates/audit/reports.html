@@ -1,0 +1,438 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-2 px-sm-4">
+    <div class="row mb-4 align-items-center">
+        <div class="col-12 col-sm-6 mb-3 mb-sm-0">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-chart-line text-primary mr-2"></i>{{ title }}
+            </h1>
+        </div>
+        <div class="col-12 col-sm-6 text-sm-end">
+            <div class="d-flex flex-wrap gap-2 justify-content-end">
+                {% for days in days_options %}
+                    <a href="?days={{ days }}" class="btn btn-sm {% if days|add:0 == days_back|add:0 %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                        {{ days }} días
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Cards - Profit Breakdown -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Ganancia en Ventas</p>
+                            <h3 class="mb-0 text-success">${{ sales_profit|floatformat:2 }}</h3>
+                        </div>
+                        <i class="fas fa-shopping-cart text-success fa-2x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Impacto de Auditoría</p>
+                            <h3 class="mb-0 {% if audit_profit >= 0 %}text-success{% else %}text-danger{% endif %}">${{ audit_profit|floatformat:2 }}</h3>
+                        </div>
+                        <i class="fas fa-magnifying-glass {% if audit_profit >= 0 %}text-success{% else %}text-danger{% endif %} fa-2x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Pérdidas por Devoluciones</p>
+                            <h3 class="mb-0 text-danger">${{ devolution_loss|floatformat:2 }}</h3>
+                        </div>
+                        <i class="fas fa-reply text-danger fa-2x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Total Neto</p>
+                            <h3 class="mb-0 {% if total_impact >= 0 %}text-success{% else %}text-danger{% endif %}">${{ total_impact|floatformat:2 }}</h3>
+                        </div>
+                        <i class="fas fa-chart-line {% if total_impact >= 0 %}text-success{% else %}text-danger{% endif %} fa-2x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Original Audit Metrics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Auditorías Completadas</p>
+                            <h3 class="mb-0">{{ total_audits }}</h3>
+                        </div>
+                        <i class="fas fa-clipboard-check text-primary fa-2x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Productos Auditados</p>
+                            <h3 class="mb-0">{{ total_items_audited }}</h3>
+                        </div>
+                        <i class="fas fa-boxes text-success fa-2x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Discrepancias Encontradas</p>
+                            <h3 class="mb-0 text-danger">{{ total_discrepancies }}</h3>
+                            <small class="text-muted">{{ avg_discrepancy_rate|floatformat:1 }}% de tasa</small>
+                        </div>
+                        <i class="fas fa-exclamation-triangle text-danger fa-2x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Impacto de Ajuste</p>
+                            <h3 class="mb-0 text-warning">${{ total_value|floatformat:2 }}</h3>
+                        </div>
+                        <i class="fas fa-balance-scale text-warning fa-2x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-3 mb-4">
+        <!-- Trend Chart -->
+        <div class="col-12 col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-bottom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line text-primary mr-2"></i>Tendencia de Discrepancias
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reason Distribution Chart -->
+        <div class="col-12 col-lg-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-bottom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-pie-chart text-info mr-2"></i>Razones de Descrepancias
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="reasonChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Second Row Charts -->
+    <div class="row g-3 mb-4">
+        <!-- Impact by Reason -->
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-bottom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar text-warning mr-2"></i>Impacto Financiero por Razón
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="impactChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Problem Products -->
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-bottom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list text-danger mr-2"></i>Top 10 Productos con Problemas
+                    </h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% if problem_products %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <tbody>
+                                    {% for product in problem_products %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ product.product__name }}</strong>
+                                            {% if product.product__barcode %}
+                                                <br><code class="small">{{ product.product__barcode }}</code>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="badge bg-danger">{{ product.discrepancy_count }} vez(ces)</span>
+                                            <br>
+                                            <small class="text-muted">
+                                                Promedio: {{ product.avg_discrepancy|floatformat:1 }}
+                                            </small>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-4">Sin datos disponibles</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reason Stats Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-light border-bottom">
+            <h5 class="mb-0">
+                <i class="fas fa-table text-secondary mr-2"></i>Resumen por Razón
+            </h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Razón</th>
+                        <th class="text-center">Cantidad</th>
+                        <th class="text-end">Valor Total</th>
+                        <th class="text-end">% del Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if reason_stats %}
+                        {% with total_value=total_impact %}
+                            {% for reason in reason_stats %}
+                            <tr>
+                                <td>
+                                    {% if reason.adjustment_reason %}
+                                        <span class="badge bg-secondary">{{ reason.get_adjustment_reason_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Desconocido</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary">{{ reason.count }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <strong>${{ reason.total_value|default:0|floatformat:2 }}</strong>
+                                </td>
+                                <td class="text-end">
+                                    {% if reason.percentage %}
+                                        <span class="badge bg-warning">{{ reason.percentage|floatformat:1 }}%</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">0%</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endwith %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">Sin datos disponibles</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chartDates = {{ chart_dates|safe }};
+    const chartItems = {{ chart_items|safe }};
+    const chartDisc = {{ chart_disc|safe }};
+    const chartVal = {{ chart_val|safe }};
+    
+    const reasonLabels = {{ reason_labels|safe }};
+    const reasonCounts = {{ reason_counts|safe }};
+    const reasonValues = {{ reason_values|safe }};
+    const reasonColors = {{ reason_colors|safe }};
+
+    // Trend Chart
+    if (chartDates.length > 0) {
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: chartDates,
+                datasets: [
+                    {
+                        label: 'Productos Auditados',
+                        data: chartItems,
+                        borderColor: '#0066cc',
+                        backgroundColor: 'rgba(0, 102, 204, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        yAxisID: 'y',
+                    },
+                    {
+                        label: 'Discrepancias',
+                        data: chartDisc,
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        yAxisID: 'y1',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Cantidad'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Discrepancias'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    },
+                }
+            }
+        });
+    }
+
+    // Reason Distribution Chart
+    if (reasonLabels.length > 0) {
+        const reasonCtx = document.getElementById('reasonChart').getContext('2d');
+        new Chart(reasonCtx, {
+            type: 'doughnut',
+            data: {
+                labels: reasonLabels,
+                datasets: [{
+                    data: reasonCounts,
+                    backgroundColor: reasonColors,
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+    }
+
+    // Impact Chart
+    if (reasonLabels.length > 0) {
+        const impactCtx = document.getElementById('impactChart').getContext('2d');
+        new Chart(impactCtx, {
+            type: 'bar',
+            data: {
+                labels: reasonLabels,
+                datasets: [{
+                    label: 'Impacto ($)',
+                    data: reasonValues,
+                    backgroundColor: reasonColors,
+                    borderColor: 'rgba(0,0,0,0.1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+
+<style>
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+    }
+    .opacity-25 {
+        opacity: 0.25;
+    }
+</style>
+{% endblock %}

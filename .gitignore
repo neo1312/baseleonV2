@@ -1,0 +1,121 @@
+# -----------------------------
+# Python
+# -----------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg
+*.egg-info/
+pip-wheel-metadata/
+
+# -----------------------------
+# Virtual Environments
+# -----------------------------
+env/
+venv/
+ENV/
+*.env
+*.venv
+
+# -----------------------------
+# Django
+# -----------------------------
+*.log
+*.sqlite3
+db.sqlite3
+
+# Static & media (generated)
+staticfiles/
+media/
+
+# -----------------------------
+# Migrations (optional)
+# Uncomment if you DON'T want them in git
+# -----------------------------
+# */migrations/*.py
+# */migrations/__pycache__/
+
+# -----------------------------
+# Environment variables
+# -----------------------------
+.env
+.env.*
+*.env
+
+# -----------------------------
+# VS Code / IDE
+# -----------------------------
+.vscode/
+.idea/
+
+# -----------------------------
+# OS files
+# -----------------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# Logs
+# -----------------------------
+logs/
+*.log
+
+# -----------------------------
+# Docker
+# -----------------------------
+*.pid
+*.tar
+*.bak
+*.swp
+docker-compose.override.yml
+
+# -----------------------------
+# PostgreSQL (if local volume/files appear)
+# -----------------------------
+pgdata/
+# NEVER commit these 
+.env
+.env.dev
+.env.stage
+.env.prod
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+env/
+venv/
+.venv/
+
+# Django
+db.sqlite3
+staticfiles/
+*.log
+
+# Docker volumes (local)
+postgres_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+db.sqlite3

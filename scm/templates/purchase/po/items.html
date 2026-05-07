@@ -1,0 +1,132 @@
+{% extends 'create.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4>{{ title }}</h4>
+                    <span class="badge badge-pill badge-light">{{ method|upper }}</span>
+                </div>
+                <div class="card-body">
+                    {% if items %}
+                    <form method="post" action="{% url 'scm:po_submit' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="provider_id" value="{{ provider.id }}">
+                        <input type="hidden" name="method" value="{{ method }}">
+
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>SKU</th>
+                                        <th>Product Description</th>
+                                        <th>Available Stock</th>
+                                        <th>Stock Needed</th>
+                                        <th>Quantity to Order</th>
+                                        <th>Cost per Unit</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td>{{ item.pv1 }}</td>
+                                        <td>{{ item.product.full_name }}</td>
+                                        <td class="text-success font-weight-bold">{{ item.product.stock_ready_to_sale }}</td>
+                                        <td class="text-info">{{ item.quantity_needed }}</td>
+                                        <td>
+                                            <input type="hidden" name="product_id" value="{{ item.product.id }}">
+                                            <input type="number" name="quantity" class="form-control form-control-sm quantity-input" 
+                                                   value="{{ item.quantity }}" min="0" step="1" 
+                                                   data-row-id="{{ item.product.id }}"
+                                                   onchange="updateTotal(this)">
+                                        </td>
+                                        <td>
+                                            <input type="number" name="cost" class="form-control form-control-sm cost-input" 
+                                                   value="{{ item.cost_per_unit }}" min="0" step="0.01"
+                                                   data-row-id="{{ item.product.id }}"
+                                                   onchange="updateTotal(this)">
+                                        </td>
+                                        <td class="text-end font-weight-bold">
+                                            <span class="total-cell" data-row-id="{{ item.product.id }}">
+                                                {{ item.total|floatformat:2 }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr class="table-active">
+                                        <td colspan="5" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
+                                        <td class="text-end font-weight-bold" id="cart_total">
+                                            {{ cart_total|floatformat:2 }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check"></i> Create & Approve Order
+                            </button>
+                            <a href="{% url 'scm:po_create' %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-undo"></i> Back
+                            </a>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> No products need ordering from this provider.
+                    </div>
+                    <a href="{% url 'scm:po_create' %}" class="btn btn-secondary">Back</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateTotal(element) {
+    // Get the row
+    const rowId = element.dataset.rowId;
+    const row = element.closest('tr');
+    
+    // Get quantity and cost inputs
+    const quantity = parseFloat(row.querySelector('[name="quantity"]').value) || 0;
+    const cost = parseFloat(row.querySelector('[name="cost"]').value) || 0;
+    
+    // Calculate total
+    const total = quantity * cost;
+    
+    // Update total cell
+    row.querySelector(`[data-row-id="${rowId}"]`).textContent = total.toFixed(2);
+    
+    // Recalculate cart total
+    recalculateCartTotal();
+}
+
+function recalculateCartTotal() {
+    let total = 0;
+    document.querySelectorAll('.total-cell').forEach(cell => {
+        total += parseFloat(cell.textContent) || 0;
+    });
+    document.getElementById('cart_total').textContent = total.toFixed(2);
+}
+</script>
+
+<style>
+.table-responsive {
+    border-radius: 0.25rem;
+}
+
+.form-control-sm {
+    font-size: 0.875rem;
+}
+
+input[type="number"] {
+    text-align: right;
+}
+</style>
+{% endblock %}

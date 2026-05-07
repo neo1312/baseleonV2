@@ -1,0 +1,156 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-2 px-sm-4">
+    <h1 class="h3 mb-4">{{ title }}</h1>
+
+    <div class="alert alert-info">
+        <strong>Auditoría #{{ audit.id }}</strong> | 
+        <span class="d-none d-sm-inline">{{ items.count }} productos seleccionados |</span>
+        <span class="d-sm-none">{{ items.count }} productos |</span>
+        Iniciada {{ audit.started_at|date:"d/m/y H:i"|default:"ahora" }}
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <!-- Desktop Table View -->
+        <div class="d-none d-md-block table-responsive">
+            <table class="table table-hover table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" id="select_all" class="form-check-input">
+                        </th>
+                        <th>Producto</th>
+                        <th>Código/SKU</th>
+                        <th>Categoría</th>
+                        <th>Unidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="product_ids" value="{{ product.id }}" class="form-check-input product-checkbox">
+                        </td>
+                        <td>
+                            <strong>{{ product.name }}</strong>
+                            {% if product.descripcion %}
+                                <br><small class="text-muted">{{ product.descripcion|truncatewords:10 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.barcode %}
+                                <code>{{ product.barcode }}</code>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.category %}
+                                <span class="badge bg-secondary">{{ product.category.name }}</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ product.unit }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            No hay productos disponibles para la auditoría.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="d-md-none">
+            {% for product in products %}
+            <div class="card mb-2 border-0 shadow-sm">
+                <div class="card-body p-2">
+                    <div class="d-flex align-items-start gap-2">
+                        <input type="checkbox" name="product_ids" value="{{ product.id }}" class="form-check-input product-checkbox mt-1" style="margin-top: 0.35rem;">
+                        <div class="flex-grow-1 min-w-0">
+                            <strong class="d-block text-break">{{ product.name }}</strong>
+                            {% if product.descripcion %}
+                                <small class="text-muted d-block text-break">{{ product.descripcion|truncatewords:8 }}</small>
+                            {% endif %}
+                            <div class="small text-muted mt-1">
+                                {% if product.barcode %}<span class="badge bg-light text-dark">{{ product.barcode }}</span>{% endif %}
+                                {% if product.category %}<span class="badge bg-secondary">{{ product.category.name }}</span>{% endif %}
+                                <span class="badge bg-light text-dark">{{ product.unit }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="alert alert-info text-center">
+                No hay productos disponibles para la auditoría.
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if products %}
+        <div class="mt-3 mb-3">
+            <small class="text-muted">
+                <span id="selection_count">0</span> producto(s) seleccionado(s)
+            </small>
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <a href="{% url 'im:audit_list' %}" class="btn btn-outline-secondary btn-sm">
+                Cancelar
+            </a>
+            <button type="submit" class="btn btn-primary btn-sm" id="submit_btn" disabled>
+                <i class="fas fa-arrow-right"></i> <span class="d-none d-sm-inline">Continuar a</span> Conteo
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAll = document.getElementById('select_all');
+    const productCheckboxes = document.querySelectorAll('.product-checkbox');
+    const selectionCount = document.getElementById('selection_count');
+    const submitBtn = document.getElementById('submit_btn');
+
+    function updateCount() {
+        const checked = document.querySelectorAll('.product-checkbox:checked').length;
+        selectionCount.textContent = checked;
+        submitBtn.disabled = checked === 0;
+    }
+
+    selectAll.addEventListener('change', function() {
+        productCheckboxes.forEach(cb => cb.checked = this.checked);
+        updateCount();
+    });
+
+    productCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateCount);
+    });
+
+    updateCount();
+});
+</script>
+
+<style>
+    @media (max-width: 576px) {
+        .container-fluid { padding-left: 8px; padding-right: 8px; }
+        .card-body { padding: 0.75rem; }
+        .badge { font-size: 0.7rem; }
+        code { font-size: 0.85rem; }
+        .text-break { word-break: break-word; }
+        .min-w-0 { min-width: 0; }
+    }
+</style>
+{% endblock %}

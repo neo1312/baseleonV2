@@ -1,0 +1,144 @@
+{% extends 'body.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Daily Sales Report</h2>
+                <a href="{% url 'crm:home' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" action="{% url 'crm:daily_report' %}" class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label for="date_from" class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="date_to" class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
+                        </div>
+                        <div class="col-md-auto">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Generate Report
+                            </button>
+                            <a href="{% url 'crm:daily_report' %}" class="btn btn-secondary">
+                                <i class="fas fa-redo"></i> Today
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if report_data %}
+    {% with totals=report_data.totals %}
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Sales</h6>
+                    <h3 class="text-primary">${{ totals.combined.sales_total|floatformat:2 }}</h3>
+                    <small class="text-muted">{{ totals.combined.sales_count }} transactions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Gross Profit</h6>
+                    <h3 class="text-success">${{ totals.combined.gross_profit|floatformat:2 }}</h3>
+                    <small class="text-muted">{{ totals.combined.gross_profit_margin }}% margin</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Avg Transaction</h6>
+                    <h3 class="text-info">${{ totals.combined.avg_transaction_value }}</h3>
+                    <small class="text-muted">{{ totals.combined.items_sold }} items sold</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Report Tabs -->
+    <div class="row">
+        <div class="col-md-12">
+            <ul class="nav nav-tabs mb-4" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="combined-tab" data-bs-toggle="tab" data-bs-target="#combined" type="button" role="tab" aria-controls="combined" aria-selected="true">
+                        <i class="fas fa-chart-pie"></i> Combined
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="menudeo-tab" data-bs-toggle="tab" data-bs-target="#menudeo" type="button" role="tab" aria-controls="menudeo" aria-selected="false">
+                        <i class="fas fa-shopping-bag"></i> Retail (Menudeo)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="mayoreo-tab" data-bs-toggle="tab" data-bs-target="#mayoreo" type="button" role="tab" aria-controls="mayoreo" aria-selected="false">
+                        <i class="fas fa-boxes"></i> Wholesale (Mayoreo)
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <!-- Combined Tab -->
+                <div class="tab-pane fade show active" id="combined" role="tabpanel" aria-labelledby="combined-tab">
+                    {% include 'crm/reports/report_section.html' with totals=totals.combined title='Combined Report' %}
+                </div>
+
+                <!-- Menudeo Tab -->
+                <div class="tab-pane fade" id="menudeo" role="tabpanel" aria-labelledby="menudeo-tab">
+                    {% include 'crm/reports/report_section.html' with totals=totals.menudeo title='Retail (Menudeo) Report' %}
+                </div>
+
+                <!-- Mayoreo Tab -->
+                <div class="tab-pane fade" id="mayoreo" role="tabpanel" aria-labelledby="mayoreo-tab">
+                    {% include 'crm/reports/report_section.html' with totals=totals.mayoreo title='Wholesale (Mayoreo) Report' %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% endwith %}
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> Select a date range to generate the report
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .border-primary { border-left-color: #0d6efd !important; }
+    .border-success { border-left-color: #198754 !important; }
+    .border-info { border-left-color: #0dcaf0 !important; }
+    .border-warning { border-left-color: #ffc107 !important; }
+    .border-danger { border-left-color: #dc3545 !important; }
+</style>
+{% endblock %}

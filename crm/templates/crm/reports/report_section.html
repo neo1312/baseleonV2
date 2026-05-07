@@ -1,0 +1,227 @@
+<!-- Report Section Template -->
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">{{ title }}</h5>
+    </div>
+    <div class="card-body">
+        <!-- KPIs Grid -->
+        <div class="row mb-4">
+            <!-- Sales Metrics -->
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-primary">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Total Sales Revenue</small>
+                            <h4 class="mb-0">${{ totals.sales_total|floatformat:2 }}</h4>
+                        </div>
+                        <div class="text-primary" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transactions -->
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-info">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Number of Transactions</small>
+                            <h4 class="mb-0">{{ totals.sales_count }}</h4>
+                        </div>
+                        <div class="text-info" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Average Transaction Value -->
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-warning">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Average Transaction Value</small>
+                            <h4 class="mb-0">${{ totals.avg_transaction_value }}</h4>
+                        </div>
+                        <div class="text-warning" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Sold -->
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-success">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Total Items Sold</small>
+                            <h4 class="mb-0">{{ totals.items_sold }}</h4>
+                        </div>
+                        <div class="text-success" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-cube"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cost of Goods Sold -->
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-secondary">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Cost of Goods Sold (FIFO)</small>
+                            <h4 class="mb-0">${{ totals.cost_of_goods|floatformat:2 }}</h4>
+                        </div>
+                        <div class="text-secondary" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-calculator"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gross Profit -->
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-success">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Gross Profit</small>
+                            <h4 class="mb-0 text-success">${{ totals.gross_profit|floatformat:2 }}</h4>
+                        </div>
+                        <div class="text-success" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profit Margin -->
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-success">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Gross Profit Margin %</small>
+                            <h4 class="mb-0 text-success">{{ totals.gross_profit_margin }}%</h4>
+                        </div>
+                        <div class="text-success" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-percent"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Returns/Devolutions Section -->
+        <h6 class="mb-3">Returns & Devolutions</h6>
+        <div class="row">
+            <!-- Devolutions Count -->
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-danger">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Number of Returns</small>
+                            <h4 class="mb-0">{{ totals.devolutions_count }}</h4>
+                        </div>
+                        <div class="text-danger" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-undo"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Return Rate -->
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-warning">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Return Rate %</small>
+                            <h4 class="mb-0 {% if totals.return_rate > 5 %}text-danger{% else %}text-warning{% endif %}">{{ totals.return_rate }}%</h4>
+                        </div>
+                        <div class="text-warning" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Devolutions Value -->
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-danger">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Total Returns Value</small>
+                            <h4 class="mb-0">${{ totals.devolutions_total|floatformat:2 }}</h4>
+                        </div>
+                        <div class="text-danger" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-minus-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Returned -->
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-danger">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Items Returned</small>
+                            <h4 class="mb-0">{{ totals.devolution_items }}</h4>
+                        </div>
+                        <div class="text-danger" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Net Summary -->
+        <h6 class="mb-3">Net Summary</h6>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-primary">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Net Sales (After Returns)</small>
+                            <h4 class="mb-0">${{ totals.net_sales|floatformat:2 }}</h4>
+                        </div>
+                        <div class="text-primary" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-balance-scale"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="metric-box p-3 border-start border-success">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Net Gross Profit</small>
+                            <h4 class="mb-0 text-success">${{ totals.gross_profit|floatformat:2 }}</h4>
+                        </div>
+                        <div class="text-success" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .metric-box {
+        background-color: #f8f9fa;
+        border-radius: 0.25rem;
+        transition: all 0.3s ease;
+    }
+    
+    .metric-box:hover {
+        background-color: #e9ecef;
+    }
+</style>
