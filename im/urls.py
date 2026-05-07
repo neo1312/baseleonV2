@@ -8,6 +8,7 @@ from im.views.audit_views import (
     audit_list, audit_start, audit_select_products, audit_enter_counts,
     audit_review, audit_apply_adjustments, audit_summary, audit_delete, audit_reports
 )
+from im.views.import_products import import_products_csv_view
 
 
 app_name='im'
@@ -21,6 +22,7 @@ urlpatterns=[
         path('product/create',productCreate,name='productCreate'),
         path('product/edit/<int:pk>/',productEdit, name='productEdit'),
         path('product/delete/<int:pk>/',productDelete,name='productDelete'),
+        path('product/import-csv/', import_products_csv_view, name='import_products_csv'),
 
         # Audit URLs
         path('audit/', audit_list, name='audit_list'),

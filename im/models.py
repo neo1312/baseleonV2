@@ -64,7 +64,7 @@ class Product(models.Model):
             ("Metro","metro"),
             )
 
-    id=models.IntegerField(primary_key=True,verbose_name='id')
+    id=models.AutoField(primary_key=True,verbose_name='id')
     active=models.BooleanField(default=True)
     sat=models.BooleanField(default=False)
     name=models.CharField(max_length=500,verbose_name='name')

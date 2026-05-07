@@ -19,6 +19,16 @@ admin.site.register(Category,categoryAdmin)
 class productResource(resources.ModelResource):
     class Meta:
         model=Product
+        fields = ('name','barcode','costo','margen','margenMayoreo','margenGranel','active','sat','category','brand','stockMax','stockMin','minimo','unidad','unidadEmpaque','granel','monedero_percentaje','provedor')
+        skip_unchanged = True
+        report_skipped = True
+        import_id_fields = ()  # Don't use any field as ID lookup
+    
+    def before_create_instance(self, data, row_number, **kwargs):
+        """Let Django auto-generate the ID - don't try to set it"""
+        # Remove id if it's in data
+        data.pop('id', None)
+        return data
 
 class ProductProviderInline(admin.TabularInline):
     model = ProductProvider
@@ -31,17 +41,17 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     search_fields=['name','category__name','brand__name','id','barcode']
     list_display=('id','full_name','get_stock_ready_to_sale','costo','priceLista','priceListaGranel','priceMayoreo','active','sat')
     list_filter=('active','brand','category','provedor')
-    prepopulated_fields={'barcode':('id',)}
     resocurce_class = productResource
     ordering=('id','last_updated')
     raw_id_fields=('provedor','brand','category')
     inlines = [ProductProviderInline]
+    change_list_template = "admin/im/product/change_list.html"
     #list_per_page = 1000
     exclude = ('stock',)  # Exclude deprecated stock field from admin form
 
     fieldsets = (
         ('Basic Info', {
-            'fields': ('id', 'name', 'category', 'brand', 'barcode', 'sat', 'active')
+            'fields': ('name', 'category', 'brand', 'barcode', 'sat', 'active')
         }),
         ('Inventory Settings', {
             'fields': ('minimo', 'stockMax', 'stockMin', 'unidad', 'unidadEmpaque', 'granel', 'inventory_no', 'display_stock')
@@ -69,7 +79,18 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    readonly_fields = ('date_created', 'last_updated', 'display_stock')
+    readonly_fields = ('id', 'date_created', 'last_updated', 'display_stock')
+
+    def get_fieldsets(self, request, obj=None):
+        """Hide ID field when creating new product, show when editing"""
+        fieldsets = super().get_fieldsets(request, obj)
+        if obj is None:  # Creating new product
+            fieldsets = list(fieldsets)
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'category', 'brand', 'barcode', 'sat', 'active')})
+        else:  # Editing existing product
+            fieldsets = list(fieldsets)
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'category', 'brand', 'barcode', 'sat', 'active')})
+        return fieldsets
 
     def display_stock(self, obj):
         """Display stock_ready_to_sale as 'Stock' in the form"""
@@ -90,6 +111,7 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
 
         extra_context = extra_context or {}
         extra_context['total_inventory_value']=total
+        extra_context['import_csv_url'] = '/im/product/import-csv/'
         return super().changelist_view(request, extra_context=extra_context)
     
     def delete_model(self, request, obj):

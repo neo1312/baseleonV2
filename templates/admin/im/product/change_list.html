@@ -2,15 +2,20 @@
 {% load admin_urls %}
 
 {% block content_title %}
-<div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 20px;">
-    <h1>{{ cl.opts.verbose_name_plural|capfirst }}</h1>
-    <div style="display: flex; gap: 10px;">
-        <a href="{% url 'admin:im_product_add' %}" class="button">
-            ⭕ Add Single Product
-        </a>
-        <a href="{% url 'admin:im_product_add_parent' %}" class="button" style="background-color: #417690;">
-            📦 Add Parent Product
+<h1>{{ cl.opts.verbose_name_plural|capfirst }}</h1>
+{% endblock %}
+
+{% block search %}
+    {{ block.super }}
+    
+    <!-- Import CSV Button Section -->
+    <div style="margin: 20px 0; padding: 15px; background: #d4edda; border-left: 4px solid #28a745; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <strong style="font-size: 14px;">📤 Bulk Import Products</strong>
+            <p style="font-size: 12px; margin: 3px 0 0 0; color: #155724;">Upload multiple products from CSV file at once</p>
+        </div>
+        <a href="{% url 'im:import_products_csv' %}" class="button" style="background-color: #28a745; white-space: nowrap;">
+            📤 Import CSV
         </a>
     </div>
-</div>
 {% endblock %}
