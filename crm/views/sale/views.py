@@ -33,11 +33,11 @@ def add_section_context(data):
 @role_required('Admin', 'Cashier')
 def saleCreateNew(request):
     data = {
-            'product_create':'/product/create',
+            'product_create':'/im/product/create',
             'title' : 'Listado products',
             'products' : Product.objects.all(),
             'entity':'products',
-            'url_create':'/product/create',
+            'url_create':'/im/product/create',
             }
     data = add_section_context(data)
     return render(request, 'sale/createnew.html', data)

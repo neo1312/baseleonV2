@@ -18,7 +18,7 @@ ROLE_FEATURES = {
             {
                 'category': 'Inventory',
                 'items': [
-                    {'title': 'Productos', 'description': 'Gestionar productos', 'icon': '📦', 'url': '/product/list', 'color': '#D84E4E'},
+                    {'title': 'Productos', 'description': 'Gestionar productos', 'icon': '📦', 'url': '/im/product/list', 'color': '#D84E4E'},
                     {'title': 'Categorías', 'description': 'Gestionar categorías', 'icon': '🏷️', 'url': '/category/list', 'color': '#CA1B31'},
                     {'title': 'Clientes', 'description': 'Gestionar clientes', 'icon': '👥', 'url': '/client/list', 'color': '#C41C38'},
                     {'title': 'Proveedores', 'description': 'Gestionar proveedores', 'icon': '🚚', 'url': '/provider/list', 'color': '#8B0000'},
@@ -65,7 +65,7 @@ ROLE_FEATURES = {
             {
                 'category': 'View Data',
                 'items': [
-                    {'title': 'Productos', 'description': 'Ver todos los productos', 'icon': '📦', 'url': '/product/list', 'color': '#D84E4E'},
+                    {'title': 'Productos', 'description': 'Ver todos los productos', 'icon': '📦', 'url': '/im/product/list', 'color': '#D84E4E'},
                     {'title': 'Clientes', 'description': 'Ver clientes', 'icon': '👥', 'url': '/client/list', 'color': '#C41C38'},
                     {'title': 'Proveedores', 'description': 'Ver proveedores', 'icon': '🚚', 'url': '/provider/list', 'color': '#8B0000'},
                 ]
@@ -94,7 +94,7 @@ ROLE_FEATURES = {
             {
                 'category': 'Reference',
                 'items': [
-                    {'title': 'Productos', 'description': 'Ver catálogo', 'icon': '📦', 'url': '/product/list', 'color': '#D84E4E'},
+                    {'title': 'Productos', 'description': 'Ver catálogo', 'icon': '📦', 'url': '/im/product/list', 'color': '#D84E4E'},
                     {'title': 'Clientes', 'description': 'Ver clientes', 'icon': '👥', 'url': '/client/list', 'color': '#C41C38'},
                 ]
             },
@@ -115,7 +115,7 @@ ROLE_FEATURES = {
             {
                 'category': 'Reference',
                 'items': [
-                    {'title': 'Productos', 'description': 'Ver inventario', 'icon': '📦', 'url': '/product/list', 'color': '#D84E4E'},
+                    {'title': 'Productos', 'description': 'Ver inventario', 'icon': '📦', 'url': '/im/product/list', 'color': '#D84E4E'},
                 ]
             },
         ]
@@ -136,7 +136,7 @@ ROLE_FEATURES = {
             {
                 'category': 'Reference',
                 'items': [
-                    {'title': 'Productos', 'description': 'Ver catálogo', 'icon': '📦', 'url': '/product/list', 'color': '#D84E4E'},
+                    {'title': 'Productos', 'description': 'Ver catálogo', 'icon': '📦', 'url': '/im/product/list', 'color': '#D84E4E'},
                     {'title': 'Proveedores', 'description': 'Ver proveedores', 'icon': '🚚', 'url': '/provider/list', 'color': '#8B0000'},
                 ]
             },
@@ -149,7 +149,7 @@ MENU_STRUCTURE = {
     'Admin': [
         {'category': 'Categorías', 'icon': 'fas fa-tag', 'url': '/category/list', 'color': 'text-primary'},
         {'divider': True},
-        {'category': 'Productos', 'icon': 'fas fa-boxes', 'url': '/product/list', 'color': 'text-success'},
+        {'category': 'Productos', 'icon': 'fas fa-boxes', 'url': '/im/product/list', 'color': 'text-success'},
         {'category': 'Clientes', 'icon': 'fas fa-users', 'url': '/client/list', 'color': 'text-info'},
         {'category': 'Proveedores', 'icon': 'fas fa-truck', 'url': '/provider/list', 'color': 'text-warning'},
         {'divider': True},
@@ -174,7 +174,7 @@ MENU_STRUCTURE = {
         {'divider': True},
         {'category': 'Auditoría', 'icon': 'fas fa-magnifying-glass-chart', 'url': '/im/audit/', 'color': 'text-info'},
         {'divider': True},
-        {'category': 'Productos', 'icon': 'fas fa-boxes', 'url': '/product/list', 'color': 'text-success'},
+        {'category': 'Productos', 'icon': 'fas fa-boxes', 'url': '/im/product/list', 'color': 'text-success'},
         {'category': 'Clientes', 'icon': 'fas fa-users', 'url': '/client/list', 'color': 'text-info'},
         {'category': 'Proveedores', 'icon': 'fas fa-truck', 'url': '/provider/list', 'color': 'text-warning'},
     ],
@@ -183,7 +183,7 @@ MENU_STRUCTURE = {
         {'category': 'Cotizaciones', 'icon': 'fas fa-quote-left', 'url': '/quote/new', 'color': 'text-info'},
         {'category': 'Devoluciones', 'icon': 'fas fa-undo', 'url': '/devolution/new', 'color': 'text-warning'},
         {'divider': True},
-        {'category': 'Productos', 'icon': 'fas fa-boxes', 'url': '/product/list', 'color': 'text-success'},
+        {'category': 'Productos', 'icon': 'fas fa-boxes', 'url': '/im/product/list', 'color': 'text-success'},
         {'category': 'Clientes', 'icon': 'fas fa-users', 'url': '/client/list', 'color': 'text-info'},
     ],
     'Auditor': [
@@ -195,7 +195,7 @@ MENU_STRUCTURE = {
         {'category': 'Órdenes de Compra', 'icon': 'fas fa-file-invoice-dollar', 'url': '/po/create/', 'color': 'text-danger'},
         {'category': 'Órdenes Colocadas', 'icon': 'fas fa-list', 'url': '/po/placed/', 'color': 'text-danger'},
         {'divider': True},
-        {'category': 'Productos', 'icon': 'fas fa-boxes', 'url': '/product/list', 'color': 'text-success'},
+        {'category': 'Productos', 'icon': 'fas fa-boxes', 'url': '/im/product/list', 'color': 'text-success'},
         {'category': 'Proveedores', 'icon': 'fas fa-truck', 'url': '/provider/list', 'color': 'text-warning'},
     ],
 }
