@@ -41,13 +41,15 @@
                                             <input type="number" name="quantity" class="form-control form-control-sm quantity-input" 
                                                    value="{{ item.quantity }}" min="0" step="1" 
                                                    data-row-id="{{ item.product.id }}"
-                                                   onchange="updateTotal(this)">
+                                                   onchange="window.calculateRowTotal(this)"
+                                                   oninput="window.calculateRowTotal(this)">
                                         </td>
                                         <td>
                                             <input type="number" name="cost" class="form-control form-control-sm cost-input" 
                                                    value="{{ item.cost_per_unit }}" min="0" step="0.01"
                                                    data-row-id="{{ item.product.id }}"
-                                                   onchange="updateTotal(this)">
+                                                   onchange="window.calculateRowTotal(this)"
+                                                   oninput="window.calculateRowTotal(this)">
                                         </td>
                                         <td class="text-end font-weight-bold">
                                             <span class="total-cell" data-row-id="{{ item.product.id }}">
@@ -57,9 +59,9 @@
                                     </tr>
                                     {% endfor %}
                                     <tr class="table-active">
-                                        <td colspan="5" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
-                                        <td class="text-end font-weight-bold" id="cart_total">
-                                            {{ cart_total|floatformat:2 }}
+                                        <td colspan="6" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
+                                        <td class="text-end font-weight-bold">
+                                            <span id="cart_total">{{ cart_total|floatformat:2 }}</span>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -88,32 +90,58 @@
 </div>
 
 <script>
-function updateTotal(element) {
-    // Get the row
-    const rowId = element.dataset.rowId;
-    const row = element.closest('tr');
+// Define functions IMMEDIATELY in global scope (before any other scripts run)
+window.calculateRowTotal = function(input) {
+    console.log('calculateRowTotal called');
+    if (!input) return;
     
-    // Get quantity and cost inputs
-    const quantity = parseFloat(row.querySelector('[name="quantity"]').value) || 0;
-    const cost = parseFloat(row.querySelector('[name="cost"]').value) || 0;
+    const row = input.closest('tr');
+    if (!row) return;
     
-    // Calculate total
-    const total = quantity * cost;
+    const qty = parseFloat(row.querySelector('input[name="quantity"]').value) || 0;
+    const cost = parseFloat(row.querySelector('input[name="cost"]').value) || 0;
+    const total = qty * cost;
     
-    // Update total cell
-    row.querySelector(`[data-row-id="${rowId}"]`).textContent = total.toFixed(2);
+    const totalCell = row.querySelector('.total-cell');
+    if (totalCell) {
+        totalCell.textContent = total.toFixed(2);
+    }
     
-    // Recalculate cart total
-    recalculateCartTotal();
-}
+    window.updateCartTotal();
+};
 
-function recalculateCartTotal() {
-    let total = 0;
+window.updateCartTotal = function() {
+    console.log('updateCartTotal called');
+    let sum = 0;
     document.querySelectorAll('.total-cell').forEach(cell => {
-        total += parseFloat(cell.textContent) || 0;
+        sum += parseFloat(cell.textContent) || 0;
     });
-    document.getElementById('cart_total').textContent = total.toFixed(2);
-}
+    const cartEl = document.getElementById('cart_total');
+    if (cartEl) {
+        cartEl.textContent = sum.toFixed(2);
+    }
+};
+
+console.log('Functions registered globally');
+</script>
+
+<!-- MUST be at the very end, after all parent template scripts load -->
+<script>
+// Wait for jQuery/DataTables to fully initialize before attaching listeners
+setTimeout(function() {
+    console.log('Attaching event listeners after delay');
+    const allInputs = document.querySelectorAll('.quantity-input, .cost-input');
+    allInputs.forEach(input => {
+        input.removeEventListener('input', window.calculateRowTotal);
+        input.removeEventListener('change', window.calculateRowTotal);
+        input.addEventListener('input', function() {
+            window.calculateRowTotal(this);
+        });
+        input.addEventListener('change', function() {
+            window.calculateRowTotal(this);
+        });
+    });
+}, 500);
 </script>
 
 <style>

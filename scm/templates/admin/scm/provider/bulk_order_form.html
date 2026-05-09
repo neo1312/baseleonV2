@@ -55,6 +55,33 @@
         border: 1px solid #ddd;
         border-radius: 4px;
     }
+    .line-total {
+        font-weight: 600;
+        text-align: right;
+        min-width: 100px;
+    }
+    .order-total-section {
+        margin-top: 20px;
+        padding: 15px;
+        background: #f0f0f0;
+        border-radius: 4px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 20px;
+        align-items: center;
+    }
+    .total-label {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+    }
+    .total-amount {
+        font-size: 18px;
+        font-weight: 700;
+        color: #417690;
+        min-width: 120px;
+        text-align: right;
+    }
     .button-group {
         margin-top: 20px;
         display: flex;
@@ -115,8 +142,9 @@
                         <th>Product ID</th>
                         <th>Product Name</th>
                         <th>Category</th>
-                        <th>Current Cost</th>
+                        <th>Unit Cost</th>
                         <th>Quantity to Order</th>
+                        <th>Line Total</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -125,21 +153,30 @@
                         <td>{{ product.id }}</td>
                         <td>{{ product.name }}</td>
                         <td>{{ product.category.name|default:"N/A" }}</td>
-                        <td>${{ product.costo }}</td>
+                        <td class="unit-cost" data-cost="{{ product.costo }}">${{ product.costo }}</td>
                         <td>
                             <input 
                                 type="number" 
                                 name="qty_{{ product.id }}" 
                                 class="qty-input"
+                                data-product-id="{{ product.id }}"
+                                data-unit-cost="{{ product.costo }}"
                                 min="0"
                                 step="1"
                                 placeholder="0"
+                                value="0"
                             />
                         </td>
+                        <td class="line-total" data-product-id="{{ product.id }}">$0.00</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            
+            <div class="order-total-section">
+                <span class="total-label">Order Total:</span>
+                <span class="total-amount" id="order-total">$0.00</span>
+            </div>
         </div>
         
         <div class="button-group">
@@ -148,4 +185,46 @@
         </div>
     </form>
 </div>
+
+<script>
+// Calculate line total when quantity changes
+function calculateTotals() {
+    const qtyInputs = document.querySelectorAll('.qty-input');
+    let orderTotal = 0;
+    
+    qtyInputs.forEach(input => {
+        const productId = input.getAttribute('data-product-id');
+        const unitCost = parseFloat(input.getAttribute('data-unit-cost')) || 0;
+        const quantity = parseFloat(input.value) || 0;
+        const lineTotal = unitCost * quantity;
+        
+        // Update line total cell
+        const lineTotalCell = document.querySelector(`.line-total[data-product-id="${productId}"]`);
+        if (lineTotalCell) {
+            lineTotalCell.textContent = '$' + lineTotal.toFixed(2);
+        }
+        
+        // Add to order total
+        orderTotal += lineTotal;
+    });
+    
+    // Update order total
+    const orderTotalElement = document.getElementById('order-total');
+    if (orderTotalElement) {
+        orderTotalElement.textContent = '$' + orderTotal.toFixed(2);
+    }
+}
+
+// Add event listeners to all quantity inputs
+document.addEventListener('DOMContentLoaded', function() {
+    const qtyInputs = document.querySelectorAll('.qty-input');
+    qtyInputs.forEach(input => {
+        input.addEventListener('input', calculateTotals);
+        input.addEventListener('change', calculateTotals);
+    });
+    
+    // Initial calculation
+    calculateTotals();
+});
+</script>
 {% endblock %}
