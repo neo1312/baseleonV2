@@ -65,7 +65,7 @@ class Product(models.Model):
             )
 
     id=models.AutoField(primary_key=True,verbose_name='id')
-    clave = models.CharField(max_length=100, verbose_name='Clave', unique=True, null=True, blank=True, help_text='Unique identifier for the product. Defaults to the product ID.')
+    clave = models.CharField(max_length=100, verbose_name='Clave', null=True, blank=True, help_text='Unique identifier for the product. Defaults to the product ID.')
     active=models.BooleanField(default=True)
     sat=models.BooleanField(default=False)
     name=models.CharField(max_length=500,verbose_name='name')
