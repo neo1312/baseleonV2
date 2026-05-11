@@ -171,6 +171,26 @@ class brandAdmin(ImportExportModelAdmin,admin.ModelAdmin):
 admin.site.register(Brand,brandAdmin)
 
 
+class ProductProviderResource(resources.ModelResource):
+    class Meta:
+        model = ProductProvider
+        fields = ('product', 'provider', 'pv1', 'provider_cost', 'date_created', 'last_updated')
+        skip_unchanged = True
+        report_skipped = True
+        import_id_fields = ('id',)
+
+class ProductProviderAdmin(ImportExportModelAdmin, admin.ModelAdmin):
+    search_fields = ['product__name', 'product__barcode', 'provider__name', 'pv1']
+    list_display = ('id', 'product', 'provider', 'pv1', 'provider_cost', 'date_created')
+    list_filter = ('provider', 'date_created', 'product__category')
+    resource_class = ProductProviderResource
+    ordering = ('-date_created',)
+    readonly_fields = ('date_created', 'last_updated', 'id')
+    raw_id_fields = ('product', 'provider')
+
+admin.site.register(ProductProvider, ProductProviderAdmin)
+
+
 class InventoryUnitAdmin(admin.ModelAdmin):
     search_fields=['tracking_id', 'product__name', 'product__barcode', 'purchase_order__po_number', 'purchase_order__provider__name']
     list_display=('tracking_id', 'product', 'get_po_number', 'get_provider_name', 'status', 'purchase_cost', 'received_cost', 'abc_classification', 'received_date')
@@ -360,7 +380,6 @@ class DemandForecastAdmin(admin.ModelAdmin):
         return False
 
 admin.site.register(DemandForecast, DemandForecastAdmin)
-admin.site.register(ProductProvider)
 
 
 # ============================================================================
