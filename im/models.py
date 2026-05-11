@@ -164,9 +164,9 @@ class Product(models.Model):
         verbose_name = 'Product'
         verbose_name_plural = 'Products'
         ordering = ['brand']
-        constraints = [
-            models.UniqueConstraint(fields=['category', 'brand', 'name'], name='unique_product_full_name')
-        ]
+        #constraints = [ quitmnao seste constrain problematico
+        #   models.UniqueConstraint(fields=['category', 'brand', 'name'], name='unique_product_full_name')
+        #]
 
     @property
     def full_name(self):
