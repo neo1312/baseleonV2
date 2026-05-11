@@ -23,8 +23,8 @@ def import_products_csv_view(request):
     
     if request.method == 'POST' and 'confirm_import' in request.POST:
         # STEP 2: Confirm and import
-        preview_data = json.loads(request.POST.get('preview_data', '{}'))
-        skip_errors = request.POST.get('skip_errors') == 'on'
+        preview_data = request.session.get('csv_preview_data', {})
+        skip_errors = request.session.get('csv_skip_errors', False)
         
         try:
             cmd = Command()
@@ -54,6 +54,9 @@ def import_products_csv_view(request):
                 request,
                 f"✅ Import complete!\nCreated: {created} | Updated: {updated} | Errors: {errors}"
             )
+            # Clean up session data
+            request.session.pop('csv_preview_data', None)
+            request.session.pop('csv_skip_errors', None)
             return redirect('admin:im_product_changelist')
             
         except Exception as e:
@@ -80,13 +83,16 @@ def import_products_csv_view(request):
                     messages.error(request, "CSV file has no data rows")
                     return redirect('im:import_products_csv')
                 
+                # Store preview data in session
+                request.session['csv_preview_data'] = {'rows': rows}
+                request.session['csv_skip_errors'] = skip_errors
+                
                 # Show preview
                 context = {
                     'form': form,
                     'preview': True,
                     'total_rows': len(rows),
                     'rows': rows[:5],  # Show first 5 rows
-                    'preview_data_json': json.dumps({'rows': rows}),
                     'skip_errors': skip_errors,
                 }
                 return render(request, 'admin/import_products.html', context)

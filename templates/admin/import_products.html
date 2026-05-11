@@ -53,8 +53,6 @@
             <form method="post" style="padding: 20px; background: #f8f9fa;">
                 {% csrf_token %}
                 <input type="hidden" name="confirm_import" value="1">
-                <input type="hidden" name="preview_data" value="{{ preview_data_json|escapejs }}">
-                <input type="hidden" name="skip_errors" value="{% if skip_errors %}on{% endif %}">
                 
                 <div style="display: flex; gap: 10px;">
                     <button type="submit" class="button default" style="padding: 10px 20px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 3px;">
