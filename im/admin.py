@@ -19,7 +19,7 @@ admin.site.register(Category,categoryAdmin)
 class productResource(resources.ModelResource):
     class Meta:
         model=Product
-        fields = ('name','barcode','costo','margen','margenMayoreo','margenGranel','active','sat','category','brand','stockMax','stockMin','minimo','unidad','unidadEmpaque','granel','monedero_percentaje','provedor')
+        fields = ('name','clave','barcode','costo','margen','margenMayoreo','margenGranel','active','sat','category','brand','stockMax','stockMin','minimo','unidad','unidadEmpaque','granel','monedero_percentaje','provedor')
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ()  # Don't use any field as ID lookup
@@ -38,8 +38,8 @@ class ProductProviderInline(admin.TabularInline):
     raw_id_fields = ('provider',)
 
 class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
-    search_fields=['name','category__name','brand__name','id','barcode']
-    list_display=('id','full_name','get_stock_ready_to_sale','costo','priceLista','priceListaGranel','priceMayoreo','active','sat')
+    search_fields=['name','category__name','brand__name','id','barcode','clave']
+    list_display=('id','clave','full_name','get_stock_ready_to_sale','costo','priceLista','priceListaGranel','priceMayoreo','active','sat')
     list_filter=('active','brand','category','provedor')
     resocurce_class = productResource
     ordering=('id','last_updated')
@@ -51,7 +51,7 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
 
     fieldsets = (
         ('Basic Info', {
-            'fields': ('name', 'category', 'brand', 'barcode', 'sat', 'active')
+            'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active')
         }),
         ('Inventory Settings', {
             'fields': ('minimo', 'stockMax', 'stockMin', 'unidad', 'unidadEmpaque', 'granel', 'inventory_no', 'display_stock')
