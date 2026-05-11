@@ -65,6 +65,7 @@ class Product(models.Model):
             )
 
     id=models.AutoField(primary_key=True,verbose_name='id')
+    clave = models.CharField(max_length=100, verbose_name='Clave', unique=True, null=True, blank=True, help_text='Unique identifier for the product. Defaults to the product ID.')
     active=models.BooleanField(default=True)
     sat=models.BooleanField(default=False)
     name=models.CharField(max_length=500,verbose_name='name')
@@ -115,6 +116,10 @@ class Product(models.Model):
         if self.date_created is None:
             self.date_created = timezone.localtime(timezone.now())
         self.last_updated = timezone.localtime(timezone.now())
+        
+        # Set clave to ID if blank
+        if not self.clave and self.id:
+            self.clave = str(self.id)
         
         # Handle pricing logic based on mode selection
         try:
