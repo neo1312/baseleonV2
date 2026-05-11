@@ -3,7 +3,7 @@
 {% block columns %}
     <tr>
         <th scope="col">BarCode</th>
-        <th scope="col">pv1</th>
+        <th scope="col">Clave</th>
         <th scope="col">Name</th>
         <th scope="col">Price</th>
         <th scope="col">PriceGranel</th>
@@ -18,7 +18,7 @@
     {% for c in products%}
         <tr>
             <td>{{ c.barcode}}</td>
-            <td>{{ c.get_pv1 }}</td>
+            <td>{{ c.clave }}</td>
             <td>{{ c.full_name}}</td>
             <td>${{ c.priceLista}}</td>
             <td>$ {{ c.priceListaGranel}}</td>
