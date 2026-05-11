@@ -174,10 +174,16 @@ admin.site.register(Brand,brandAdmin)
 class ProductProviderResource(resources.ModelResource):
     class Meta:
         model = ProductProvider
-        fields = ('product', 'provider', 'pv1', 'provider_cost', 'date_created', 'last_updated')
+        fields = ('product', 'provider', 'pv1', 'provider_cost')
         skip_unchanged = True
         report_skipped = True
-        import_id_fields = ('id',)
+        import_id_fields = ()  # Don't use any field as ID lookup
+    
+    def before_create_instance(self, data, row_number, **kwargs):
+        """Let Django auto-generate the ID - don't try to set it"""
+        # Remove id if it's in data
+        data.pop('id', None)
+        return data
 
 class ProductProviderAdmin(ImportExportModelAdmin, admin.ModelAdmin):
     search_fields = ['product__name', 'product__barcode', 'provider__name', 'pv1']
