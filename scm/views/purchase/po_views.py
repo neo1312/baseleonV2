@@ -5,9 +5,10 @@ Provides simple UI for creating, managing, and receiving purchase orders.
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
+from django.utils import timezone
 from decimal import Decimal
 from scm.models import Provider, PurchaseOrder, PurchaseOrderItem
-from im.models import Product, DemandForecast
+from im.models import Product, DemandForecast, ProductProvider, InventoryUnit
 from scm.po_operations import (
     create_po_from_manual,
     create_po_from_forecast,
@@ -443,3 +444,139 @@ def test_whatsapp(request):
     # GET request
     context['purchase_orders'] = PurchaseOrder.objects.all()
     return render(request, 'purchase/po/test_whatsapp.html', context)
+
+
+def po_instant_create(request):
+    """Create instant purchase order - show provider selection"""
+    providers = Provider.objects.all()
+    context = {
+        'title': 'Instant Purchase Order',
+        'providers': providers,
+    }
+    return render(request, 'purchase/po/instant_create.html', context)
+
+
+def po_instant_lookup_pv1(request):
+    """AJAX endpoint to validate PV1 and get product details"""
+    if request.method == 'GET':
+        pv1 = request.GET.get('pv1', '').strip()
+        provider_id = request.GET.get('provider_id')
+        
+        if not pv1 or not provider_id:
+            return JsonResponse({'error': 'Missing PV1 or provider'}, status=400)
+        
+        try:
+            provider = Provider.objects.get(id=provider_id)
+            # Find ProductProvider entry for this PV1 and provider
+            product_provider = ProductProvider.objects.select_related('product').get(
+                pv1=pv1,
+                provider=provider
+            )
+            product = product_provider.product
+            cost = float(product.get_provider_cost(provider))
+            
+            return JsonResponse({
+                'success': True,
+                'product_id': product.id,
+                'product_name': product.full_name,
+                'pv1': product_provider.pv1,
+                'cost': cost,
+                'unit': product.unidad,
+            })
+        except ProductProvider.DoesNotExist:
+            return JsonResponse({'error': f'PV1 {pv1} not found for this provider'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': f'Error: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+def po_instant_submit(request):
+    """Create and complete instant purchase order"""
+    if request.method == 'POST':
+        try:
+            provider_id = request.POST.get('provider_id')
+            items_json = request.POST.get('items')  # JSON string of items
+            
+            if not provider_id or not items_json:
+                return JsonResponse({'error': 'Missing provider or items'}, status=400)
+            
+            import json
+            items = json.loads(items_json)
+            
+            if not items:
+                return JsonResponse({'error': 'No items provided'}, status=400)
+            
+            provider = get_object_or_404(Provider, id=provider_id)
+            
+            # Create PO
+            from django.db import transaction
+            with transaction.atomic():
+                # Generate PO number
+                last_po = PurchaseOrder.objects.order_by('-id').first()
+                po_number = f"INST-{timezone.now().strftime('%Y%m%d')}-{(last_po.id if last_po else 0) + 1:05d}"
+                
+                po = PurchaseOrder.objects.create(
+                    po_number=po_number,
+                    provider=provider,
+                    status='completed',
+                    order_type='instant',
+                    created_by=request.user.username if request.user.is_authenticated else 'System',
+                    completed_by=request.user.username if request.user.is_authenticated else 'System',
+                    completed_date=timezone.now(),
+                )
+                
+                total_cost = Decimal('0')
+                total_quantity = 0
+                
+                # Add items and create inventory units
+                for item in items:
+                    product = get_object_or_404(Product, id=item['product_id'])
+                    quantity = int(item['quantity'])
+                    cost = Decimal(str(item['cost']))
+                    
+                    # Create PO item
+                    po_item = PurchaseOrderItem.objects.create(
+                        purchase_order=po,
+                        product=product,
+                        quantity_ordered=quantity,
+                        unit_cost=cost,
+                        total_cost=quantity * cost,
+                    )
+                    
+                    # Create inventory units (mark as received immediately for instant orders)
+                    for i in range(quantity):
+                        InventoryUnit.objects.create(
+                            product=product,
+                            purchase_item=po_item,
+                            status='ready_to_sale',  # Instantly ready for instant orders
+                            purchase_cost=cost,
+                            received_cost=cost,
+                            received_date=timezone.now(),
+                        )
+                    
+                    # Update product stock
+                    product.stock += quantity
+                    product.save()
+                    
+                    total_cost += po_item.total_cost
+                    total_quantity += quantity
+                
+                # Update PO totals
+                po.total_items = total_quantity
+                po.total_ordered_cost = total_cost
+                po.total_received_cost = total_cost
+                po.received_date = timezone.now()
+                po.save()
+                
+            return JsonResponse({
+                'success': True,
+                'po_id': po.id,
+                'po_number': po.po_number,
+                'message': f'Instant PO {po.po_number} created and completed',
+            })
+        
+        except Exception as e:
+            return JsonResponse({'error': f'Error: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)

@@ -147,6 +147,12 @@ class PurchaseOrder(models.Model):
     completed_by = models.CharField(max_length=150, null=True, blank=True, verbose_name='Completed By')
     
     # Tracking info
+    order_type = models.CharField(
+        max_length=20,
+        choices=[('instant', 'Instant Purchase'), ('auto_forecast', 'Auto from Forecast'), ('manual_stock', 'Manual from Min/Max')],
+        default='manual_stock',
+        verbose_name='Order Type'
+    )
     creation_method = models.CharField(
         max_length=20,
         choices=[('auto_forecast', 'Auto from Forecast'), ('manual_stock', 'Manual from Min/Max')],
