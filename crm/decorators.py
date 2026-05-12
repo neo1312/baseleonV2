@@ -21,9 +21,13 @@ def role_required(*role_names):
                 user_roles = set(request.user.groups.values_list('name', flat=True))
                 if user_roles.intersection(set(role_names)):
                     return view_func(request, *args, **kwargs)
-            
-            messages.error(request, 'You do not have permission to access this page.')
-            return redirect('/')
+                else:
+                    # User is authenticated but doesn't have required role
+                    messages.error(request, 'You do not have permission to access this page.')
+                    return redirect('/')
+            else:
+                # User is not authenticated, redirect to login with next parameter
+                return redirect(f'/login/?next={request.path}')
         
         return wrapper
     return decorator
