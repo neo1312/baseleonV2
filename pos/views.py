@@ -85,6 +85,70 @@ def search_products(request):
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @csrf_exempt
+def get_product_stock(request):
+    """Get current product stock from database (single source of truth)"""
+    if request.method == 'GET':
+        product_id = request.GET.get('id')
+        
+        try:
+            product = Product.objects.get(id=product_id)
+            return JsonResponse({
+                'id': product.id,
+                'name': product.name,
+                'stock': product.stock,
+                'success': True,
+            })
+        except Product.DoesNotExist:
+            return JsonResponse({'error': 'Product not found', 'success': False}, status=404)
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@csrf_exempt
+def validate_stock(request):
+    """Validate if cart items are still available (batch check)"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            items = data.get('items', [])  # List of {product_id, quantity}
+            
+            validation_results = []
+            for item in items:
+                product_id = item.get('product_id')
+                requested_qty = item.get('quantity', 0)
+                
+                try:
+                    product = Product.objects.get(id=product_id)
+                    available = product.stock
+                    is_valid = available >= requested_qty
+                    
+                    validation_results.append({
+                        'product_id': product_id,
+                        'product_name': product.name,
+                        'requested': requested_qty,
+                        'available': available,
+                        'valid': is_valid,
+                        'message': f'OK' if is_valid else f'Only {available} available'
+                    })
+                except Product.DoesNotExist:
+                    validation_results.append({
+                        'product_id': product_id,
+                        'valid': False,
+                        'message': 'Product not found'
+                    })
+            
+            # Check if all items are valid
+            all_valid = all(item['valid'] for item in validation_results)
+            
+            return JsonResponse({
+                'success': all_valid,
+                'items': validation_results,
+            })
+        except Exception as e:
+            return JsonResponse({'error': str(e), 'success': False}, status=400)
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@csrf_exempt
 def get_product(request):
     """Get single product details"""
     if request.method == 'GET':

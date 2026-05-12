@@ -85,7 +85,7 @@ function searchProducts(query) {
         .catch(err => console.error('Search error:', err));
 }
 
-// ADD TO CART
+// ADD TO CART - WITH BACKEND STOCK VALIDATION
 function addToCart(btn) {
     if (!saleStarted) {
         alert('⚠️ Please create a sale first (click 📝 NUEVA VENTA)');
@@ -100,44 +100,62 @@ function addToCart(btn) {
     
     const barcode = row.querySelector('.barcode').textContent;
     const name = row.querySelector('.name').textContent;
-    const stock = parseInt(row.querySelector('.stock').textContent);
     
-    // Check single add quantity
-    if (quantity > stock) {
-        alert(`⚠️ Cannot add ${quantity} units - only ${stock} in stock!`);
-        return;
-    }
-    
-    // Check total quantity in cart for this product won't exceed stock
-    const currentQtyInCart = cart[productId] ? cart[productId].qty : 0;
-    const totalQtyAfterAdd = currentQtyInCart + quantity;
-    
-    if (totalQtyAfterAdd > stock) {
-        alert(`⚠️ You already have ${currentQtyInCart} in cart.\nOnly ${stock - currentQtyInCart} more available!\nCannot add ${quantity}.`);
-        return;
-    }
-    
-    // Get price based on sale type
-    const priceRegular = parseFloat(row.querySelector('.price-regular').textContent.replace('$', ''));
-    const priceMayoreo = parseFloat(row.querySelector('.price-mayoreo').textContent.replace('$', ''));
-    const price = saleType === 'mayoreo' ? priceMayoreo : priceRegular;
-    
-    // Check if already in cart
-    if (cart[productId]) {
-        cart[productId].qty += quantity;
-    } else {
-        cart[productId] = {
-            id: productId,
-            barcode: barcode,
-            name: name,
-            qty: quantity,
-            price: price,
-            tipo: saleType,
-        };
-    }
-    
-    updateCartDisplay();
-    qtyInput.value = 1;
+    // FETCH CURRENT STOCK FROM BACKEND (single source of truth)
+    fetch(`/pos/stock/?id=${productId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                alert(`❌ Product not found!`);
+                return;
+            }
+            
+            const backendStock = data.stock;
+            
+            // Update table display with current stock
+            row.querySelector('.stock').textContent = backendStock;
+            
+            // Check single add quantity
+            if (quantity > backendStock) {
+                alert(`⚠️ Cannot add ${quantity} units - only ${backendStock} in stock!`);
+                return;
+            }
+            
+            // Check total quantity in cart for this product won't exceed stock
+            const currentQtyInCart = cart[productId] ? cart[productId].qty : 0;
+            const totalQtyAfterAdd = currentQtyInCart + quantity;
+            
+            if (totalQtyAfterAdd > backendStock) {
+                alert(`⚠️ You already have ${currentQtyInCart} in cart.\nOnly ${backendStock - currentQtyInCart} more available!\nCannot add ${quantity}.`);
+                return;
+            }
+            
+            // Get price based on sale type
+            const priceRegular = parseFloat(row.querySelector('.price-regular').textContent.replace('$', ''));
+            const priceMayoreo = parseFloat(row.querySelector('.price-mayoreo').textContent.replace('$', ''));
+            const price = saleType === 'mayoreo' ? priceMayoreo : priceRegular;
+            
+            // Add to cart
+            if (cart[productId]) {
+                cart[productId].qty += quantity;
+            } else {
+                cart[productId] = {
+                    id: productId,
+                    barcode: barcode,
+                    name: name,
+                    qty: quantity,
+                    price: price,
+                    tipo: saleType,
+                };
+            }
+            
+            updateCartDisplay();
+            qtyInput.value = 1;
+        })
+        .catch(err => {
+            console.error('Stock check error:', err);
+            alert('❌ Failed to verify stock');
+        });
 }
 
 // UPDATE CART DISPLAY
@@ -252,13 +270,48 @@ function updateSaleTypeDisplay() {
     document.getElementById('sale-type-display').textContent = `Sale: ${saleType === 'mayoreo' ? 'Mayoreo' : 'Menudeo'}`;
 }
 
-// CHECKOUT
+// CHECKOUT - WITH BACKEND STOCK VALIDATION
 function proceedCheckout() {
     if (Object.keys(cart).length === 0) {
         alert('⚠️ Cart is empty!');
         return;
     }
     
+    // Prepare items for validation
+    const cartItems = Object.values(cart).map(item => ({
+        product_id: item.id,
+        quantity: item.qty,
+    }));
+    
+    // VALIDATE ALL ITEMS AGAINST CURRENT BACKEND STOCK
+    fetch('/pos/validate-stock/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({items: cartItems}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            // Show which items have stock issues
+            const failures = data.items.filter(item => !item.valid);
+            let msg = '❌ Stock validation failed:\n\n';
+            failures.forEach(item => {
+                msg += `• ${item.product_name}: ${item.message}\n`;
+            });
+            alert(msg);
+            return;
+        }
+        
+        // All items valid - proceed to checkout
+        proceedCheckoutModal();
+    })
+    .catch(err => {
+        console.error('Stock validation error:', err);
+        alert('❌ Failed to validate stock');
+    });
+}
+
+function proceedCheckoutModal() {
     // Open checkout modal
     document.getElementById('checkout-modal').classList.add('show');
     
