@@ -88,7 +88,7 @@ function searchProducts(query) {
 // ADD TO CART
 function addToCart(btn) {
     if (!saleStarted) {
-        alert('⚠️ Please create a sale first (click ⚙️)');
+        alert('⚠️ Please create a sale first (click 📝 NUEVA VENTA)');
         openSettings();
         return;
     }
@@ -102,9 +102,18 @@ function addToCart(btn) {
     const name = row.querySelector('.name').textContent;
     const stock = parseInt(row.querySelector('.stock').textContent);
     
-    // Validate stock
+    // Check single add quantity
     if (quantity > stock) {
-        alert(`⚠️ Only ${stock} in stock!`);
+        alert(`⚠️ Cannot add ${quantity} units - only ${stock} in stock!`);
+        return;
+    }
+    
+    // Check total quantity in cart for this product won't exceed stock
+    const currentQtyInCart = cart[productId] ? cart[productId].qty : 0;
+    const totalQtyAfterAdd = currentQtyInCart + quantity;
+    
+    if (totalQtyAfterAdd > stock) {
+        alert(`⚠️ You already have ${currentQtyInCart} in cart.\nOnly ${stock - currentQtyInCart} more available!\nCannot add ${quantity}.`);
         return;
     }
     
@@ -266,6 +275,102 @@ function proceedCheckout() {
     
     document.getElementById('checkout-items').textContent = totalItems;
     document.getElementById('checkout-total').textContent = '$' + totalAmount.toFixed(2);
+    
+    // Store total for cash payment calculation
+    window.currentTotal = totalAmount;
+    
+    // Setup payment method listeners
+    setupPaymentMethodListeners();
+    
+    // Reset cash amount input
+    const cashAmountInput = document.getElementById('cash-amount-input');
+    if (cashAmountInput) {
+        cashAmountInput.value = '';
+        cashAmountInput.focus();
+    }
+}
+
+function setupPaymentMethodListeners() {
+    const paymentRadios = document.querySelectorAll('input[name="payment"]');
+    paymentRadios.forEach(radio => {
+        radio.addEventListener('change', toggleCashInput);
+    });
+    
+    // Show/hide cash input based on current selection
+    const selectedPayment = document.querySelector('input[name="payment"]:checked').value;
+    if (selectedPayment === 'cash') {
+        showCashInput();
+    } else {
+        hideCashInput();
+    }
+}
+
+function showCashInput() {
+    let cashSection = document.getElementById('cash-payment-section');
+    
+    // Create cash input section if it doesn't exist
+    if (!cashSection) {
+        const paymentGroup = document.querySelector('.checkout-group');
+        cashSection = document.createElement('div');
+        cashSection.id = 'cash-payment-section';
+        cashSection.className = 'checkout-group cash-payment-section';
+        cashSection.innerHTML = `
+            <label>Amount Received (Cash):</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <input type="number" id="cash-amount-input" class="form-control" placeholder="Enter cash amount" step="0.01" min="0">
+            </div>
+            <div id="change-display" style="display: none; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                <strong>Change: $<span id="change-amount">0.00</span></strong>
+            </div>
+        `;
+        paymentGroup.parentNode.insertBefore(cashSection, paymentGroup.nextSibling);
+    }
+    
+    cashSection.style.display = 'block';
+    
+    // Add listener to cash amount input
+    const cashInput = document.getElementById('cash-amount-input');
+    cashInput.addEventListener('input', calculateChange);
+    cashInput.focus();
+}
+
+function hideCashInput() {
+    const cashSection = document.getElementById('cash-payment-section');
+    if (cashSection) {
+        cashSection.style.display = 'none';
+    }
+}
+
+function toggleCashInput(e) {
+    if (e.target.value === 'cash') {
+        showCashInput();
+    } else {
+        hideCashInput();
+    }
+}
+
+function calculateChange() {
+    const cashInput = document.getElementById('cash-amount-input');
+    const cashAmount = parseFloat(cashInput.value) || 0;
+    const changeDisplay = document.getElementById('change-display');
+    const changeAmount = document.getElementById('change-amount');
+    
+    const change = cashAmount - window.currentTotal;
+    
+    if (cashAmount > 0) {
+        changeDisplay.style.display = 'block';
+        if (change < 0) {
+            changeAmount.textContent = '0.00';
+            changeAmount.style.color = 'red';
+            changeDisplay.innerHTML = `<strong style="color: red;">Insufficient payment! Need $${Math.abs(change).toFixed(2)} more</strong>`;
+        } else {
+            changeAmount.textContent = change.toFixed(2);
+            changeAmount.style.color = 'green';
+            changeDisplay.innerHTML = `<strong style="color: green;">Change: $<span id="change-amount">${change.toFixed(2)}</span></strong>`;
+        }
+    } else {
+        changeDisplay.style.display = 'none';
+    }
 }
 
 function closeCheckout() {
@@ -281,6 +386,22 @@ function confirmCheckout() {
     Object.values(cart).forEach(item => {
         totalAmount += item.qty * item.price;
     });
+    
+    // Validate cash payment
+    if (paymentMethod === 'cash') {
+        const cashInput = document.getElementById('cash-amount-input');
+        const cashAmount = parseFloat(cashInput.value) || 0;
+        
+        if (cashAmount <= 0) {
+            alert('⚠️ Please enter the cash amount received');
+            return;
+        }
+        
+        if (cashAmount < totalAmount) {
+            alert(`⚠️ Insufficient payment!\nTotal: $${totalAmount.toFixed(2)}\nReceived: $${cashAmount.toFixed(2)}\nNeed: $${(totalAmount - cashAmount).toFixed(2)} more`);
+            return;
+        }
+    }
     
     // Check for wallet discount
     let walletDiscount = 0;
@@ -331,9 +452,20 @@ function confirmCheckout() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
+            // Calculate change for cash payments
+            let cashChange = 0;
+            if (paymentMethod === 'cash') {
+                const cashAmount = parseFloat(document.getElementById('cash-amount-input').value);
+                cashChange = cashAmount - finalTotal;
+            }
+            
             let msg = `✅ Sale completed!\nSale ID: ${data.sale_id}\nTotal: $${data.total}`;
             if (walletDiscount > 0) {
-                msg += `\n\n💰 Wallet Discount: $${walletDiscount.toFixed(2)}`;
+                msg += `\n💰 Wallet Discount: $${walletDiscount.toFixed(2)}`;
+            }
+            if (paymentMethod === 'cash') {
+                msg += `\n\n💵 Cash Received: $${document.getElementById('cash-amount-input').value}`;
+                msg += `\n🔄 Change: $${cashChange.toFixed(2)}`;
             }
             alert(msg);
             
