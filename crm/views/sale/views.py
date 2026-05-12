@@ -295,6 +295,7 @@ def sale_ticket_json(request, pk):
 
 
 @csrf_exempt
+@role_required('Admin', 'Cashier', 'Manager')
 def saleNew(request):
     clients = Client.objects.all()
     default_client_id=1
