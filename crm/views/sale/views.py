@@ -247,10 +247,17 @@ def salepdfPrint(request,pk):
     sale=Sale.objects.get(id=pk)
 
     items=sale.saleitem_set.all()
+    
+    # Calculate subtotal for each item (price * quantity)
+    items_with_subtotal = []
+    for item in items:
+        item.subtotal = float(item.price) * float(item.quantity)
+        items_with_subtotal.append(item)
+    
     data={
             "sale":sale,
             "saleId":sale.id,
-            "items":items,
+            "items":items_with_subtotal,
             "cliente":sale.client.name,
             "detalle":"Venta"
             }

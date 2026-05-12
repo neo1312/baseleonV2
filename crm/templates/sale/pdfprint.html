@@ -43,9 +43,9 @@
             <tr>
                 <td>{{item.product.id}}</td>
                 <td class="text-lowercase">{{item.product.name}}</td>
-                <td class="text-center">$ {{item.precioUnitario}}</td>
+                <td class="text-center">$ {{item.price|floatformat:2}}</td>
                 <td class="text-center">{{item.quantity}}</td>
-		<td class="text-right">$ {{item.get_total|floatformat:2}}</td>
+		<td class="text-right">$ {{item.subtotal|floatformat:2}}</td>
             </tr>
 {%endfor%}
             <tr>
@@ -53,6 +53,6 @@
                 <td class="no-line"></td>
                 <td class="no-line"></td>
                 <td class="no-line text-center"><strong>Total</strong></td>
-                <td class="no-line text-right"><strong>$ {{sale.get_cart_total}}</strong></td>
+                <td class="no-line text-right"><strong>$ {{sale.total_amount|floatformat:2}}</strong></td>
             </tr>
 {%endblock%}
