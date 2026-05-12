@@ -12,14 +12,27 @@
 
 {% block rows %}
     {% for p in items%}
-        <tr>
-            <td>{{ p.quantity}}</td>
-            <td>{{ p.product}}</td>
-            <td>{{ p.cost}}</td>
-            <td>{{ p.get_total|floatformat:2}}</td>
+        <tr class="purchase-item-row" data-item-id="{{ p.id }}">
             <td>
-                    <a href="/purchase/itemdelete/{{p.id}}" class="btn btn-danger btn-xs btn-flat">
-                            <i class="fas fa-trash-alt"></i></a>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <button class="btn btn-sm btn-danger btn-quantity-decrease" type="button" data-item-id="{{ p.id }}" title="Decrease">−</button>
+                    <input type="number" class="form-control form-control-sm text-center quantity-input" 
+                           value="{{ p.quantity }}" min="1" step="1" 
+                           data-item-id="{{ p.id }}" 
+                           style="width: 60px; font-weight: bold;"
+                           readonly>
+                    <button class="btn btn-sm btn-success btn-quantity-increase" type="button" data-item-id="{{ p.id }}" title="Increase">+</button>
+                </div>
+            </td>
+            <td>{{ p.product}}</td>
+            <td>${{ p.cost|floatformat:2}}</td>
+            <td class="item-total" data-item-id="{{ p.id }}">
+                <strong>${{ p.get_total|floatformat:2}}</strong>
+            </td>
+            <td>
+                <a href="/purchase/itemdelete/{{p.id}}" class="btn btn-danger btn-xs" title="Delete">
+                    <i class="fas fa-trash-alt"></i>
+                </a>
             </td>
         </tr>
     {% endfor %}

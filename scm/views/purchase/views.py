@@ -107,7 +107,7 @@ def purchaseItemView(request):
                 return JsonResponse('No provider available for purchase.', safe=False, status=400)
             purchase = Purchase.objects.create(provider=provider)
         pk=int(data[0])
-        quantity=data[1]
+        quantity=int(data[1])
         product=Product.objects.get(id=pk)
         costo=product.costo
         
@@ -115,14 +115,15 @@ def purchaseItemView(request):
         outputlist=list(filter(lambda x:x.product.id==pk,itemspurchase))
         if outputlist:
             repetido=outputlist[0]
-            quantity=int(repetido.quantity)+int(quantity)
-            purchaseItem.objects.filter(id=repetido.id).delete()
-            purchaseItem.objects.create(product=product,purchase=purchase,quantity=quantity,cost=costo)
-
-            return JsonResponse('se sumaron',safe=False)
+            # Update quantity in place instead of delete/recreate
+            new_quantity=int(repetido.quantity)+quantity
+            repetido.quantity = new_quantity
+            repetido.save()
+            return JsonResponse({'status': 'updated', 'message': 'se sumaron', 'item_id': repetido.id, 'quantity': new_quantity, 'total': float(repetido.get_total)}, safe=False)
         else:
-            purchaseItem.objects.create(product=product,purchase=purchase,quantity=quantity,cost=costo)
-            return JsonResponse('creo nuevo registro',safe=False)
+            new_item = purchaseItem.objects.create(product=product,purchase=purchase,quantity=quantity,cost=costo)
+            return JsonResponse({'status': 'created', 'message': 'creo nuevo registro', 'item_id': new_item.id, 'quantity': quantity, 'total': float(new_item.get_total)}, safe=False)
+
 
 def purchaseItemDelete(request,pk):
     item=purchaseItem.objects.get(id=pk)
@@ -136,6 +137,34 @@ def purchaseItemDelete(request,pk):
             'retornoLista':'/purchase/list',
             }
     return render(request,  'purchase/delete.html',context)
+
+@csrf_exempt
+def purchaseUpdateQuantity(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            item_id = data.get('item_id')
+            quantity = int(data.get('quantity', 1))
+            
+            if quantity < 1:
+                return JsonResponse({'status': 'error', 'message': 'Quantity must be at least 1'}, status=400)
+            
+            item = purchaseItem.objects.get(id=item_id)
+            item.quantity = quantity
+            item.save()
+            
+            return JsonResponse({
+                'status': 'success',
+                'quantity': item.quantity,
+                'cost': float(item.cost),
+                'total': float(item.get_total)
+            })
+        except purchaseItem.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Item not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
 def purchaseOrder(request, pk):

@@ -1,9 +1,19 @@
-{% extends 'create.html' %}
-{% load static %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>FL|Instant Purchase Order</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body { padding: 20px; }
+        #items_table tbody tr:hover { background-color: #f5f5f5; }
+        #total_items, #total_cost { color: #28a745; font-size: 1.2em; }
+    </style>
+</head>
+<body>
 <div class="container mt-5">
-    {% csrf_token %}
     <div class="row">
         <div class="col-md-10 offset-md-1">
             <div class="card">
@@ -11,6 +21,8 @@
                     <h4>{{ title }}</h4>
                 </div>
                 <div class="card-body">
+                    {% csrf_token %}
+                    
                     <!-- Provider Selection -->
                     <div class="form-group mb-3">
                         <label for="provider_id"><strong>Select Provider:</strong></label>
@@ -40,7 +52,7 @@
                             </div>
 
                             <!-- Add Item Button -->
-                            <button type="button" class="btn btn-primary mb-3" id="add_item_btn" onclick="addItem()">
+                            <button type="button" class="btn btn-primary mb-3" id="add_item_btn">
                                 <i class="fas fa-plus"></i> Add Item
                             </button>
 
@@ -95,6 +107,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const items = [];
 
@@ -160,14 +173,26 @@ function addItem() {
                 return;
             }
 
-            // Add to items array
-            items.push({
-                product_id: data.product_id,
-                pv1: data.pv1,
-                product_name: data.product_name,
-                cost: data.cost,
-                quantity: quantity,
-            });
+            // Check if product already exists in items
+            const existingIndex = items.findIndex(item => item.pv1 === data.pv1);
+            
+            if (existingIndex !== -1) {
+                // Update existing item quantity
+                items[existingIndex].quantity += quantity;
+                console.log(`✓ Updated existing item: ${data.product_name}, new quantity: ${items[existingIndex].quantity}`);
+                alert(`✓ Updated: ${data.product_name}\n\nNew Quantity: ${items[existingIndex].quantity}`);
+            } else {
+                // Add new item
+                items.push({
+                    product_id: data.product_id,
+                    pv1: data.pv1,
+                    product_name: data.product_name,
+                    cost: data.cost,
+                    quantity: quantity,
+                });
+                console.log(`✓ Added new item: ${data.product_name}`);
+                alert(`✓ Item added: ${data.product_name} (Qty: ${quantity})`);
+            }
 
             // Clear inputs
             document.getElementById('pv1_input').value = '';
@@ -176,7 +201,6 @@ function addItem() {
 
             // Render items
             renderItems();
-            alert(`✓ Item added: ${data.product_name} (Qty: ${quantity})`);
         })
         .catch(error => {
             console.error('Fetch error:', error);
@@ -203,7 +227,15 @@ function renderItems() {
             <td>${item.pv1}</td>
             <td>${item.product_name}</td>
             <td>$${parseFloat(item.cost).toFixed(2)}</td>
-            <td>${item.quantity}</td>
+            <td>
+                <div style="display: flex; gap: 5px; align-items: center; width: fit-content;">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="decrementItem(${index})" title="Decrease">−</button>
+                    <input type="number" class="form-control form-control-sm text-center" 
+                           value="${item.quantity}" min="1" 
+                           style="width: 60px; font-weight: bold;" readonly>
+                    <button type="button" class="btn btn-sm btn-success" onclick="incrementItem(${index})" title="Increase">+</button>
+                </div>
+            </td>
             <td>$${item_total.toFixed(2)}</td>
             <td>
                 <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${index})">
@@ -218,9 +250,33 @@ function renderItems() {
     document.getElementById('total_cost').textContent = `$${total_cost.toFixed(2)}`;
 }
 
+function incrementItem(index) {
+    if (index >= 0 && index < items.length) {
+        items[index].quantity += 1;
+        console.log(`Increased ${items[index].product_name} qty to ${items[index].quantity}`);
+        renderItems();
+    }
+}
+
+function decrementItem(index) {
+    if (index >= 0 && index < items.length) {
+        if (items[index].quantity > 1) {
+            items[index].quantity -= 1;
+            console.log(`Decreased ${items[index].product_name} qty to ${items[index].quantity}`);
+            renderItems();
+        }
+    }
+}
+
 function removeItem(index) {
-    items.splice(index, 1);
-    renderItems();
+    if (index >= 0 && index < items.length) {
+        const item = items[index];
+        if (confirm(`Remove "${item.product_name}" from order?`)) {
+            items.splice(index, 1);
+            console.log(`Removed: ${item.product_name}`);
+            renderItems();
+        }
+    }
 }
 
 // Submit order
@@ -276,35 +332,27 @@ document.getElementById('submit_btn').addEventListener('click', function() {
     });
 });
 
-function calculateTotal() {
-    return items.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
-}
-
-// Attach event listeners AFTER all functions are defined
-document.getElementById('add_item_btn').addEventListener('click', addItem);
-
+// Add item on Enter key in quantity
 document.getElementById('quantity_input').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         addItem();
     }
 });
 
+// Add item on Enter in PV1 input
 document.getElementById('pv1_input').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
         document.getElementById('quantity_input').focus();
     }
 });
+
+// Add item button click
+document.getElementById('add_item_btn').addEventListener('click', addItem);
+
+function calculateTotal() {
+    return items.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
+}
 </script>
-
-<style>
-#items_table tbody tr:hover {
-    background-color: #f5f5f5;
-}
-
-#total_items, #total_cost {
-    color: #28a745;
-    font-size: 1.2em;
-}
-</style>
-{% endblock %}
+</body>
+</html>

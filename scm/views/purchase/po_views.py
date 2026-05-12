@@ -453,7 +453,7 @@ def po_instant_create(request):
         'title': 'Instant Purchase Order',
         'providers': providers,
     }
-    return render(request, 'purchase/po/instant_create.html', context)
+    return render(request, 'purchase/po/instant_create_standalone.html', context)
 
 
 def po_instant_lookup_pv1(request):
@@ -539,16 +539,17 @@ def po_instant_submit(request):
                     po_item = PurchaseOrderItem.objects.create(
                         purchase_order=po,
                         product=product,
-                        quantity_ordered=quantity,
-                        unit_cost=cost,
-                        total_cost=quantity * cost,
+                        ordered_quantity=quantity,
+                        ordered_cost_per_unit=cost,
+                        ordered_total=quantity * cost,
                     )
                     
                     # Create inventory units (mark as received immediately for instant orders)
                     for i in range(quantity):
                         InventoryUnit.objects.create(
                             product=product,
-                            purchase_item=po_item,
+                            purchase_order=po,
+                            purchase_item=None,  # Not using old purchaseItem model for PO workflow
                             status='ready_to_sale',  # Instantly ready for instant orders
                             purchase_cost=cost,
                             received_cost=cost,
@@ -559,7 +560,7 @@ def po_instant_submit(request):
                     product.stock += quantity
                     product.save()
                     
-                    total_cost += po_item.total_cost
+                    total_cost += po_item.ordered_total
                     total_quantity += quantity
                 
                 # Update PO totals
