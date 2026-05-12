@@ -255,10 +255,10 @@ def complete_sale(request):
             if client_id:
                 client = Client.objects.get(id=client_id)
             else:
-                # Use default "General" client
+                # Use default "mostrador" client for walk-in customers
                 client, _ = Client.objects.get_or_create(
-                    name='General',
-                    defaults={'email': 'general@store.com'}
+                    name='mostrador',
+                    defaults={'phoneNumber': '0000', 'tipo': 'menudeo'}
                 )
             
             # Create sale
