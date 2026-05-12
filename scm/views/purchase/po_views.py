@@ -546,6 +546,16 @@ def po_instant_submit(request):
                     
                     # Create inventory units (mark as received immediately for instant orders)
                     for i in range(quantity):
+                        # Generate unique tracking ID: PO#-Product#-Sequential
+                        tracking_id = f"PO{po.id}-P{product.id}-{i+1}"
+                        
+                        # Ensure uniqueness by checking for duplicates
+                        counter = 1
+                        base_tracking_id = tracking_id
+                        while InventoryUnit.objects.filter(tracking_id=tracking_id).exists():
+                            tracking_id = f"{base_tracking_id}-{counter}"
+                            counter += 1
+                        
                         InventoryUnit.objects.create(
                             product=product,
                             purchase_order=po,
@@ -554,6 +564,7 @@ def po_instant_submit(request):
                             purchase_cost=cost,
                             received_cost=cost,
                             received_date=timezone.now(),
+                            tracking_id=tracking_id,
                         )
                     
                     # NOTE: Stock is now tracked only via InventoryUnit.objects.filter(status='ready_to_sale')
