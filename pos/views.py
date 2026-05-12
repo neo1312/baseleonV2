@@ -249,7 +249,6 @@ def complete_sale(request):
             payment_method = data.get('payment_method', 'cash')
             client_id = data.get('client_id')
             wallet_discount = Decimal(str(data.get('wallet_discount', 0)))
-            total_amount = Decimal(str(data.get('total_amount', 0)))
             
             # Get or create client
             if client_id:
@@ -272,8 +271,9 @@ def complete_sale(request):
                 status='completed',
             )
             
-            # Add items to sale
+            # Add items to sale and calculate total from actual backend prices
             total_quantity = 0
+            total_amount = Decimal('0')  # Calculate on backend based on actual prices
             for item_data in items:
                 product = Product.objects.get(id=item_data['product_id'])
                 quantity = int(item_data['quantity'])
@@ -307,7 +307,9 @@ def complete_sale(request):
                 # When saleItem is created, signals mark InventoryUnit records as 'sold'
                 # Product.stock_ready_to_sale count decreases automatically
                 
-                # Calculate item total (price * quantity)
+                # Calculate item total (price * quantity) for accurate backend total
+                item_total = price * Decimal(str(quantity))
+                total_amount += item_total
                 total_quantity += quantity
             
             # Handle wallet discount if applied
@@ -316,8 +318,10 @@ def complete_sale(request):
                 if hasattr(client, 'monedero'):
                     client.monedero = Decimal(str(client.monedero or 0)) - wallet_discount
                     client.save()
+                # Apply wallet discount to final total
+                total_amount -= wallet_discount
             
-            # Update sale totals
+            # Update sale totals with accurately calculated amounts
             sale.total_items = total_quantity
             sale.total_amount = total_amount
             sale.save()
