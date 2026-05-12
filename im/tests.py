@@ -271,9 +271,14 @@ class IntegrationTestCase(TestCase):
         
         purchase = Purchase.objects.create(provider=provider)
         
-        # Update product stock to avoid constraint issues
-        self.product.stock = 10
-        self.product.save()
+        # Create inventory units instead of using deprecated product.stock field
+        for i in range(10):
+            InventoryUnit.objects.create(
+                tracking_id=f'TEST-STOCK-{i+1}',
+                product=self.product,
+                status='ready_to_sale',
+                received_date=timezone.now()
+            )
         
         # Create purchase item (should trigger signal to create InventoryUnits)
         purchase_item = purchaseItem.objects.create(
@@ -294,11 +299,16 @@ class IntegrationTestCase(TestCase):
     
     def test_sale_marks_units_as_sold(self):
         """Test that creating a sale marks InventoryUnits as sold"""
-        # Update product stock
-        self.product.stock = 10
-        self.product.save()
+        # Create inventory units (instead of using deprecated product.stock field)
+        for i in range(10):
+            InventoryUnit.objects.create(
+                tracking_id=f'READY-{i+1}',
+                product=self.product,
+                status='ready_to_sale',
+                received_date=timezone.now()
+            )
         
-        # First create some inventory units in ready_to_sale status
+        # First create some additional inventory units in ready_to_sale status
         for i in range(3):
             InventoryUnit.objects.create(
                 tracking_id=f'4001-{i+1}',
@@ -364,9 +374,14 @@ class IntegrationTestCase(TestCase):
     
     def test_abc_metrics_update_after_sales(self):
         """Test that ProductABCMetrics are updated based on sales"""
-        # Update product stock
-        self.product.stock = 50
-        self.product.save()
+        # Create inventory units (instead of using deprecated product.stock field)
+        for i in range(50):
+            InventoryUnit.objects.create(
+                tracking_id=f'ABC-STOCK-{i+1}',
+                product=self.product,
+                status='ready_to_sale',
+                received_date=timezone.now()
+            )
         
         # Create ABC configuration
         config = ABCConfiguration.objects.create()

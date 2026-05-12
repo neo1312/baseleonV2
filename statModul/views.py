@@ -162,14 +162,19 @@ def counter_view(request):
 
 @csrf_exempt
 def update_stock(request):
-    if request.method == 'POST':
-        call=json.loads(request.body)
-        id_product=call['id']
-        stock_actual=call['stock']
-        product=get_object_or_404(Product, id=id_product)
-        product.stock =stock_actual
-        product.save()
-        return JsonResponse({"data":"Stock Updated succesfully"},safe=False)
+    """DEPRECATED: Stock is now tracked via InventoryUnit model only.
+    
+    To adjust inventory, use the InventoryUnit model:
+    - Create InventoryUnit with status='ready_to_sale' to add stock
+    - Set InventoryUnit status to 'adjustment' or 'returned' for inventory adjustments
+    - Query stock via Product.stock_ready_to_sale property (counts ready_to_sale InventoryUnits)
+    
+    This endpoint no longer works as Product.stock field has been removed.
+    """
+    return JsonResponse({
+        'error': 'DEPRECATED: Use InventoryUnit model instead',
+        'message': 'Product.stock field removed. Stock is tracked via InventoryUnit (status=ready_to_sale)',
+    }, status=400)
 
 
 def counter_page(request):

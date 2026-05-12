@@ -70,7 +70,6 @@ class Product(models.Model):
     sat=models.BooleanField(default=False)
     name=models.CharField(max_length=500,verbose_name='name')
     barcode=models.CharField(max_length=500,verbose_name='barcode',unique=True)
-    stock=models.PositiveIntegerField(default=0,verbose_name='existencia')
     stockMax=models.PositiveIntegerField(default=0,verbose_name='stockMaximo')
     stockMin=models.PositiveIntegerField(default=0,verbose_name='stockMinimo')
     #image = models.ImageField(upload_to='product/%Y/%m/%d', null=True, blank=True)

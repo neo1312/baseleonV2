@@ -556,9 +556,8 @@ def po_instant_submit(request):
                             received_date=timezone.now(),
                         )
                     
-                    # Update product stock
-                    product.stock += quantity
-                    product.save()
+                    # NOTE: Stock is now tracked only via InventoryUnit.objects.filter(status='ready_to_sale')
+                    # Product.stock field removed - InventoryUnit is single source of truth
                     
                     total_cost += po_item.ordered_total
                     total_quantity += quantity
