@@ -444,7 +444,6 @@ function calculateChange() {
         }
     }, 500); // Wait 500ms after user stops typing before showing validation
 }
-}
 
 function closeCheckout() {
     document.getElementById('checkout-modal').classList.remove('show');
