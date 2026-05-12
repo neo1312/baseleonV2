@@ -175,6 +175,23 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- DEBUG: Log initial product data -->
+    <script>
+    console.log('=== POS TERMINAL DEBUG ===');
+    console.log('Initial Products Data from Backend:');
+    const initialProducts = [
+        {% for product in products %}
+        {id: {{ product.id }}, name: '{{ product.name }}', stock: {{ product.stock }}, barcode: '{{ product.barcode }}'},
+        {% endfor %}
+    ];
+    console.table(initialProducts);
+    
+    // Also available as window variable for browser console testing
+    window.debugInitialProducts = initialProducts;
+    console.log('Type "window.debugInitialProducts" in console to inspect');
+    </script>
+    
     <script src="{% static 'js/pos.js' %}"></script>
 </body>
 </html>

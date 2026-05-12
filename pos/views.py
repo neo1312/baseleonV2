@@ -13,7 +13,9 @@ from crm.decorators import role_required
 @login_required(login_url='/login/')
 def pos_index(request):
     """Main POS interface"""
-    # Get all products with stock
+    # Get all products with ACTUAL available stock (from InventoryUnit ready_to_sale)
+    from django.db.models import Count, Q
+    
     products = list(Product.objects.filter(
         stock__gt=0
     ).order_by('-stock')[:50])
@@ -21,10 +23,13 @@ def pos_index(request):
     # Get all clients
     clients = Client.objects.all()[:100]
     
-    # Enrich products with price data
+    # Enrich products with price data - USE STOCK_READY_TO_SALE (correct field)
     products_data = []
     for p in products:
         granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
+        # USE stock_ready_to_sale instead of stock field!
+        available_stock = p.stock_ready_to_sale
+        
         products_data.append({
             'id': p.id,
             'barcode': p.barcode,
@@ -32,7 +37,7 @@ def pos_index(request):
             'price': float(p.priceLista),
             'price_mayoreo': float(p.priceMayoreo),
             'price_granel': float(granel_price) if granel_price else None,
-            'stock': p.stock,
+            'stock': available_stock,  # NOW CORRECT - from InventoryUnit
             'unidadEmpaque': p.unidadEmpaque,
             'granel': p.granel,
             'minimo': p.minimo,
@@ -64,10 +69,12 @@ def search_products(request):
                 models.Q(barcode__icontains=query)
             ).order_by('-stock')[:20]
         
-        # Enrich with price data
+        # Enrich with price data - USE STOCK_READY_TO_SALE
         results = []
         for p in products:
             granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
+            available_stock = p.stock_ready_to_sale  # CORRECT - from InventoryUnit
+            
             results.append({
                 'id': p.id,
                 'barcode': p.barcode,
@@ -75,7 +82,7 @@ def search_products(request):
                 'price': float(p.priceLista),
                 'price_mayoreo': float(p.priceMayoreo),
                 'price_granel': float(granel_price) if granel_price else None,
-                'stock': p.stock,
+                'stock': available_stock,  # NOW CORRECT
                 'granel': p.granel,
                 'minimo': p.minimo,
             })
@@ -85,17 +92,47 @@ def search_products(request):
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @csrf_exempt
+def debug_stock(request):
+    """Debug endpoint - show all product stock from database"""
+    if request.method == 'GET':
+        products = Product.objects.filter(stock__gt=0).order_by('id')
+        
+        stock_data = []
+        for p in products:
+            # Force database read
+            p.refresh_from_db()
+            stock_data.append({
+                'id': p.id,
+                'name': p.name,
+                'barcode': p.barcode,
+                'stock_from_db': p.stock,
+                'priceLista': float(p.priceLista),
+                'priceMayoreo': float(p.priceMayoreo),
+            })
+        
+        return JsonResponse({
+            'timestamp': timezone.now().isoformat(),
+            'products': stock_data,
+            'total': len(stock_data),
+        })
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@csrf_exempt
 def get_product_stock(request):
-    """Get current product stock from database (single source of truth)"""
+    """Get current product stock from database (single source of truth - InventoryUnit ready_to_sale)"""
     if request.method == 'GET':
         product_id = request.GET.get('id')
         
         try:
             product = Product.objects.get(id=product_id)
+            # USE stock_ready_to_sale - the ACTUAL available inventory
+            available_stock = product.stock_ready_to_sale
+            
             return JsonResponse({
                 'id': product.id,
                 'name': product.name,
-                'stock': product.stock,
+                'stock': available_stock,  # NOW CORRECT - from InventoryUnit
                 'success': True,
             })
         except Product.DoesNotExist:
@@ -118,14 +155,15 @@ def validate_stock(request):
                 
                 try:
                     product = Product.objects.get(id=product_id)
-                    available = product.stock
+                    # USE stock_ready_to_sale - the ACTUAL available inventory
+                    available = product.stock_ready_to_sale
                     is_valid = available >= requested_qty
                     
                     validation_results.append({
                         'product_id': product_id,
                         'product_name': product.name,
                         'requested': requested_qty,
-                        'available': available,
+                        'available': available,  # NOW CORRECT - from InventoryUnit
                         'valid': is_valid,
                         'message': f'OK' if is_valid else f'Only {available} available'
                     })
