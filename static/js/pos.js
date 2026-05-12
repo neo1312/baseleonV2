@@ -12,6 +12,7 @@ let clientName = null;
 let clientWallet = 0;
 let saleStarted = false; // Flag to block adding products before sale setup
 const TAX_RATE = 0; // NO TAXES
+let cashInputDebounceTimer = null; // For debouncing cash input validation
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -236,6 +237,15 @@ function clearCart() {
 // SETTINGS
 function openSettings() {
     document.getElementById('settings-modal').classList.add('show');
+    
+    // Default to "mostrador" client
+    const clientSelect = document.getElementById('client-select');
+    const options = clientSelect.querySelectorAll('option');
+    options.forEach(opt => {
+        if (opt.textContent.toLowerCase().includes('mostrador')) {
+            clientSelect.value = opt.value;
+        }
+    });
 }
 
 function closeSettings() {
@@ -403,27 +413,37 @@ function toggleCashInput(e) {
 }
 
 function calculateChange() {
-    const cashInput = document.getElementById('cash-amount-input');
-    const cashAmount = parseFloat(cashInput.value) || 0;
-    const changeDisplay = document.getElementById('change-display');
-    const changeAmount = document.getElementById('change-amount');
-    
-    const change = cashAmount - window.currentTotal;
-    
-    if (cashAmount > 0) {
-        changeDisplay.style.display = 'block';
-        if (change < 0) {
-            changeAmount.textContent = '0.00';
-            changeAmount.style.color = 'red';
-            changeDisplay.innerHTML = `<strong style="color: red;">Insufficient payment! Need $${Math.abs(change).toFixed(2)} more</strong>`;
-        } else {
-            changeAmount.textContent = change.toFixed(2);
-            changeAmount.style.color = 'green';
-            changeDisplay.innerHTML = `<strong style="color: green;">Change: $<span id="change-amount">${change.toFixed(2)}</span></strong>`;
-        }
-    } else {
-        changeDisplay.style.display = 'none';
+    // Debounce the validation - only show warnings after user stops typing for 500ms
+    if (cashInputDebounceTimer) {
+        clearTimeout(cashInputDebounceTimer);
     }
+    
+    const cashInput = document.getElementById('cash-amount-input');
+    const changeDisplay = document.getElementById('change-display');
+    
+    // Always show the display area, but delay the validation message
+    cashInputDebounceTimer = setTimeout(() => {
+        const cashAmount = parseFloat(cashInput.value) || 0;
+        const changeAmount = document.getElementById('change-amount');
+        
+        const change = cashAmount - window.currentTotal;
+        
+        if (cashAmount > 0) {
+            changeDisplay.style.display = 'block';
+            if (change < 0) {
+                changeAmount.textContent = '0.00';
+                changeAmount.style.color = 'red';
+                changeDisplay.innerHTML = `<strong style="color: red;">Insufficient payment! Need $${Math.abs(change).toFixed(2)} more</strong>`;
+            } else {
+                changeAmount.textContent = change.toFixed(2);
+                changeAmount.style.color = 'green';
+                changeDisplay.innerHTML = `<strong style="color: green;">Change: $<span id="change-amount">${change.toFixed(2)}</span></strong>`;
+            }
+        } else {
+            changeDisplay.style.display = 'none';
+        }
+    }, 500); // Wait 500ms after user stops typing before showing validation
+}
 }
 
 function closeCheckout() {
@@ -536,6 +556,9 @@ function confirmCheckout() {
             document.getElementById('notes').value = '';
             document.getElementById('sale-type-display').textContent = 'Sale: -';
             document.getElementById('client-display').textContent = 'Client: -';
+            
+            // Reload inventory from server to show updated stock
+            reloadInventory();
         } else {
             alert(`❌ Error: ${data.error}`);
         }
@@ -544,6 +567,29 @@ function confirmCheckout() {
         console.error('Checkout error:', err);
         alert('❌ Failed to complete sale');
     });
+}
+
+// Reload product inventory from server
+function reloadInventory() {
+    fetch('/pos/')
+        .then(r => r.text())
+        .then(html => {
+            // Parse the response to extract products data
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const productRows = doc.querySelectorAll('tbody tr');
+            
+            // Update current product table
+            const tbody = document.querySelector('tbody');
+            tbody.innerHTML = '';
+            
+            productRows.forEach(row => {
+                tbody.appendChild(row.cloneNode(true));
+            });
+            
+            console.log('✅ Inventory reloaded from server');
+        })
+        .catch(err => console.error('Error reloading inventory:', err));
 }
 
 // KEYBOARD SHORTCUTS
