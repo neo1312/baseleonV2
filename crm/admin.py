@@ -111,7 +111,7 @@ class quoteAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     search_fields=('id',)
     list_filter=('client','tipo','monedero')
     resource_class=quoteResource
-    list_display=('id','client','tipo','total_amount','monedero','date_created')
+    list_display=('id','client','tipo','get_cart_total','monedero','date_created')
     ordering = ('id','date_created')
     date_hierarchy='date_created'
 
