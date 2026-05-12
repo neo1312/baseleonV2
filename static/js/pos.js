@@ -1,381 +1,278 @@
-// ===== POS SYSTEM JAVASCRIPT =====
+/**
+ * MINIMALIST POS SYSTEM - Client-side Logic
+ * Focus: Fast, distraction-free cashier experience
+ */
 
-const cart = {};  // {product_id: {name, price, quantity, total}}
-const TAX_RATE = 0.16;
+// Global state
+let cart = {}; // {product_id: {id, barcode, name, qty, price, tipo}}
+let saleType = 'menudeo';
+let clientId = null;
+let clientName = 'General';
+const TAX_RATE = 0; // NO TAXES
 
-// Get CSRF token
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-const csrftoken = getCookie('csrftoken');
-
-// ===== INITIALIZATION =====
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    updateDateTime();
-    setInterval(updateDateTime, 1000);
-    
-    setupSearchListener();
-    setupKeyboardShortcuts();
+    updateCartDisplay();
+    document.getElementById('search-input').addEventListener('keypress', handleSearchKeypress);
+    document.getElementById('sale-type-select').addEventListener('change', updateSaleTypeDisplay);
 });
 
-function updateDateTime() {
-    const now = new Date();
-    const options = { 
-        weekday: 'short', 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    };
-    document.getElementById('current-date-time').textContent = now.toLocaleDateString('en-US', options);
-}
-
-// ===== SEARCH FUNCTIONALITY =====
-function setupSearchListener() {
-    const searchInput = document.getElementById('search-input');
-    let debounceTimer;
-    
-    searchInput.addEventListener('input', function() {
-        clearTimeout(debounceTimer);
-        const query = this.value.trim();
+// SEARCH & PRODUCT MANAGEMENT
+function handleSearchKeypress(e) {
+    if (e.key === 'Enter') {
+        const query = e.target.value.trim();
+        if (query.length < 2) return;
         
-        if (query.length < 1) {
-            loadDefaultProducts();
-            return;
-        }
-        
-        debounceTimer = setTimeout(() => {
-            searchProducts(query);
-        }, 300);
-    });
-    
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            // Search is already done, just focus first product
-            const firstBtn = document.querySelector('.product-add-btn');
-            if (firstBtn) firstBtn.focus();
-        }
-    });
+        searchProducts(query);
+        e.target.value = '';
+    }
 }
 
 function searchProducts(query) {
     fetch(`/pos/search/?q=${encodeURIComponent(query)}`)
-        .then(response => response.json())
+        .then(r => r.json())
         .then(products => {
-            renderProducts(products);
+            // Update table with search results
+            const tbody = document.getElementById('products-tbody');
+            tbody.innerHTML = '';
+            
+            products.forEach(p => {
+                const row = document.createElement('tr');
+                row.dataset.productId = p.id;
+                row.innerHTML = `
+                    <td class="barcode">${p.barcode}</td>
+                    <td class="name">${p.name}</td>
+                    <td class="stock">${p.stock}</td>
+                    <td class="price-regular">$${parseFloat(p.price).toFixed(2)}</td>
+                    <td class="price-mayoreo">$${parseFloat(p.price_mayoreo).toFixed(2)}</td>
+                    <td class="price-granel">${p.price_granel ? '$' + parseFloat(p.price_granel).toFixed(2) : '-'}</td>
+                    <td class="minimo">${p.minimo}</td>
+                    <td class="action">
+                        <input type="number" class="qty-input" value="1" min="1" style="width: 50px;">
+                        <button class="btn-add" onclick="addToCart(this)">+</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
         })
-        .catch(error => {
-            console.error('Search error:', error);
-            alert('Error searching products');
-        });
+        .catch(err => console.error('Search error:', err));
 }
 
-function loadDefaultProducts() {
-    location.reload();
-}
-
-function renderProducts(products) {
-    const container = document.getElementById('products-container');
+// ADD TO CART
+function addToCart(btn) {
+    const row = btn.closest('tr');
+    const productId = row.dataset.productId;
+    const qtyInput = row.querySelector('.qty-input');
+    const quantity = parseInt(qtyInput.value) || 1;
     
-    if (products.length === 0) {
-        container.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No products found</div>';
+    const barcode = row.querySelector('.barcode').textContent;
+    const name = row.querySelector('.name').textContent;
+    const stock = parseInt(row.querySelector('.stock').textContent);
+    
+    // Validate stock
+    if (quantity > stock) {
+        alert(`⚠️ Only ${stock} in stock!`);
         return;
     }
     
-    container.innerHTML = products.map(p => `
-        <div class="product-card" data-product-id="${p.id}">
-            <div class="product-image">
-                <i class="fas fa-toolbox"></i>
-            </div>
-            <div class="product-info">
-                <h5 class="product-name">${p.name}</h5>
-                <small class="product-sku">Barcode: ${p.barcode}</small>
-                <div class="product-stock">
-                    <span class="badge ${p.stock > 10 ? 'bg-success' : p.stock > 0 ? 'bg-warning' : 'bg-danger'}">
-                        ${p.stock} in stock
-                    </span>
-                </div>
-            </div>
-            <div class="product-price">
-                <span class="price">$${parseFloat(p.price).toFixed(2)}</span>
-            </div>
-            <button class="btn btn-sm btn-danger product-add-btn" 
-                    onclick="quickAdd(${p.id}, '${p.name.replace(/'/g, "\\'")}', ${p.price})">
-                <i class="fas fa-plus"></i>
-            </button>
-        </div>
-    `).join('');
-}
-
-// ===== CART MANAGEMENT =====
-function quickAdd(productId, productName, price) {
+    // Get price based on sale type
+    const priceRegular = parseFloat(row.querySelector('.price-regular').textContent.replace('$', ''));
+    const priceMayoreo = parseFloat(row.querySelector('.price-mayoreo').textContent.replace('$', ''));
+    const price = saleType === 'mayoreo' ? priceMayoreo : priceRegular;
+    
+    // Check if already in cart
     if (cart[productId]) {
-        cart[productId].quantity += 1;
+        cart[productId].qty += quantity;
     } else {
         cart[productId] = {
             id: productId,
-            name: productName,
-            price: parseFloat(price),
-            quantity: 1
+            barcode: barcode,
+            name: name,
+            qty: quantity,
+            price: price,
+            tipo: saleType,
         };
     }
     
-    updateCart();
-    
-    // Visual feedback
-    const btn = event.target.closest('.product-add-btn');
-    btn.innerHTML = '<i class="fas fa-check"></i>';
-    btn.classList.add('disabled');
-    setTimeout(() => {
-        btn.innerHTML = '<i class="fas fa-plus"></i>';
-        btn.classList.remove('disabled');
-    }, 500);
+    updateCartDisplay();
+    qtyInput.value = 1;
 }
 
-function updateCart() {
-    const cartContainer = document.getElementById('cart-items');
-    const items = Object.values(cart);
+// UPDATE CART DISPLAY
+function updateCartDisplay() {
+    const itemsContainer = document.getElementById('cart-items');
+    const cartCount = document.getElementById('cart-count');
+    let totalItems = 0;
+    let totalAmount = 0;
     
-    if (items.length === 0) {
-        cartContainer.innerHTML = `
-            <div class="empty-cart">
-                <i class="fas fa-shopping-cart"></i>
-                <p>Your cart is empty</p>
-                <small class="text-muted">Add items from the left panel to get started</small>
+    if (Object.keys(cart).length === 0) {
+        itemsContainer.innerHTML = '<div class="empty-cart">Empty</div>';
+        cartCount.textContent = '0';
+        document.getElementById('total-items').textContent = '0';
+        document.getElementById('subtotal').textContent = '$0.00';
+        document.getElementById('total').textContent = '$0.00';
+        return;
+    }
+    
+    itemsContainer.innerHTML = '';
+    
+    Object.values(cart).forEach(item => {
+        const itemTotal = item.qty * item.price;
+        totalItems += item.qty;
+        totalAmount += itemTotal;
+        
+        const div = document.createElement('div');
+        div.className = 'cart-item';
+        div.innerHTML = `
+            <div class="cart-item-header">
+                <span class="cart-item-name">${item.name}</span>
+                <button class="cart-item-remove" onclick="removeFromCart('${item.id}')">Remove</button>
+            </div>
+            <div class="cart-item-price">
+                <span>$${item.price.toFixed(2)} × ${item.qty}</span>
+                <strong>$${itemTotal.toFixed(2)}</strong>
+            </div>
+            <div class="cart-item-qty">
+                <button class="qty-btn" onclick="updateQty('${item.id}', -1)">−</button>
+                <span>${item.qty}</span>
+                <button class="qty-btn" onclick="updateQty('${item.id}', 1)">+</button>
             </div>
         `;
-        document.getElementById('checkout-btn').disabled = true;
-        updateTotals();
-        return;
-    }
+        itemsContainer.appendChild(div);
+    });
     
-    document.getElementById('checkout-btn').disabled = false;
-    
-    cartContainer.innerHTML = items.map(item => `
-        <div class="cart-item">
-            <h6 class="cart-item-name">${item.name}</h6>
-            <div class="cart-item-row">
-                <div class="cart-item-qty">
-                    <button class="btn btn-sm btn-outline-danger qty-btn" onclick="decrementQty(${item.id})">−</button>
-                    <input type="number" class="qty-input" value="${item.quantity}" onchange="updateQty(${item.id}, this.value)" min="1">
-                    <button class="btn btn-sm btn-outline-success qty-btn" onclick="incrementQty(${item.id})">+</button>
-                </div>
-                <span>$${item.price.toFixed(2)}</span>
-                <span class="cart-item-total">$${(item.quantity * item.price).toFixed(2)}</span>
-                <span class="cart-item-remove" onclick="removeFromCart(${item.id})">
-                    <i class="fas fa-trash"></i>
-                </span>
-            </div>
-        </div>
-    `).join('');
-    
-    updateTotals();
+    cartCount.textContent = Object.keys(cart).length;
+    document.getElementById('total-items').textContent = totalItems;
+    document.getElementById('subtotal').textContent = '$' + totalAmount.toFixed(2);
+    document.getElementById('total').textContent = '$' + totalAmount.toFixed(2);
 }
 
-function incrementQty(productId) {
+// UPDATE ITEM QUANTITY
+function updateQty(productId, delta) {
     if (cart[productId]) {
-        cart[productId].quantity += 1;
-        updateCart();
-    }
-}
-
-function decrementQty(productId) {
-    if (cart[productId]) {
-        if (cart[productId].quantity > 1) {
-            cart[productId].quantity -= 1;
-            updateCart();
+        cart[productId].qty += delta;
+        if (cart[productId].qty <= 0) {
+            delete cart[productId];
         }
+        updateCartDisplay();
     }
 }
 
-function updateQty(productId, quantity) {
-    quantity = parseInt(quantity) || 1;
-    if (quantity < 1) quantity = 1;
-    
-    if (cart[productId]) {
-        cart[productId].quantity = quantity;
-        updateCart();
-    }
-}
-
+// REMOVE FROM CART
 function removeFromCart(productId) {
     delete cart[productId];
-    updateCart();
+    updateCartDisplay();
 }
 
-function clearAll() {
+// CLEAR CART
+function clearCart() {
+    if (Object.keys(cart).length === 0) return;
+    if (confirm('Clear entire cart?')) {
+        cart = {};
+        updateCartDisplay();
+    }
+}
+
+// SETTINGS
+function openSettings() {
+    document.getElementById('settings-modal').classList.add('show');
+}
+
+function closeSettings() {
+    document.getElementById('settings-modal').classList.remove('show');
+}
+
+function saveSettings() {
+    saleType = document.getElementById('sale-type-select').value;
+    clientId = document.getElementById('client-select').value;
+    clientName = document.getElementById('client-select').options[document.getElementById('client-select').selectedIndex].text;
+    
+    // Update display
+    updateSaleTypeDisplay();
+    document.getElementById('client-display').textContent = `Client: ${clientName}`;
+    
+    closeSettings();
+}
+
+function updateSaleTypeDisplay() {
+    document.getElementById('sale-type-display').textContent = `Sale: ${saleType === 'mayoreo' ? 'Mayoreo' : 'Menudeo'}`;
+}
+
+// CHECKOUT
+function proceedCheckout() {
     if (Object.keys(cart).length === 0) {
-        alert('Cart is already empty');
+        alert('⚠️ Cart is empty!');
         return;
     }
     
-    if (confirm('Clear the entire cart?')) {
-        Object.keys(cart).forEach(key => delete cart[key]);
-        updateCart();
-        document.getElementById('search-input').focus();
-    }
+    // Open checkout modal
+    document.getElementById('checkout-modal').classList.add('show');
+    
+    // Update checkout summary
+    document.getElementById('checkout-tipo').textContent = saleType === 'mayoreo' ? 'Mayoreo' : 'Menudeo';
+    document.getElementById('checkout-client').textContent = clientName;
+    
+    let totalItems = 0;
+    let totalAmount = 0;
+    Object.values(cart).forEach(item => {
+        totalItems += item.qty;
+        totalAmount += item.qty * item.price;
+    });
+    
+    document.getElementById('checkout-items').textContent = totalItems;
+    document.getElementById('checkout-total').textContent = '$' + totalAmount.toFixed(2);
 }
 
-function continueShopping() {
-    document.getElementById('search-input').value = '';
-    document.getElementById('search-input').focus();
-}
-
-// ===== TOTALS CALCULATION =====
-function updateTotals() {
-    const items = Object.values(cart);
-    const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-    const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-    const tax = subtotal * TAX_RATE;
-    const total = subtotal + tax;
-    
-    document.getElementById('total-items').textContent = itemCount;
-    document.getElementById('total-price').textContent = `$${total.toFixed(2)}`;
-    document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
-    document.getElementById('tax').textContent = `$${tax.toFixed(2)}`;
-    document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
-}
-
-// ===== CHECKOUT =====
-function checkout() {
-    const items = Object.values(cart);
-    if (items.length === 0) {
-        alert('Please add items to your cart first');
-        return;
-    }
-    
-    // Build receipt preview
-    const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-    const tax = subtotal * TAX_RATE;
-    const total = subtotal + tax;
-    
-    const receiptHTML = `
-        <div style="text-align: center; margin-bottom: 10px;">
-            <strong>FERRETERÍA LEÓN</strong><br>
-            Receipt Preview
-        </div>
-        <div style="border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc; margin: 10px 0; padding: 10px 0;">
-            ${items.map(item => `
-                <div class="receipt-item">
-                    <span>${item.name} x${item.quantity}</span>
-                    <span>$${(item.quantity * item.price).toFixed(2)}</span>
-                </div>
-            `).join('')}
-        </div>
-        <div class="receipt-total" style="margin-top: 10px;">
-            <div class="receipt-item">
-                <span>Subtotal:</span>
-                <span>$${subtotal.toFixed(2)}</span>
-            </div>
-            <div class="receipt-item">
-                <span>Tax (16%):</span>
-                <span>$${tax.toFixed(2)}</span>
-            </div>
-            <div class="receipt-item" style="font-size: 1.1rem; border-top: 1px dashed #ccc; margin-top: 5px; padding-top: 5px;">
-                <span>TOTAL:</span>
-                <span>$${total.toFixed(2)}</span>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('receipt-preview').innerHTML = receiptHTML;
-    
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('checkoutModal'));
-    modal.show();
+function closeCheckout() {
+    document.getElementById('checkout-modal').classList.remove('show');
 }
 
 function confirmCheckout() {
-    const items = Object.values(cart);
     const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+    const notes = document.getElementById('notes').value;
     
-    const payload = {
-        items: items.map(item => ({
-            product_id: item.id,
-            quantity: item.quantity,
-            price: item.price
-        })),
+    // Prepare sale data
+    const items = Object.values(cart).map(item => ({
+        product_id: item.id,
+        quantity: item.qty,
+        price: item.price,
+    }));
+    
+    const saleData = {
+        items: items,
+        tipo: saleType,
         payment_method: paymentMethod,
-        client_id: null
+        client_id: clientId || null,
+        notes: notes,
     };
     
-    // Disable button
-    const btn = document.querySelector('.modal-footer .btn-danger');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-    
+    // Submit to server
     fetch('/pos/complete-sale/', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrftoken
-        },
-        body: JSON.stringify(payload)
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(saleData),
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
-            // Close modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('checkoutModal'));
-            modal.hide();
-            
-            // Show success message
-            alert(`✓ Sale Completed!\n\nSale ID: ${data.sale_id}\nTotal: ${data.total}`);
-            
-            // Clear cart
-            Object.keys(cart).forEach(key => delete cart[key]);
-            updateCart();
-            
-            // Reset
-            document.getElementById('search-input').value = '';
-            document.getElementById('search-input').focus();
-            document.getElementById('payment_cash').checked = true;
+            alert(`✅ Sale completed!\nSale ID: ${data.sale_id}\nTotal: ${data.total}`);
+            cart = {};
+            updateCartDisplay();
+            closeCheckout();
+            document.getElementById('notes').value = '';
         } else {
             alert(`❌ Error: ${data.error}`);
         }
-        
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check"></i> Confirm & Complete';
     })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Connection error. Please try again.');
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check"></i> Confirm & Complete';
+    .catch(err => {
+        console.error('Checkout error:', err);
+        alert('❌ Failed to complete sale');
     });
 }
 
-// ===== KEYBOARD SHORTCUTS =====
-function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', function(e) {
-        // ESC - Clear cart
-        if (e.key === 'Escape') {
-            clearAll();
-        }
-        
-        // Ctrl+Enter or Cmd+Enter - Checkout
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            if (!document.getElementById('checkout-btn').disabled) {
-                checkout();
-            }
-        }
-    });
-}
-
-// ===== PRINT RECEIPT =====
-function printReceipt(saleId) {
-    window.open(`/receipt/${saleId}/`, '_blank');
-}
+// KEYBOARD SHORTCUTS
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        clearCart();
+    }
+});

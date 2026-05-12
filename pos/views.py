@@ -18,15 +18,20 @@ def pos_index(request):
         stock__gt=0
     ).order_by('-stock')[:50])
     
+    # Get all clients
+    clients = Client.objects.all()[:100]
+    
     # Enrich products with price data
     products_data = []
     for p in products:
+        granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
         products_data.append({
             'id': p.id,
             'barcode': p.barcode,
             'name': p.name,
             'price': float(p.priceLista),
             'price_mayoreo': float(p.priceMayoreo),
+            'price_granel': float(granel_price) if granel_price else None,
             'stock': p.stock,
             'unidadEmpaque': p.unidadEmpaque,
             'granel': p.granel,
@@ -36,6 +41,7 @@ def pos_index(request):
     context = {
         'title': 'POS - Point of Sale',
         'products': products_data,
+        'clients': clients,
     }
     return render(request, 'pos/index.html', context)
 
@@ -61,12 +67,14 @@ def search_products(request):
         # Enrich with price data
         results = []
         for p in products:
+            granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
             results.append({
                 'id': p.id,
                 'barcode': p.barcode,
                 'name': p.name,
                 'price': float(p.priceLista),
                 'price_mayoreo': float(p.priceMayoreo),
+                'price_granel': float(granel_price) if granel_price else None,
                 'stock': p.stock,
                 'granel': p.granel,
                 'minimo': p.minimo,
@@ -92,11 +100,14 @@ def get_product(request):
             else:  # menudeo (default)
                 price = product.priceLista
             
+            granel_price = product.priceListaGranel if product.priceListaGranel != 'N/A' else None
+            
             return JsonResponse({
                 'id': product.id,
                 'barcode': product.barcode,
                 'name': product.name,
                 'price': float(price),
+                'price_granel': float(granel_price) if granel_price else None,
                 'stock': product.stock,
                 'granel': product.granel,
                 'minimo': product.minimo,
