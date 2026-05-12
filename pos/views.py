@@ -224,7 +224,7 @@ def get_product(request):
                 'name': product.name,
                 'price': float(price),
                 'price_granel': float(granel_price) if granel_price else None,
-                'stock': product.stock,
+                'stock': product.stock_ready_to_sale,  # USE CORRECT FIELD
                 'granel': product.granel,
                 'minimo': product.minimo,
             })
@@ -291,8 +291,8 @@ def complete_sale(request):
                         # Normal price
                         price = Decimal(str(product.priceLista))
                 
-                # Validate stock
-                if product.stock < quantity:
+                # Validate stock - USE stock_ready_to_sale (InventoryUnit ready_to_sale count)
+                if product.stock_ready_to_sale < quantity:
                     raise ValueError(f"Insufficient stock for {product.name}")
                 
                 # Create sale item
@@ -303,9 +303,9 @@ def complete_sale(request):
                     price=price,
                 )
                 
-                # Update product stock
-                product.stock -= quantity
-                product.save()
+                # NOTE: InventoryUnit signal handlers automatically manage inventory status changes
+                # When saleItem is created, signals mark InventoryUnit records as 'sold'
+                # Product.stock_ready_to_sale count decreases automatically
                 
                 # Calculate item total (price * quantity)
                 total_quantity += quantity
