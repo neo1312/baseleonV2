@@ -132,6 +132,8 @@ def complete_sale(request):
             
             payment_method = data.get('payment_method', 'cash')
             client_id = data.get('client_id')
+            wallet_discount = Decimal(str(data.get('wallet_discount', 0)))
+            total_amount = Decimal(str(data.get('total_amount', 0)))
             
             # Get or create client
             if client_id:
@@ -144,8 +146,6 @@ def complete_sale(request):
                 )
             
             # Create sale
-            total_amount = Decimal('0')
-            total_quantity = 0
             tipo = data.get('tipo', 'menudeo')  # menudeo or mayoreo
             
             sale = Sale.objects.create(
@@ -157,6 +157,7 @@ def complete_sale(request):
             )
             
             # Add items to sale
+            total_quantity = 0
             for item_data in items:
                 product = Product.objects.get(id=item_data['product_id'])
                 quantity = int(item_data['quantity'])
@@ -191,9 +192,14 @@ def complete_sale(request):
                 product.save()
                 
                 # Calculate item total (price * quantity)
-                item_total = price * quantity
-                total_amount += item_total
                 total_quantity += quantity
+            
+            # Handle wallet discount if applied
+            if wallet_discount > 0 and client_id:
+                # Deduct from client's wallet
+                if hasattr(client, 'monedero'):
+                    client.monedero = Decimal(str(client.monedero or 0)) - wallet_discount
+                    client.save()
             
             # Update sale totals
             sale.total_items = total_quantity

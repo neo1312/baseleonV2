@@ -1,13 +1,16 @@
 /**
  * MINIMALIST POS SYSTEM - Client-side Logic
  * Focus: Fast, distraction-free cashier experience
+ * Workflow: Nueva Venta (select type+client) → Add items → Checkout
  */
 
 // Global state
 let cart = {}; // {product_id: {id, barcode, name, qty, price, tipo}}
-let saleType = 'menudeo';
+let saleType = null;
 let clientId = null;
-let clientName = 'General';
+let clientName = null;
+let clientWallet = 0;
+let saleStarted = false; // Flag to block adding products before sale setup
 const TAX_RATE = 0; // NO TAXES
 
 // Initialize on page load
@@ -15,10 +18,34 @@ document.addEventListener('DOMContentLoaded', function() {
     updateCartDisplay();
     document.getElementById('search-input').addEventListener('keypress', handleSearchKeypress);
     document.getElementById('sale-type-select').addEventListener('change', updateSaleTypeDisplay);
+    
+    // Disable search initially
+    disableSearch();
 });
+
+function disableSearch() {
+    const searchInput = document.getElementById('search-input');
+    searchInput.disabled = true;
+    searchInput.placeholder = 'Click ⚙️ to start a new sale...';
+    searchInput.style.opacity = '0.5';
+}
+
+function enableSearch() {
+    const searchInput = document.getElementById('search-input');
+    searchInput.disabled = false;
+    searchInput.placeholder = 'Search by product name or barcode...';
+    searchInput.style.opacity = '1';
+    searchInput.focus();
+}
 
 // SEARCH & PRODUCT MANAGEMENT
 function handleSearchKeypress(e) {
+    if (!saleStarted) {
+        alert('⚠️ Please create a sale first (click ⚙️)');
+        openSettings();
+        return;
+    }
+    
     if (e.key === 'Enter') {
         const query = e.target.value.trim();
         if (query.length < 2) return;
@@ -60,6 +87,12 @@ function searchProducts(query) {
 
 // ADD TO CART
 function addToCart(btn) {
+    if (!saleStarted) {
+        alert('⚠️ Please create a sale first (click ⚙️)');
+        openSettings();
+        return;
+    }
+    
     const row = btn.closest('tr');
     const productId = row.dataset.productId;
     const qtyInput = row.querySelector('.qty-input');
@@ -184,10 +217,22 @@ function closeSettings() {
 
 function saveSettings() {
     saleType = document.getElementById('sale-type-select').value;
-    clientId = document.getElementById('client-select').value;
-    clientName = document.getElementById('client-select').options[document.getElementById('client-select').selectedIndex].text;
+    clientId = document.getElementById('client-select').value || null;
+    
+    // Get client data
+    const clientSelect = document.getElementById('client-select');
+    const selectedOption = clientSelect.options[clientSelect.selectedIndex];
+    clientName = selectedOption.text;
+    clientWallet = parseFloat(selectedOption.dataset.wallet) || 0;
+    
+    if (!saleType) {
+        alert('⚠️ Please select a sale type');
+        return;
+    }
     
     // Update display
+    saleStarted = true;
+    enableSearch();
     updateSaleTypeDisplay();
     document.getElementById('client-display').textContent = `Client: ${clientName}`;
     
@@ -231,6 +276,35 @@ function confirmCheckout() {
     const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
     const notes = document.getElementById('notes').value;
     
+    // Calculate total
+    let totalAmount = 0;
+    Object.values(cart).forEach(item => {
+        totalAmount += item.qty * item.price;
+    });
+    
+    // Check for wallet discount
+    let walletDiscount = 0;
+    let finalTotal = totalAmount;
+    
+    if (clientId && clientWallet > 0) {
+        walletDiscount = Math.min(clientWallet, totalAmount);
+        
+        // Ask user to accept wallet discount
+        const useWallet = confirm(
+            `Client has $${clientWallet.toFixed(2)} in wallet.\n\n` +
+            `Apply $${walletDiscount.toFixed(2)} discount?\n\n` +
+            `Original: $${totalAmount.toFixed(2)}\n` +
+            `With Wallet: $${(totalAmount - walletDiscount).toFixed(2)}`
+        );
+        
+        if (!useWallet) {
+            walletDiscount = 0;
+            finalTotal = totalAmount;
+        } else {
+            finalTotal = totalAmount - walletDiscount;
+        }
+    }
+    
     // Prepare sale data
     const items = Object.values(cart).map(item => ({
         product_id: item.id,
@@ -244,6 +318,8 @@ function confirmCheckout() {
         payment_method: paymentMethod,
         client_id: clientId || null,
         notes: notes,
+        wallet_discount: walletDiscount,
+        total_amount: finalTotal,
     };
     
     // Submit to server
@@ -255,11 +331,26 @@ function confirmCheckout() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            alert(`✅ Sale completed!\nSale ID: ${data.sale_id}\nTotal: ${data.total}`);
+            let msg = `✅ Sale completed!\nSale ID: ${data.sale_id}\nTotal: $${data.total}`;
+            if (walletDiscount > 0) {
+                msg += `\n\n💰 Wallet Discount: $${walletDiscount.toFixed(2)}`;
+            }
+            alert(msg);
+            
+            // Reset sale
             cart = {};
+            saleStarted = false;
+            saleType = null;
+            clientId = null;
+            clientName = null;
+            clientWallet = 0;
+            
             updateCartDisplay();
+            disableSearch();
             closeCheckout();
             document.getElementById('notes').value = '';
+            document.getElementById('sale-type-display').textContent = 'Sale: -';
+            document.getElementById('client-display').textContent = 'Client: -';
         } else {
             alert(`❌ Error: ${data.error}`);
         }

@@ -20,7 +20,7 @@
                     <span id="client-display">Client: -</span>
                 </div>
             </div>
-            <button class="btn-config" onclick="openSettings()" title="Settings">⚙️</button>
+            <button class="btn-config" onclick="openSettings()" title="Start New Sale">📝 NUEVA VENTA</button>
         </div>
 
         <!-- SEARCH BAR -->
@@ -117,9 +117,9 @@
             <div class="settings-group">
                 <label>Client:</label>
                 <select id="client-select" class="form-control">
-                    <option value="">-- General Client --</option>
+                    <option value="" data-wallet="0">-- General Client --</option>
                     {% for client in clients %}
-                    <option value="{{ client.id }}">{{ client.name }}</option>
+                    <option value="{{ client.id }}" data-wallet="{{ client.monedero|default:0 }}">{{ client.name }}</option>
                     {% endfor %}
                 </select>
             </div>
