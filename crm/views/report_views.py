@@ -117,29 +117,56 @@ def calculate_report_totals(sales, devolutions):
         sale_tipo = sale.tipo
         items = sale.saleitem_set.all()
         
-        sale_total = Decimal('0')
-        sale_cost = Decimal('0')
-        items_count = 0
-        
-        for item in items:
-            try:
-                quantity = int(item.quantity)
-                
-                # Calculate price from cost and margin (same logic as devolutions)
-                if item.cost:
-                    cost = Decimal(str(item.cost))
-                    margen = Decimal(str(item.margen)) if item.margen else Decimal('0')
-                    price = cost * (1 + margen)
-                    
-                    # Use item.cost directly for profit (cost at time of sale)
-                    sale_total += price * quantity
+        # For POS sales: use total_amount which is the single source of truth
+        # For manual sales: fall back to calculating from items (cost/margen)
+        if sale.total_amount and sale.total_amount > 0:
+            # POS or modern sales with backend-calculated total_amount
+            sale_total = Decimal(str(sale.total_amount))
+            
+            # Estimate cost from items if available
+            sale_cost = Decimal('0')
+            items_count = 0
+            
+            for item in items:
+                try:
+                    quantity = int(item.quantity)
                     items_count += quantity
-                    sale_cost += cost * quantity
-                else:
-                    price = Decimal('0')
-                
-            except (ValueError, TypeError):
-                pass
+                    
+                    # If cost is available, use it; otherwise estimate from item price
+                    if item.cost:
+                        cost = Decimal(str(item.cost))
+                        sale_cost += cost * quantity
+                    else:
+                        # For POS items without cost field, estimate from product cost
+                        product = item.product
+                        if product and product.costo:
+                            product_cost = Decimal(str(product.costo))
+                            sale_cost += product_cost * quantity
+                except (ValueError, TypeError):
+                    pass
+        else:
+            # Legacy sales: calculate from cost and margin fields
+            sale_total = Decimal('0')
+            sale_cost = Decimal('0')
+            items_count = 0
+            
+            for item in items:
+                try:
+                    quantity = int(item.quantity)
+                    
+                    if item.cost:
+                        cost = Decimal(str(item.cost))
+                        margen = Decimal(str(item.margen)) if item.margen else Decimal('0')
+                        price = cost * (1 + margen)
+                        
+                        sale_total += price * quantity
+                        items_count += quantity
+                        sale_cost += cost * quantity
+                    else:
+                        price = Decimal('0')
+                    
+                except (ValueError, TypeError):
+                    pass
         
         totals[sale_tipo]['sales_count'] += 1
         totals[sale_tipo]['sales_total'] += sale_total
