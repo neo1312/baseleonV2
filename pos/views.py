@@ -14,16 +14,28 @@ from crm.decorators import role_required
 def pos_index(request):
     """Main POS interface"""
     # Get all products with stock
-    products = Product.objects.filter(
+    products = list(Product.objects.filter(
         stock__gt=0
-    ).values(
-        'id', 'pv1', 'name', 'costo', 'price',
-        'stock', 'unidadEmpaque'
-    ).order_by('-stock')[:50]
+    ).order_by('-stock')[:50])
+    
+    # Enrich products with price data
+    products_data = []
+    for p in products:
+        products_data.append({
+            'id': p.id,
+            'barcode': p.barcode,
+            'name': p.name,
+            'price': float(p.priceLista),
+            'price_mayoreo': float(p.priceMayoreo),
+            'stock': p.stock,
+            'unidadEmpaque': p.unidadEmpaque,
+            'granel': p.granel,
+            'minimo': p.minimo,
+        })
     
     context = {
         'title': 'POS - Point of Sale',
-        'products': products,
+        'products': products_data,
     }
     return render(request, 'pos/index.html', context)
 
@@ -36,9 +48,6 @@ def search_products(request):
         if not query:
             products = Product.objects.filter(
                 stock__gt=0
-            ).values(
-                'id', 'pv1', 'name', 'costo', 'price',
-                'stock'
             ).order_by('-stock')[:20]
         else:
             # Search by name, SKU, or barcode
@@ -46,13 +55,24 @@ def search_products(request):
                 stock__gt=0
             ).filter(
                 models.Q(name__icontains=query) |
-                models.Q(pv1__icontains=query)
-            ).values(
-                'id', 'pv1', 'name', 'costo', 'price',
-                'stock'
+                models.Q(barcode__icontains=query)
             ).order_by('-stock')[:20]
         
-        return JsonResponse(list(products), safe=False)
+        # Enrich with price data
+        results = []
+        for p in products:
+            results.append({
+                'id': p.id,
+                'barcode': p.barcode,
+                'name': p.name,
+                'price': float(p.priceLista),
+                'price_mayoreo': float(p.priceMayoreo),
+                'stock': p.stock,
+                'granel': p.granel,
+                'minimo': p.minimo,
+            })
+        
+        return JsonResponse(results, safe=False)
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
@@ -61,15 +81,25 @@ def get_product(request):
     """Get single product details"""
     if request.method == 'GET':
         product_id = request.GET.get('id')
+        tipo = request.GET.get('tipo', 'menudeo')  # menudeo or mayoreo
         
         try:
             product = Product.objects.get(id=product_id)
+            
+            # Get price based on sale type
+            if tipo == 'mayoreo':
+                price = product.priceMayoreo
+            else:  # menudeo (default)
+                price = product.priceLista
+            
             return JsonResponse({
                 'id': product.id,
-                'pv1': product.pv1,
+                'barcode': product.barcode,
                 'name': product.name,
-                'price': float(product.price),
+                'price': float(price),
                 'stock': product.stock,
+                'granel': product.granel,
+                'minimo': product.minimo,
             })
         except Product.DoesNotExist:
             return JsonResponse({'error': 'Product not found'}, status=404)
@@ -105,10 +135,12 @@ def complete_sale(request):
             # Create sale
             total_amount = Decimal('0')
             total_quantity = 0
+            tipo = data.get('tipo', 'menudeo')  # menudeo or mayoreo
             
             sale = Sale.objects.create(
                 client=client,
                 payment_method=payment_method,
+                tipo=tipo,
                 date_created=timezone.now(),
                 status='completed',
             )
@@ -117,7 +149,19 @@ def complete_sale(request):
             for item_data in items:
                 product = Product.objects.get(id=item_data['product_id'])
                 quantity = int(item_data['quantity'])
-                price = Decimal(str(item_data['price']))
+                
+                # Calculate price based on sale type and granel rules
+                if tipo == 'mayoreo':
+                    price = Decimal(str(product.priceMayoreo))
+                else:  # menudeo
+                    # For menudeo, check granel quantity rules
+                    if product.granel and quantity < int(product.minimo):
+                        # Below minimum, use granel price (higher)
+                        granel_price = product.priceListaGranel
+                        price = Decimal(str(granel_price)) if granel_price != 'N/A' else Decimal(str(product.priceLista))
+                    else:
+                        # Normal price
+                        price = Decimal(str(product.priceLista))
                 
                 # Validate stock
                 if product.stock < quantity:

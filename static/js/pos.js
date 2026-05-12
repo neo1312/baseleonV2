@@ -102,10 +102,10 @@ function renderProducts(products) {
             </div>
             <div class="product-info">
                 <h5 class="product-name">${p.name}</h5>
-                <small class="product-sku">SKU: ${p.pv1}</small>
+                <small class="product-sku">Barcode: ${p.barcode}</small>
                 <div class="product-stock">
-                    <span class="badge ${p.stock_ready_to_sale > 10 ? 'bg-success' : p.stock_ready_to_sale > 0 ? 'bg-warning' : 'bg-danger'}">
-                        ${p.stock_ready_to_sale} in stock
+                    <span class="badge ${p.stock > 10 ? 'bg-success' : p.stock > 0 ? 'bg-warning' : 'bg-danger'}">
+                        ${p.stock} in stock
                     </span>
                 </div>
             </div>
