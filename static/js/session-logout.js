@@ -1,15 +1,10 @@
 /**
  * Auto-logout on window/tab close
  * When user closes the browser window or tab, automatically logout
- * Exception: Don't auto-logout on POS pages
+ * Skip CSRF check on sendBeacon since it's simple session cleanup
  */
 
 (function() {
-    // Don't auto-logout if on POS page
-    if (window.location.pathname.includes('/pos/')) {
-        return;
-    }
-    
     // Flag to track if we're closing the window
     let isClosing = false;
     

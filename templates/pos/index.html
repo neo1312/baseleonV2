@@ -46,8 +46,8 @@
                         <h5 class="product-name">{{ product.name }}</h5>
                         <small class="product-sku">SKU: {{ product.pv1 }}</small>
                         <div class="product-stock">
-                            <span class="badge {% if product.stock_ready_to_sale > 10 %}bg-success{% elif product.stock_ready_to_sale > 0 %}bg-warning{% else %}bg-danger{% endif %}">
-                                {{ product.stock_ready_to_sale }} in stock
+                            <span class="badge {% if product.stock > 10 %}bg-success{% elif product.stock > 0 %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ product.stock }} in stock
                             </span>
                         </div>
                     </div>

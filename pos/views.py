@@ -3,22 +3,23 @@ from decimal import Decimal
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
 from im.models import Product
 from crm.models import Sale, saleItem, Client
 from django.utils import timezone
 from django.db import transaction
 from crm.decorators import role_required
 
-@role_required('Admin', 'Seller', 'Manager')
+@login_required(login_url='/login/')
 def pos_index(request):
     """Main POS interface"""
     # Get all products with stock
     products = Product.objects.filter(
-        stock_ready_to_sale__gt=0
+        stock__gt=0
     ).values(
         'id', 'pv1', 'name', 'costo', 'price',
-        'stock_ready_to_sale', 'unidadEmpaque'
-    ).order_by('-stock_ready_to_sale')[:50]
+        'stock', 'unidadEmpaque'
+    ).order_by('-stock')[:50]
     
     context = {
         'title': 'POS - Point of Sale',
@@ -34,22 +35,22 @@ def search_products(request):
         
         if not query:
             products = Product.objects.filter(
-                stock_ready_to_sale__gt=0
+                stock__gt=0
             ).values(
                 'id', 'pv1', 'name', 'costo', 'price',
-                'stock_ready_to_sale'
-            ).order_by('-stock_ready_to_sale')[:20]
+                'stock'
+            ).order_by('-stock')[:20]
         else:
             # Search by name, SKU, or barcode
             products = Product.objects.filter(
-                stock_ready_to_sale__gt=0
+                stock__gt=0
             ).filter(
                 models.Q(name__icontains=query) |
                 models.Q(pv1__icontains=query)
             ).values(
                 'id', 'pv1', 'name', 'costo', 'price',
-                'stock_ready_to_sale'
-            ).order_by('-stock_ready_to_sale')[:20]
+                'stock'
+            ).order_by('-stock')[:20]
         
         return JsonResponse(list(products), safe=False)
     
@@ -68,7 +69,7 @@ def get_product(request):
                 'pv1': product.pv1,
                 'name': product.name,
                 'price': float(product.price),
-                'stock': product.stock_ready_to_sale,
+                'stock': product.stock,
             })
         except Product.DoesNotExist:
             return JsonResponse({'error': 'Product not found'}, status=404)
@@ -119,7 +120,7 @@ def complete_sale(request):
                 price = Decimal(str(item_data['price']))
                 
                 # Validate stock
-                if product.stock_ready_to_sale < quantity:
+                if product.stock < quantity:
                     raise ValueError(f"Insufficient stock for {product.name}")
                 
                 # Create sale item
@@ -131,7 +132,7 @@ def complete_sale(request):
                 )
                 
                 # Update product stock
-                product.stock_ready_to_sale -= quantity
+                product.stock -= quantity
                 product.save()
                 
                 # Calculate item total (price * quantity)

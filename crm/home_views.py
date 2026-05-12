@@ -39,6 +39,7 @@ def user_login(request):
     
     return render(request, 'login.html', {})
 
+@csrf_exempt
 def user_logout(request):
     """User logout"""
     logout(request)

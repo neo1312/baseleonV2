@@ -132,8 +132,8 @@
                     </div>
                     
                     <!-- Dynamic Dashboard based on Role -->
-                    {% if user_dashboard %}
-                        {% for section in user_dashboard.cards %}
+                    {% if dashboard %}
+                        {% for section in dashboard.cards %}
                             <h3 class="text-white font-weight-bold mb-3 mt-4">
                                 <i class="fas fa-arrow-right mr-2"></i>{{ section.category }}
                             </h3>
