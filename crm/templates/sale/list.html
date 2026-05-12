@@ -17,7 +17,7 @@
             <td>{{ o.id }}</td>
             <td>{{ o.client }}</td>
             <td>{{ o.monedero }}</td>
-            <td>$ {{ o.get_cart_total|floatformat:2 }}</td>
+            <td>$ {{ o.total_amount|floatformat:2 }}</td>
             <td>{{ o.date_created }}</td>
             <td>
 <!--                <a href="/sale/edit/{{ o.id }}" class="btn btn-warning btn-xs btn-flat">
