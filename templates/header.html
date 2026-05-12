@@ -44,7 +44,14 @@
                     <li><a href="/admin/" class="dropdown-item"><i class="fas fa-user-cog text-primary"></i> Mi Perfil</a></li>
                     <li><span class="dropdown-item text-muted" style="cursor: default;"><small>Rol: <strong>{{ user_role }}</strong></small></span></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a href="/logout/" class="dropdown-item" onclick="closeSessionOnLogout()"><i class="fas fa-sign-out-alt text-danger"></i> Cerrar Sesión</a></li>
+                    <li>
+                        <form method="POST" action="/logout/" style="margin: 0;">
+                            {% csrf_token %}
+                            <button type="submit" class="dropdown-item" onclick="closeSessionOnLogout()" style="width: 100%; text-align: left; border: none; background: none; padding: 0.5rem 1rem; cursor: pointer;">
+                                <i class="fas fa-sign-out-alt text-danger"></i> Cerrar Sesión
+                            </button>
+                        </form>
+                    </li>
                 </ul>
             </li>
         </ul>

@@ -43,12 +43,26 @@ class Sale(models.Model):
             ('menudeo','menudeo'),
             ('mayoreo','mayoreo')
             ]
+    payment_methods=[
+            ('cash','Cash'),
+            ('card','Card'),
+            ('check','Check'),
+            ]
+    sale_statuses=[
+            ('pending','Pending'),
+            ('completed','Completed'),
+            ('cancelled','Cancelled'),
+            ]
     #basic fields
     #basic fields
     id=models.AutoField(primary_key=True,verbose_name='id')
     client= models.ForeignKey(Client, on_delete=models.SET_NULL, null=True,default='mostrador')
     tipo=models.CharField(choices=tipos,max_length=100,default='menudeo')
     monedero=models.BooleanField(default=False)
+    payment_method=models.CharField(choices=payment_methods,max_length=20,default='cash')
+    status=models.CharField(choices=sale_statuses,max_length=20,default='completed')
+    total_items=models.IntegerField(default=0)
+    total_amount=models.DecimalField(max_digits=12,decimal_places=2,default=0)
 
     #utility fields
     date_created= models.DateTimeField(blank=True, null=True)

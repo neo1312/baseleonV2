@@ -8,6 +8,12 @@ ROLE_FEATURES = {
         'color': '#DC143C',
         'cards': [
             {
+                'category': 'Point of Sale',
+                'items': [
+                    {'title': 'POS System', 'description': 'Fast checkout & sales', 'icon': '💳', 'url': '/pos/', 'color': '#DC143C'},
+                ]
+            },
+            {
                 'category': 'Sales',
                 'items': [
                     {'title': 'Ventas', 'description': 'Crear nueva venta', 'icon': '🛒', 'url': '/sale/new', 'color': '#DC143C'},
@@ -83,6 +89,12 @@ ROLE_FEATURES = {
         'icon': 'fas fa-cash-register',
         'color': '#FF8C00',
         'cards': [
+            {
+                'category': 'Point of Sale',
+                'items': [
+                    {'title': 'POS System', 'description': 'Fast & easy checkout', 'icon': '💳', 'url': '/pos/', 'color': '#DC143C'},
+                ]
+            },
             {
                 'category': 'Sales',
                 'items': [

@@ -22,4 +22,5 @@ urlpatterns = [
     path('im/', include('im.urls')),
     path('',include('crm.urls')),
     path('',include('statModul.urls')),
+    path('pos/', include('pos.urls')),
 ]
