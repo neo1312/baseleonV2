@@ -27,7 +27,11 @@ def role_required(*role_names):
                     return redirect('/')
             else:
                 # User is not authenticated, redirect to login with next parameter
-                return redirect(f'/login/?next={request.path}')
+                # Include query string to preserve filters, search params, etc.
+                next_url = request.path
+                if request.GET:
+                    next_url = f"{request.path}?{request.GET.urlencode()}"
+                return redirect(f'/login/?next={next_url}')
         
         return wrapper
     return decorator
