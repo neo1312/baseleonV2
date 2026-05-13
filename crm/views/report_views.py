@@ -22,26 +22,29 @@ def daily_report(request):
     date_range_data = {}
     
     try:
-        from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
-        to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
-        to_date = to_date + timedelta(days=1)  # Include entire end date
+        from_date = datetime.strptime(date_from, '%Y-%m-%d')
+        to_date = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)
+        
+        current_tz = timezone.get_current_timezone()
+        from_datetime = timezone.make_aware(from_date, current_tz)
+        to_datetime = timezone.make_aware(to_date, current_tz)
         
         # Get sales for the date range
         sales = Sale.objects.filter(
-            date_created__date__gte=from_date,
-            date_created__date__lt=to_date
+            date_created__gte=from_datetime,
+            date_created__lt=to_datetime
         )
         
         # Get devolutions for the date range
         devolutions = Devolution.objects.filter(
-            date_created__date__gte=from_date,
-            date_created__date__lt=to_date
+            date_created__gte=from_datetime,
+            date_created__lt=to_datetime
         )
         
         # Calculate totals by tipo
         date_range_data = {
-            'date_from': from_date,
-            'date_to': to_date - timedelta(days=1),
+            'date_from': from_datetime.date(),
+            'date_to': to_datetime.date() - timedelta(days=1),
             'totals': calculate_report_totals(sales, devolutions),
         }
         

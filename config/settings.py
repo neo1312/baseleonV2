@@ -116,10 +116,10 @@ STORAGES = {
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Store sessions in database
 SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds
 SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
-SESSION_COOKIE_SECURE = False if DEBUG else True  # Only send over HTTPS in production
+SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False') == 'True'  # Set to True only if using HTTPS
 SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection while allowing normal navigation
 SESSION_SAVE_EVERY_REQUEST = True  # Update session timestamp on every request (keeps users logged in)
-CSRF_COOKIE_SECURE = False if DEBUG else True
+CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'False') == 'True'
 CSRF_COOKIE_HTTPONLY = False  # JavaScript needs to read CSRF token
 CSRF_COOKIE_SAMESITE = 'Lax'
 

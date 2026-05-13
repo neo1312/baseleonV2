@@ -69,13 +69,14 @@ def getData(request):
 #generar filtro de devoluciones que no son mostardor.
         dia = diaHora.date()
         dia_aware = timezone.make_aware(timezone.datetime.combine(dia, timezone.datetime.min.time()))
-        devolutionsList = list(Devolution.objects.exclude(client__name='mostrador').filter(date_created__date=dia_aware.date()))
+        dia_end = dia_aware + datetime.timedelta(days=1)
+        devolutionsList = list(Devolution.objects.exclude(client__name='mostrador').filter(date_created__gte=dia_aware, date_created__lt=dia_end))
         all_devitems = [devolutionitem for devolution in devolutionsList for devolutionitem in devolution.devolutionitem_set.all()]
         total_value_dev =round((sum(devolutionitem.product.priceLista * devolutionitem.product.monedero for devolutionitem in all_devitems)),2)
 
 
 #generar filtro de ventas con monedero
-        ventas_con_monedero= Sale.objects.exclude(client__name='mostrador').filter(date_created__date=dia_aware.date())
+        ventas_con_monedero= Sale.objects.exclude(client__name='mostrador').filter(date_created__gte=dia_aware, date_created__lt=dia_end)
         total_sum_mon = round(sum(sale.get_cart_total for sale in ventas_con_monedero),2)
 
 
