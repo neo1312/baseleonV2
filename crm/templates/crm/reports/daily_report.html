@@ -46,7 +46,7 @@
 
     <!-- Summary Cards -->
     <div class="row mb-4">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card border-primary">
                 <div class="card-body">
                     <h6 class="card-title text-muted">Total Sales</h6>
@@ -55,20 +55,29 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card border-success">
                 <div class="card-body">
-                    <h6 class="card-title text-muted">Gross Profit</h6>
-                    <h3 class="text-success">${{ totals.combined.gross_profit|floatformat:2 }}</h3>
-                    <small class="text-muted">{{ totals.combined.gross_profit_margin }}% margin</small>
+                    <h6 class="card-title text-muted">Profit (FIFO)</h6>
+                    <h3 class="text-success">${{ totals.combined.fifo_gross_profit|floatformat:2 }}</h3>
+                    <small class="text-muted">{{ totals.combined.fifo_gross_profit_margin }}% margin</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card border-info">
                 <div class="card-body">
+                    <h6 class="card-title text-muted">Profit (Financial)</h6>
+                    <h3 class="text-info">${{ totals.combined.financial_gross_profit|floatformat:2 }}</h3>
+                    <small class="text-muted">{{ totals.combined.financial_gross_profit_margin }}% margin</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-secondary">
+                <div class="card-body">
                     <h6 class="card-title text-muted">Avg Transaction</h6>
-                    <h3 class="text-info">${{ totals.combined.avg_transaction_value }}</h3>
+                    <h3 class="text-secondary">${{ totals.combined.avg_transaction_value }}</h3>
                     <small class="text-muted">{{ totals.combined.items_sold }} items sold</small>
                 </div>
             </div>

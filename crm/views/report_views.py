@@ -69,15 +69,25 @@ def calculate_report_totals(sales, devolutions):
             'sales_count': 0,
             'sales_total': Decimal('0'),
             'sales_cost': Decimal('0'),
+            'sales_cost_fifo': Decimal('0'),
+            'sales_cost_financial': Decimal('0'),
             'items_sold': 0,
             'devolutions_count': 0,
             'devolutions_total': Decimal('0'),
             'devolutions_cost': Decimal('0'),
+            'devolution_cost_fifo': Decimal('0'),
+            'devolution_cost_financial': Decimal('0'),
             'devolution_items': 0,
             'net_sales': Decimal('0'),
             'cost_of_goods': Decimal('0'),
+            'cost_of_goods_fifo': Decimal('0'),
+            'cost_of_goods_financial': Decimal('0'),
             'gross_profit': Decimal('0'),
             'gross_profit_margin': Decimal('0'),
+            'fifo_gross_profit': Decimal('0'),
+            'fifo_gross_profit_margin': Decimal('0'),
+            'financial_gross_profit': Decimal('0'),
+            'financial_gross_profit_margin': Decimal('0'),
             'avg_transaction_value': Decimal('0'),
             'return_rate': Decimal('0'),
         },
@@ -85,15 +95,25 @@ def calculate_report_totals(sales, devolutions):
             'sales_count': 0,
             'sales_total': Decimal('0'),
             'sales_cost': Decimal('0'),
+            'sales_cost_fifo': Decimal('0'),
+            'sales_cost_financial': Decimal('0'),
             'items_sold': 0,
             'devolutions_count': 0,
             'devolutions_total': Decimal('0'),
             'devolutions_cost': Decimal('0'),
+            'devolution_cost_fifo': Decimal('0'),
+            'devolution_cost_financial': Decimal('0'),
             'devolution_items': 0,
             'net_sales': Decimal('0'),
             'cost_of_goods': Decimal('0'),
+            'cost_of_goods_fifo': Decimal('0'),
+            'cost_of_goods_financial': Decimal('0'),
             'gross_profit': Decimal('0'),
             'gross_profit_margin': Decimal('0'),
+            'fifo_gross_profit': Decimal('0'),
+            'fifo_gross_profit_margin': Decimal('0'),
+            'financial_gross_profit': Decimal('0'),
+            'financial_gross_profit_margin': Decimal('0'),
             'avg_transaction_value': Decimal('0'),
             'return_rate': Decimal('0'),
         },
@@ -101,15 +121,25 @@ def calculate_report_totals(sales, devolutions):
             'sales_count': 0,
             'sales_total': Decimal('0'),
             'sales_cost': Decimal('0'),
+            'sales_cost_fifo': Decimal('0'),
+            'sales_cost_financial': Decimal('0'),
             'items_sold': 0,
             'devolutions_count': 0,
             'devolutions_total': Decimal('0'),
             'devolutions_cost': Decimal('0'),
+            'devolution_cost_fifo': Decimal('0'),
+            'devolution_cost_financial': Decimal('0'),
             'devolution_items': 0,
             'net_sales': Decimal('0'),
             'cost_of_goods': Decimal('0'),
+            'cost_of_goods_fifo': Decimal('0'),
+            'cost_of_goods_financial': Decimal('0'),
             'gross_profit': Decimal('0'),
             'gross_profit_margin': Decimal('0'),
+            'fifo_gross_profit': Decimal('0'),
+            'fifo_gross_profit_margin': Decimal('0'),
+            'financial_gross_profit': Decimal('0'),
+            'financial_gross_profit_margin': Decimal('0'),
             'avg_transaction_value': Decimal('0'),
             'return_rate': Decimal('0'),
         }
@@ -128,6 +158,8 @@ def calculate_report_totals(sales, devolutions):
             
             # Estimate cost from items if available
             sale_cost = Decimal('0')
+            sale_cost_fifo = Decimal('0')
+            sale_cost_financial = Decimal('0')
             items_count = 0
             
             for item in items:
@@ -135,7 +167,7 @@ def calculate_report_totals(sales, devolutions):
                     quantity = int(item.quantity)
                     items_count += quantity
                     
-                    # If cost is available, use it; otherwise estimate from item price
+                    # If cost is available, use it; otherwise estimate from product cost
                     if item.cost:
                         cost = Decimal(str(item.cost))
                         sale_cost += cost * quantity
@@ -145,12 +177,23 @@ def calculate_report_totals(sales, devolutions):
                         if product and product.costo:
                             product_cost = Decimal(str(product.costo))
                             sale_cost += product_cost * quantity
+                    
+                    # FIFO cost from inventory units
+                    if item.product:
+                        fifo_cost = get_fifo_cost(item.product, quantity)
+                        sale_cost_fifo += fifo_cost
+                        # Financial cost using product.costo
+                        if item.product.costo:
+                            financial_cost = Decimal(str(item.product.costo)) * quantity
+                            sale_cost_financial += financial_cost
                 except (ValueError, TypeError):
                     pass
         else:
             # Legacy sales: calculate from cost and margin fields
             sale_total = Decimal('0')
             sale_cost = Decimal('0')
+            sale_cost_fifo = Decimal('0')
+            sale_cost_financial = Decimal('0')
             items_count = 0
             
             for item in items:
@@ -168,12 +211,23 @@ def calculate_report_totals(sales, devolutions):
                     else:
                         price = Decimal('0')
                     
+                    # FIFO cost from inventory units
+                    if item.product:
+                        fifo_cost = get_fifo_cost(item.product, quantity)
+                        sale_cost_fifo += fifo_cost
+                        # Financial cost using product.costo
+                        if item.product.costo:
+                            financial_cost = Decimal(str(item.product.costo)) * quantity
+                            sale_cost_financial += financial_cost
+                    
                 except (ValueError, TypeError):
                     pass
         
         totals[sale_tipo]['sales_count'] += 1
         totals[sale_tipo]['sales_total'] += sale_total
         totals[sale_tipo]['sales_cost'] += sale_cost
+        totals[sale_tipo]['sales_cost_fifo'] += sale_cost_fifo
+        totals[sale_tipo]['sales_cost_financial'] += sale_cost_financial
         totals[sale_tipo]['items_sold'] += items_count
     
     # Process devolutions
@@ -183,6 +237,8 @@ def calculate_report_totals(sales, devolutions):
         
         dev_total = Decimal('0')
         dev_cost = Decimal('0')
+        dev_cost_fifo = Decimal('0')
+        dev_cost_financial = Decimal('0')
         items_count = 0
         
         for item in items:
@@ -202,28 +258,51 @@ def calculate_report_totals(sales, devolutions):
                 else:
                     price = Decimal('0')
                 
+                # FIFO cost from inventory units
+                if item.product:
+                    fifo_cost = get_fifo_cost(item.product, quantity)
+                    dev_cost_fifo += fifo_cost
+                    # Financial cost using product.costo
+                    if item.product.costo:
+                        financial_cost = Decimal(str(item.product.costo)) * quantity
+                        dev_cost_financial += financial_cost
+                
             except (ValueError, TypeError):
                 pass
         
         totals[dev_tipo]['devolutions_count'] += 1
         totals[dev_tipo]['devolutions_total'] += dev_total
         totals[dev_tipo]['devolutions_cost'] += dev_cost
+        totals[dev_tipo]['devolution_cost_fifo'] += dev_cost_fifo
+        totals[dev_tipo]['devolution_cost_financial'] += dev_cost_financial
         totals[dev_tipo]['devolution_items'] += items_count
     
     # Calculate KPIs for each tipo
     for tipo in ['menudeo', 'mayoreo']:
         net_sales = totals[tipo]['sales_total'] - totals[tipo]['devolutions_total']
         cost_of_goods = totals[tipo]['sales_cost'] - totals[tipo]['devolutions_cost']
+        cost_of_goods_fifo = totals[tipo]['sales_cost_fifo'] - totals[tipo]['devolution_cost_fifo']
+        cost_of_goods_financial = totals[tipo]['sales_cost_financial'] - totals[tipo]['devolution_cost_financial']
         gross_profit = net_sales - cost_of_goods
+        fifo_gross_profit = net_sales - cost_of_goods_fifo
+        financial_gross_profit = net_sales - cost_of_goods_financial
         
         totals[tipo]['net_sales'] = net_sales
         totals[tipo]['cost_of_goods'] = cost_of_goods
+        totals[tipo]['cost_of_goods_fifo'] = cost_of_goods_fifo
+        totals[tipo]['cost_of_goods_financial'] = cost_of_goods_financial
         totals[tipo]['gross_profit'] = gross_profit
+        totals[tipo]['fifo_gross_profit'] = fifo_gross_profit
+        totals[tipo]['financial_gross_profit'] = financial_gross_profit
         
         # Gross Profit Margin % = (Gross Profit / Sales) * 100
         if totals[tipo]['sales_total'] > 0:
             gross_profit_margin = (gross_profit / totals[tipo]['sales_total']) * 100
             totals[tipo]['gross_profit_margin'] = round(gross_profit_margin, 2)
+            fifo_margin = (fifo_gross_profit / totals[tipo]['sales_total']) * 100
+            totals[tipo]['fifo_gross_profit_margin'] = round(fifo_margin, 2)
+            financial_margin = (financial_gross_profit / totals[tipo]['sales_total']) * 100
+            totals[tipo]['financial_gross_profit_margin'] = round(financial_margin, 2)
         
         # Average Transaction Value = Sales / Number of Transactions
         if totals[tipo]['sales_count'] > 0:
@@ -236,26 +315,34 @@ def calculate_report_totals(sales, devolutions):
             totals[tipo]['return_rate'] = round(return_rate, 2)
     
     # Calculate combined totals and KPIs
-    totals['combined']['sales_count'] = totals['menudeo']['sales_count'] + totals['mayoreo']['sales_count']
-    totals['combined']['sales_total'] = totals['menudeo']['sales_total'] + totals['mayoreo']['sales_total']
-    totals['combined']['sales_cost'] = totals['menudeo']['sales_cost'] + totals['mayoreo']['sales_cost']
-    totals['combined']['items_sold'] = totals['menudeo']['items_sold'] + totals['mayoreo']['items_sold']
-    totals['combined']['devolutions_count'] = totals['menudeo']['devolutions_count'] + totals['mayoreo']['devolutions_count']
-    totals['combined']['devolutions_total'] = totals['menudeo']['devolutions_total'] + totals['mayoreo']['devolutions_total']
-    totals['combined']['devolutions_cost'] = totals['menudeo']['devolutions_cost'] + totals['mayoreo']['devolutions_cost']
-    totals['combined']['devolution_items'] = totals['menudeo']['devolution_items'] + totals['mayoreo']['devolution_items']
+    for field in ['sales_count', 'sales_total', 'sales_cost', 'sales_cost_fifo', 'sales_cost_financial',
+                  'items_sold', 'devolutions_count', 'devolutions_total', 'devolutions_cost',
+                  'devolution_cost_fifo', 'devolution_cost_financial', 'devolution_items']:
+        totals['combined'][field] = totals['menudeo'][field] + totals['mayoreo'][field]
     
     net_sales = totals['combined']['sales_total'] - totals['combined']['devolutions_total']
     cost_of_goods = totals['combined']['sales_cost'] - totals['combined']['devolutions_cost']
+    cost_of_goods_fifo = totals['combined']['sales_cost_fifo'] - totals['combined']['devolution_cost_fifo']
+    cost_of_goods_financial = totals['combined']['sales_cost_financial'] - totals['combined']['devolution_cost_financial']
     gross_profit = net_sales - cost_of_goods
+    fifo_gross_profit = net_sales - cost_of_goods_fifo
+    financial_gross_profit = net_sales - cost_of_goods_financial
     
     totals['combined']['net_sales'] = net_sales
     totals['combined']['cost_of_goods'] = cost_of_goods
+    totals['combined']['cost_of_goods_fifo'] = cost_of_goods_fifo
+    totals['combined']['cost_of_goods_financial'] = cost_of_goods_financial
     totals['combined']['gross_profit'] = gross_profit
+    totals['combined']['fifo_gross_profit'] = fifo_gross_profit
+    totals['combined']['financial_gross_profit'] = financial_gross_profit
     
     if totals['combined']['sales_total'] > 0:
         gross_profit_margin = (gross_profit / totals['combined']['sales_total']) * 100
         totals['combined']['gross_profit_margin'] = round(gross_profit_margin, 2)
+        fifo_margin = (fifo_gross_profit / totals['combined']['sales_total']) * 100
+        totals['combined']['fifo_gross_profit_margin'] = round(fifo_margin, 2)
+        financial_margin = (financial_gross_profit / totals['combined']['sales_total']) * 100
+        totals['combined']['financial_gross_profit_margin'] = round(financial_margin, 2)
     
     if totals['combined']['sales_count'] > 0:
         avg_transaction_value = totals['combined']['sales_total'] / totals['combined']['sales_count']

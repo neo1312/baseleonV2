@@ -66,13 +66,13 @@
                 </div>
             </div>
 
-            <!-- Cost of Goods Sold -->
+            <!-- Cost of Goods Sold (FIFO) -->
             <div class="col-md-6 mb-3">
                 <div class="metric-box p-3 border-start border-secondary">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <small class="text-muted">Cost of Goods Sold (FIFO)</small>
-                            <h4 class="mb-0">${{ totals.cost_of_goods|floatformat:2 }}</h4>
+                            <small class="text-muted">COGS (FIFO - Inventory Units)</small>
+                            <h4 class="mb-0">${{ totals.cost_of_goods_fifo|floatformat:2 }}</h4>
                         </div>
                         <div class="text-secondary" style="font-size: 2em; opacity: 0.3;">
                             <i class="fas fa-calculator"></i>
@@ -81,31 +81,67 @@
                 </div>
             </div>
 
-            <!-- Gross Profit -->
+            <!-- Cost of Goods Sold (Financial) -->
             <div class="col-md-6 mb-3">
-                <div class="metric-box p-3 border-start border-success">
+                <div class="metric-box p-3 border-start border-secondary">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <small class="text-muted">Gross Profit</small>
-                            <h4 class="mb-0 text-success">${{ totals.gross_profit|floatformat:2 }}</h4>
+                            <small class="text-muted">COGS (Financial - Product Costo)</small>
+                            <h4 class="mb-0">${{ totals.cost_of_goods_financial|floatformat:2 }}</h4>
                         </div>
-                        <div class="text-success" style="font-size: 2em; opacity: 0.3;">
-                            <i class="fas fa-arrow-up"></i>
+                        <div class="text-secondary" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-book"></i>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Profit Margin -->
-            <div class="col-md-6 mb-3">
-                <div class="metric-box p-3 border-start border-success">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <small class="text-muted">Gross Profit Margin %</small>
-                            <h4 class="mb-0 text-success">{{ totals.gross_profit_margin }}%</h4>
+        <hr>
+
+        <!-- Profit Comparison Section -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <h6 class="mb-0">Profit Comparison</h6>
+                <div class="row mt-2">
+                    <!-- Accounting View (FIFO) -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-success h-100">
+                            <div class="card-header bg-success text-white py-2">
+                                <small class="fw-bold"><i class="fas fa-balance-scale"></i> Accounting View (FIFO)</small>
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">Gross Profit</small>
+                                        <h5 class="mb-0 text-success">${{ totals.fifo_gross_profit|floatformat:2 }}</h5>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Margin</small>
+                                        <h5 class="mb-0 text-success">{{ totals.fifo_gross_profit_margin }}%</h5>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="text-success" style="font-size: 2em; opacity: 0.3;">
-                            <i class="fas fa-percent"></i>
+                    </div>
+                    <!-- Financial View (Product.Costo) -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-info h-100">
+                            <div class="card-header bg-info text-white py-2">
+                                <small class="fw-bold"><i class="fas fa-chart-line"></i> Financial View (Product Costo)</small>
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">Gross Profit</small>
+                                        <h5 class="mb-0 text-info">${{ totals.financial_gross_profit|floatformat:2 }}</h5>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Margin</small>
+                                        <h5 class="mb-0 text-info">{{ totals.financial_gross_profit_margin }}%</h5>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -197,15 +233,28 @@
                 </div>
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="col-md-3 mb-3">
                 <div class="metric-box p-3 border-start border-success">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <small class="text-muted">Net Gross Profit</small>
-                            <h4 class="mb-0 text-success">${{ totals.gross_profit|floatformat:2 }}</h4>
+                            <small class="text-muted">Net Profit (FIFO)</small>
+                            <h4 class="mb-0 text-success">${{ totals.fifo_gross_profit|floatformat:2 }}</h4>
                         </div>
                         <div class="text-success" style="font-size: 2em; opacity: 0.3;">
                             <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-box p-3 border-start border-info">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <small class="text-muted">Net Profit (Financial)</small>
+                            <h4 class="mb-0 text-info">${{ totals.financial_gross_profit|floatformat:2 }}</h4>
+                        </div>
+                        <div class="text-info" style="font-size: 2em; opacity: 0.3;">
+                            <i class="fas fa-chart-line"></i>
                         </div>
                     </div>
                 </div>
