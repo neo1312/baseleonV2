@@ -19,6 +19,8 @@ CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if os.ge
 if DEBUG is False:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+LOGIN_URL = 'crm:login'
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
