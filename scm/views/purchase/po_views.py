@@ -113,16 +113,19 @@ def po_items_list(request, provider_id):
         for p in products:
             faltante = getattr(p, 'faltante1', 0)
             if faltante and faltante != 'no' and faltante != 0:
-                quantity_needed = int(faltante) * int(getattr(p, 'unidadEmpaque', 1))
-                cost_per_unit = p.get_provider_cost(provider)
+                unidad_empaque = int(getattr(p, 'unidadEmpaque', 1))
+                package_qty = int(faltante)  # Number of packages to order
+                pieces_needed = package_qty * unidad_empaque  # Total pieces
+                cost_per_piece = p.get_provider_cost(provider)  # Cost per piece
+                cost_per_package = cost_per_piece * unidad_empaque  # Cost per package
                 
                 items_data.append({
                     'product': p,
                     'pv1': p.get_pv1(provider),
-                    'quantity_needed': quantity_needed,
-                    'quantity': quantity_needed,
-                    'cost_per_unit': cost_per_unit,
-                    'total': quantity_needed * cost_per_unit,
+                    'quantity_needed': pieces_needed,
+                    'quantity': package_qty,
+                    'cost_per_unit': cost_per_package,
+                    'total': package_qty * cost_per_package,
                 })
     
     context = {
@@ -164,10 +167,14 @@ def po_submit(request):
             
             for product_id, qty, cost in zip(product_ids, quantities, costs):
                 if qty and int(qty) > 0:
+                    product = Product.objects.get(id=product_id)
+                    unidad_empaque = int(getattr(product, 'unidadEmpaque', 1))
+                    actual_qty = int(qty) * unidad_empaque
+                    cost_per_piece = Decimal(str(cost or 0)) / unidad_empaque
                     items_data.append({
                         'product_id': product_id,
-                        'quantity': int(qty),
-                        'cost_per_unit': Decimal(str(cost or 0)),
+                        'quantity': actual_qty,
+                        'cost_per_unit': cost_per_piece,
                     })
             
             if not items_data:

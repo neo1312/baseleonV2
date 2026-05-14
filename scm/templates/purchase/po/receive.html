@@ -10,7 +10,7 @@
                     <h4>Receive Purchase Order #{{ po.id }}</h4>
                 </div>
                 <div class="card-body">
-                    <form method="post">
+                    <form method="post" id="receiveForm">
                         {% csrf_token %}
                         
                         <div class="alert alert-info">
@@ -33,9 +33,9 @@
                                 </thead>
                                 <tbody>
                                     {% for item in po.items.all %}
-                                    <tr data-item-id="{{ item.id }}">
+                                    <tr data-item-id="{{ item.id }}"{% if item.product.unidadEmpaque and item.product.unidadEmpaque|add:"0" > 1 %} class="table-warning"{% endif %}>
                                         <td>
-                                            <small><strong>{{ item.product.full_name }}</strong></small>
+                                            <small><strong>{{ item.product.full_name }}{% if item.product.unidadEmpaque and item.product.unidadEmpaque|add:"0" > 1 %} <span class="badge badge-warning">EMPAQUE: {{ item.product.unidadEmpaque }}</span>{% endif %}</strong></small>
                                         </td>
                                         <td class="text-center"><small>{{ item.product|get_provider_pv1:po.provider }}</small></td>
                                         <td class="text-center">
@@ -144,8 +144,8 @@
                         </thead>
                         <tbody id="confirmReceiveTable">
                             {% for item in po.items.all %}
-                            <tr data-item-id="{{ item.id }}">
-                                <td><small>{{ item.product.full_name }}</small></td>
+                            <tr data-item-id="{{ item.id }}"{% if item.product.unidadEmpaque and item.product.unidadEmpaque|add:"0" > 1 %} class="table-warning"{% endif %}>
+                                <td><small>{{ item.product.full_name }}{% if item.product.unidadEmpaque and item.product.unidadEmpaque|add:"0" > 1 %} <span class="badge badge-warning">EMPAQUE: {{ item.product.unidadEmpaque }}</span>{% endif %}</small></td>
                                 <td class="text-center modal-qty">-</td>
                                 <td class="text-end modal-cost">-</td>
                                 <td class="text-end"><span class="modal-line-total">$0.00</span></td>
@@ -203,8 +203,8 @@
                         </thead>
                         <tbody id="confirmCompleteTable">
                             {% for item in po.items.all %}
-                            <tr data-item-id="{{ item.id }}">
-                                <td><small>{{ item.product.full_name }}</small></td>
+                            <tr data-item-id="{{ item.id }}"{% if item.product.unidadEmpaque and item.product.unidadEmpaque|add:"0" > 1 %} class="table-warning"{% endif %}>
+                                <td><small>{{ item.product.full_name }}{% if item.product.unidadEmpaque and item.product.unidadEmpaque|add:"0" > 1 %} <span class="badge badge-warning">EMPAQUE: {{ item.product.unidadEmpaque }}</span>{% endif %}</small></td>
                                 <td class="text-center modal-qty">-</td>
                                 <td class="text-end modal-cost">-</td>
                                 <td class="text-end"><span class="modal-line-total">$0.00</span></td>
@@ -254,8 +254,8 @@ function submitForm(action) {
         actionField.value = action;
     }
     
-    // Find and submit the main form
-    const form = document.querySelector('form[method="post"]');
+    // Submit the receive form by ID
+    const form = document.getElementById('receiveForm');
     if (form) {
         form.submit();
     }

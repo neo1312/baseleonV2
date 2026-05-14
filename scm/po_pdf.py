@@ -89,10 +89,12 @@ def generate_po_pdf(po):
     
     for po_item in po.items.all():
         pv1 = po_item.product.get_pv1(po.provider) if po_item.product else ''
+        unidad_empaque = int(getattr(po_item.product, 'unidadEmpaque', 1))
+        qty = str(int(po_item.ordered_quantity / unidad_empaque)) if unidad_empaque > 1 else str(po_item.ordered_quantity)
         items_data.append([
             str(pv1) if pv1 else '',
             str(po_item.product.full_name if hasattr(po_item.product, 'full_name') else po_item.product.name),
-            str(po_item.ordered_quantity)
+            qty
         ])
     
     items_table = Table(items_data, colWidths=[1.2*inch, 4.5*inch, 1.3*inch])
