@@ -19,7 +19,7 @@ admin.site.register(Category,categoryAdmin)
 class productResource(resources.ModelResource):
     class Meta:
         model=Product
-        fields = ('name','clave','barcode','costo','margen','margenMayoreo','margenGranel','active','sat','category','brand','stockMax','stockMin','minimo','unidad','unidadEmpaque','granel','monedero_percentaje','provedor')
+        fields = ('name','clave','barcode','costo','margen','margenMayoreo','margenGranel','active','sat','category','brand','stockMax','stockMin','minimo','unidad','granel','monedero_percentaje','provedor')
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ()  # Don't use any field as ID lookup
@@ -33,8 +33,8 @@ class productResource(resources.ModelResource):
 class ProductProviderInline(admin.TabularInline):
     model = ProductProvider
     extra = 1
-    fields = ('provider', 'pv1', 'provider_cost', 'date_created', 'last_updated')
-    readonly_fields = ('date_created', 'last_updated')
+    fields = ('provider', 'pv1', 'bundle_price', 'unidad_empaque', 'provider_cost', 'date_created', 'last_updated')
+    readonly_fields = ('provider_cost', 'date_created', 'last_updated')
     raw_id_fields = ('provider',)
 
 class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
@@ -47,14 +47,14 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     inlines = [ProductProviderInline]
     change_list_template = "admin/im/product/change_list.html"
     #list_per_page = 1000
-    exclude = ('stock',)  # Exclude deprecated stock field from admin form
+    exclude = ('stock', 'unidadEmpaque')  # Exclude deprecated stock field, unidadEmpaque moved to ProductProvider
 
     fieldsets = (
         ('Basic Info', {
             'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active')
         }),
         ('Inventory Settings', {
-            'fields': ('minimo', 'stockMax', 'stockMin', 'unidad', 'unidadEmpaque', 'granel', 'inventory_no', 'display_stock')
+            'fields': ('minimo', 'stockMax', 'stockMin', 'unidad', 'granel', 'inventory_no', 'display_stock')
         }),
         ('Cost', {
             'fields': ('costo',)
@@ -174,7 +174,7 @@ admin.site.register(Brand,brandAdmin)
 class ProductProviderResource(resources.ModelResource):
     class Meta:
         model = ProductProvider
-        fields = ('product', 'provider', 'pv1', 'provider_cost')
+        fields = ('product', 'provider', 'pv1', 'bundle_price', 'unidad_empaque')
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ()  # Don't use any field as ID lookup
@@ -187,11 +187,12 @@ class ProductProviderResource(resources.ModelResource):
 
 class ProductProviderAdmin(ImportExportModelAdmin, admin.ModelAdmin):
     search_fields = ['product__name', 'product__barcode', 'provider__name', 'pv1']
-    list_display = ('id', 'product', 'provider', 'pv1', 'provider_cost', 'date_created')
+    list_display = ('id', 'product', 'provider', 'pv1', 'bundle_price', 'unidad_empaque', 'provider_cost', 'date_created')
     list_filter = ('provider', 'date_created', 'product__category')
     resource_class = ProductProviderResource
     ordering = ('-date_created',)
-    readonly_fields = ('date_created', 'last_updated', 'id')
+    fields = ('product', 'provider', 'pv1', 'bundle_price', 'unidad_empaque', 'provider_cost', 'date_created', 'last_updated')
+    readonly_fields = ('provider_cost', 'date_created', 'last_updated', 'id')
     raw_id_fields = ('product', 'provider')
 
 admin.site.register(ProductProvider, ProductProviderAdmin)

@@ -108,8 +108,8 @@ def purchase_item_post_save(sender, instance, **kwargs):
             provider=instance.purchase.provider
         )
         
-        # Update the provider cost with the received cost
-        pp.provider_cost = cost
+        # Update the bundle price with the received cost
+        pp.bundle_price = cost
         pp.save()  # This will call update_average_cost() in ProductProvider.save()
 
 
@@ -312,6 +312,6 @@ def update_provider_cost_on_po_item_received(sender, instance, created, **kwargs
             provider=instance.purchase_order.provider
         )
         
-        # Update the provider cost with the received cost
-        pp.provider_cost = instance.received_cost_per_unit
+        # Update the bundle price with the received cost
+        pp.bundle_price = instance.received_cost_per_unit
         pp.save()  # This will call update_average_cost() in ProductProvider.save()

@@ -54,16 +54,17 @@ def po_select_provider(request):
         for p in products:
             faltante = getattr(p, 'faltante1', 0)
             if faltante and faltante != 'no' and faltante != 0:
-                quantity_needed = int(faltante) * int(getattr(p, 'unidadEmpaque', 1))
-                provider_cost = float(p.get_provider_cost(provider))
+                pp_unidad = p.get_unidad_empaque(provider)
+                quantity_needed = int(faltante) * pp_unidad
+                provider_per_piece = float(p.get_provider_cost(provider))
                 items.append({
                     'id': p.id,
                     'name': p.full_name,
                     'sku': p.get_pv1(provider),
                     'available_stock': p.stock_ready_to_sale,
-                    'costo': provider_cost,
+                    'costo': provider_per_piece,
                     'quantity_needed': quantity_needed,
-                    'packaging_unit': int(getattr(p, 'unidadEmpaque', 1)),
+                    'packaging_unit': pp_unidad,
                 })
         
         return JsonResponse({
@@ -113,11 +114,11 @@ def po_items_list(request, provider_id):
         for p in products:
             faltante = getattr(p, 'faltante1', 0)
             if faltante and faltante != 'no' and faltante != 0:
-                unidad_empaque = int(getattr(p, 'unidadEmpaque', 1))
+                pp_unidad = p.get_unidad_empaque(provider)
                 package_qty = int(faltante)  # Number of packages to order
-                pieces_needed = package_qty * unidad_empaque  # Total pieces
-                cost_per_piece = p.get_provider_cost(provider)  # Cost per piece
-                cost_per_package = cost_per_piece * unidad_empaque  # Cost per package
+                pieces_needed = package_qty * pp_unidad  # Total pieces
+                cost_per_piece = p.get_provider_cost(provider)  # Cost per piece (bundle/unidad_empaque)
+                cost_per_package = cost_per_piece * pp_unidad  # Cost per package
                 
                 items_data.append({
                     'product': p,
@@ -168,9 +169,9 @@ def po_submit(request):
             for product_id, qty, cost in zip(product_ids, quantities, costs):
                 if qty and int(qty) > 0:
                     product = Product.objects.get(id=product_id)
-                    unidad_empaque = int(getattr(product, 'unidadEmpaque', 1))
-                    actual_qty = int(qty) * unidad_empaque
-                    cost_per_piece = Decimal(str(cost or 0)) / unidad_empaque
+                    pp_unidad = product.get_unidad_empaque(provider)
+                    actual_qty = int(qty) * pp_unidad
+                    cost_per_piece = Decimal(str(cost or 0)) / pp_unidad
                     items_data.append({
                         'product_id': product_id,
                         'quantity': actual_qty,

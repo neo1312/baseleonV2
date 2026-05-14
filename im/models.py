@@ -220,13 +220,25 @@ class Product(models.Model):
         return pp.pv1 if pp else None
     
     def get_provider_cost(self, provider=None):
-        """Get provider-specific cost or fall back to product cost"""
+        """Get provider-specific cost per piece (bundle_price / unidad_empaque)"""
         if provider:
             pp = self.provider_pairs.filter(provider=provider).first()
-            return Decimal(str(pp.provider_cost)) if pp else Decimal(str(self.costo or 0))
+            if pp:
+                return pp.provider_cost  # Use the @property
+            return Decimal(str(self.costo or 0))
         
         pp = self.provider_pairs.first()
-        return Decimal(str(pp.provider_cost)) if pp else Decimal(str(self.costo or 0))
+        if pp:
+            return pp.provider_cost  # Use the @property
+        return Decimal(str(self.costo or 0))
+
+    def get_unidad_empaque(self, provider=None):
+        """Get provider-specific unidad_empaque, fall back to product default"""
+        if provider:
+            pp = self.provider_pairs.filter(provider=provider).first()
+            if pp and pp.unidad_empaque:
+                return int(pp.unidad_empaque)
+        return int(self.unidadEmpaque or 1)
 
     @property
     def priceLista(self):
@@ -786,17 +798,29 @@ class ProductProvider(models.Model):
         verbose_name='Provider PV1',
         help_text='This provider\'s internal SKU/code for this product'
     )
-    provider_cost = models.DecimalField(
+    bundle_price = models.DecimalField(
         max_digits=14,
         decimal_places=6,
         default=Decimal('0.00'),
-        verbose_name='Provider Cost',
-        help_text='Cost per unit from this specific provider'
+        verbose_name='Bundle Price',
+        help_text='Price for the entire bundle/package from this provider'
+    )
+    unidad_empaque = models.CharField(
+        max_length=100,
+        verbose_name='Unidad Empaque',
+        default="1",
+        help_text='Pieces per bundle (1 = individual piece)'
     )
     
     # Utility fields
     date_created = models.DateTimeField(blank=True, null=True)
     last_updated = models.DateTimeField(blank=True, null=True)
+    
+    @property
+    def provider_cost(self):
+        """Calculated cost per piece (bundle_price / unidad_empaque)"""
+        ue = int(self.unidad_empaque or 1)
+        return Decimal(str(Decimal(str(self.bundle_price)) / Decimal(str(ue))))
     
     def __str__(self):
         return f'{self.product.name} - {self.provider.name}: {self.pv1}'
@@ -807,16 +831,16 @@ class ProductProvider(models.Model):
         self.last_updated = timezone.localtime(timezone.now())
         
         is_new = self.pk is None
-        old_cost = None
+        old_bundle_price = None
         
         if not is_new:
             old_pp = ProductProvider.objects.get(pk=self.pk)
-            old_cost = old_pp.provider_cost
+            old_bundle_price = old_pp.bundle_price
         
         super(ProductProvider, self).save(*args, **kwargs)
         
         # Recalculate product average cost
-        if is_new or (old_cost and old_cost != self.provider_cost):
+        if is_new or (old_bundle_price and old_bundle_price != self.bundle_price):
             self.product.update_average_cost()
     
     class Meta:
