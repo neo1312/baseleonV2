@@ -199,11 +199,14 @@ class Product(models.Model):
         return cls.objects.aggregate(total_value=Sum(F('stock') * F('costo')))['total_value'] or 0
     
     def update_average_cost(self):
-        """Calculate and update product cost based on average of all provider costs"""
-        provider_costs = self.provider_pairs.all().values_list('provider_cost', flat=True)
+        """Calculate and update product cost based on average of all provider per-piece costs"""
+        provider_costs = []
+        for pp in self.provider_pairs.all():
+            provider_costs.append(pp.provider_cost)
         
         if provider_costs:
             average_cost = sum(Decimal(str(cost)) for cost in provider_costs) / len(provider_costs)
+            average_cost = round(average_cost, 2)
             self.costo = average_cost
             # Save without triggering recursive update
             Product.objects.filter(pk=self.pk).update(costo=average_cost)
@@ -818,9 +821,9 @@ class ProductProvider(models.Model):
     
     @property
     def provider_cost(self):
-        """Calculated cost per piece (bundle_price / unidad_empaque)"""
+        """Calculated cost per piece (bundle_price / unidad_empaque), rounded to 2 decimals"""
         ue = int(self.unidad_empaque or 1)
-        return Decimal(str(Decimal(str(self.bundle_price)) / Decimal(str(ue))))
+        return round(Decimal(str(Decimal(str(self.bundle_price)) / Decimal(str(ue)))), 2)
     
     def __str__(self):
         return f'{self.product.name} - {self.provider.name}: {self.pv1}'
