@@ -1,6 +1,6 @@
 import csv
 from django.core.management.base import BaseCommand, CommandError
-from im.models import Product, Category, Brand
+from im.models import Product, Category, Brand, ProductGroup
 from decimal import Decimal
 
 class Command(BaseCommand):
@@ -93,12 +93,22 @@ class Command(BaseCommand):
             except Category.DoesNotExist:
                 raise ValueError(f"Category not found: {category_id}")
         
-        brand_name = row.get('brand')
-        if brand_name:
+        brand_id = row.get('brand')
+        if brand_id:
             try:
-                data['brand'] = Brand.objects.get(name=brand_name)
-            except Brand.DoesNotExist:
-                raise ValueError(f"Brand not found: {brand_name}")
+                data['brand'] = Brand.objects.get(id=brand_id)
+            except (Brand.DoesNotExist, ValueError):
+                raise ValueError(f"Brand not found: {brand_id}")
+        
+        group_ref = row.get('group')
+        if group_ref:
+            try:
+                data['group'] = ProductGroup.objects.get(id=group_ref)
+            except (ProductGroup.DoesNotExist, ValueError):
+                try:
+                    data['group'] = ProductGroup.objects.get(name=group_ref)
+                except ProductGroup.DoesNotExist:
+                    raise ValueError(f"ProductGroup not found: {group_ref}")
         
         return data
 
