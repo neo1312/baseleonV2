@@ -80,8 +80,6 @@ class Product(models.Model):
     minimo= models.PositiveIntegerField(verbose_name='minimo',default=0)
     margenGranel= models.CharField(max_length=100, verbose_name='margenGranel',default=0)
     unidad= models.CharField(max_length=100, verbose_name='unidad',default="Pieza",choices=unidad_choices)
-    unidadEmpaque= models.CharField(max_length=100, verbose_name='unidadEmpaque',default="1")
-    monedero_percentaje= models.CharField(max_length=100, verbose_name='monedero%',default=0.00)
     
     # Manual pricing fields (nullable - None means use calculated price)
     precio_manual = models.DecimalField(max_digits=14, default=None, decimal_places=2, null=True, blank=True, verbose_name='Precio Manual')
@@ -95,9 +93,7 @@ class Product(models.Model):
     
     #foreing Fields
     category = models.ForeignKey(Category, on_delete=models.SET_NULL,null=True)
-    provedor =models.ForeignKey('scm.Provider', on_delete=models.CASCADE,null=True)
     brand = models.ForeignKey(Brand, on_delete=models.SET_NULL,null=True)
-    inventory_no = models.IntegerField(default=1)
 
   #utility fields
     date_created = models.DateTimeField(blank=True, null=True)
@@ -195,8 +191,15 @@ class Product(models.Model):
 
     @classmethod
     def total_inventory_value(cls):
-        from django.db.models import Sum, F
-        return cls.objects.aggregate(total_value=Sum(F('stock') * F('costo')))['total_value'] or 0
+        from im.models import InventoryUnit
+        from django.db.models import Sum, F, OuterRef, Subquery
+        total = 0
+        for product in cls.objects.all():
+            ready_count = InventoryUnit.objects.filter(
+                product=product, status='ready_to_sale'
+            ).count()
+            total += ready_count * float(product.costo or 0)
+        return total
     
     def update_average_cost(self):
         """Calculate and update product cost based on average of all provider per-piece costs"""
@@ -236,12 +239,12 @@ class Product(models.Model):
         return Decimal(str(self.costo or 0))
 
     def get_unidad_empaque(self, provider=None):
-        """Get provider-specific unidad_empaque, fall back to product default"""
+        """Get provider-specific unidad_empaque, fall back to 1"""
         if provider:
             pp = self.provider_pairs.filter(provider=provider).first()
             if pp and pp.unidad_empaque:
                 return int(pp.unidad_empaque)
-        return int(self.unidadEmpaque or 1)
+        return 1
 
     @property
     def priceLista(self):
@@ -299,7 +302,7 @@ class Product(models.Model):
     @property
     def faltante(self):
         if self.stock_ready_to_sale <= self.stockMin:
-            a1= float(self.stockMax-self.stock_ready_to_sale)/float(self.unidadEmpaque)
+            a1= float(self.stockMax-self.stock_ready_to_sale)
             a=math.ceil(a1)
         else:
             a='no'
@@ -323,18 +326,12 @@ class Product(models.Model):
         total_stock_max = totals['total_stock_max'] or 0
 
         if total_stock <= total_stock_min:
-            a1=float(total_stock_max-total_stock)/float(self.unidadEmpaque)
+            a1=float(total_stock_max-total_stock)
             a=math.ceil(a1)
         else:
             a='no'
         return a
     
-    @property
-    def monedero(self):
-        return round((float(self.margen) * float(0.076)),4)
-
-
-
 
 
 class Cost(models.Model):

@@ -201,12 +201,12 @@ def purchaseOrder(request, pk):
             p.faltante1,
             pv1,              # Barcode / Provider Key
             p.full_name,
-            p.unidadEmpaque,
-            float(p.costo) * float(p.unidadEmpaque),
+            1,
+            float(p.costo),
             " ",
             p.id,
             " ",
-            float(p.faltante1)*float(p.unidadEmpaque),
+            float(p.faltante1),
             p.costo,
             " ",
             " "
@@ -215,21 +215,7 @@ def purchaseOrder(request, pk):
     response['Content-Disposition'] = 'attachment; filename="prodctCost.csv"'
     return response
 
-"""def purchaseOrder(request,pk):
-    query=Product.objects.filter(provedor=pk)
-    product=list(filter((lambda x:x.faltante1 != 'no'),query))
-    productFaltante=(filter((lambda x:x.faltante1 != 0),product))
-    response=HttpResponse(
-            content_type='text/csv',
-            )
-    writer = csv.writer(response)
-    writer.writerow(['unidad_empaque','Clave','Clave_Provedor','Descripcion','Cantidad','Costo'])
 
-    for p in productFaltante:
-        writer.writerow([p.unidadEmpaque,p.id,p.pv1,p.full_name,p.faltante1,float(p.costo)*float(p.unidadEmpaque)])
-
-    response['Content-Disposition']='attachment; filename="productCost.csv"'
-    return response"""
 
 def purchaseNew(request):
     # Get filter parameters

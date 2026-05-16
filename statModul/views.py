@@ -72,7 +72,7 @@ def getData(request):
         dia_end = dia_aware + datetime.timedelta(days=1)
         devolutionsList = list(Devolution.objects.exclude(client__name='mostrador').filter(date_created__gte=dia_aware, date_created__lt=dia_end))
         all_devitems = [devolutionitem for devolution in devolutionsList for devolutionitem in devolution.devolutionitem_set.all()]
-        total_value_dev =round((sum(devolutionitem.product.priceLista * devolutionitem.product.monedero for devolutionitem in all_devitems)),2)
+        total_value_dev = 0
 
 
 #generar filtro de ventas con monedero
@@ -84,15 +84,13 @@ def getData(request):
         if monederoVenta:
             # Collect all saleitems from each sale object in monederoVenta
             all_saleitems = [saleitem for sale in monederoVenta for saleitem in sale.saleitem_set.all()]
-            total_value =round((sum(saleitem.product.priceLista * saleitem.product.monedero for saleitem in all_saleitems)),2)
+            total_value = 0
         else:
             total_value=0
 
 #calcular monedero regresado en devoluciones
         if monederoVenta:
-            # Collect all saleitems from each sale object in monederoVenta
-            all_saleitems = [saleitem for sale in monederoVenta for saleitem in sale.saleitem_set.all()]
-            total_value =round((sum(saleitem.product.priceLista * saleitem.product.monedero for saleitem in all_saleitems)),2)
+            total_value = 0
         else:
             monederoFinal=0
         if monederoAplica:
@@ -131,13 +129,13 @@ def getData(request):
 def random_product_ids(request):
     random_products = Product.objects.exclude(
             Q(stockMax=0) & Q(stockMin=0
-            ) & Q(stock=0)).order_by(Random())[:20]
+            )).order_by(Random())[:20]
 
     random_ids = list(random_products.values_list('id', flat=True))
     return JsonResponse({"random_product_ids": random_ids})
 
 def counter_view(request):
-    products=Product.objects.filter(Q(stockMax__gt=0)|Q(stockMin__gt=0)|Q(stock__gt=0))
+    products=Product.objects.filter(Q(stockMax__gt=0)|Q(stockMin__gt=0))
     #select a random product from the filter products
     if products.exists():
         random_product = random.choice(products)

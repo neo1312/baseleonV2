@@ -22,11 +22,9 @@ class PurchaseItemStockTests(TestCase):
             id=101,
             name='Hammer',
             barcode='hammer-101',
-            stock=5,
             costo=Decimal('10.00'),
             category=self.category,
             brand=self.brand,
-            provedor=self.provider,
         )
         ProductProvider.objects.create(
             product=self.product,
@@ -79,11 +77,9 @@ class PurchaseItemStockTests(TestCase):
             id=102,
             name='Wrench',
             barcode='wrench-102',
-            stock=3,
             costo=Decimal('8.00'),
             category=self.category,
             brand=self.brand,
-            provedor=self.provider,
         )
         ProductProvider.objects.create(
             product=second_product,
@@ -211,11 +207,9 @@ class PurchaseItemStockTests(TestCase):
             id=102,
             name='Wrench',
             barcode='wrench-102',
-            stock=3,
             costo=Decimal('8.00'),
             category=self.category,
             brand=self.brand,
-            provedor=self.provider,
         )
         ProductProvider.objects.create(
             product=second_product,
@@ -267,11 +261,9 @@ class PurchaseOrderWorkflowTests(TestCase):
             id=101,
             name='Hammer',
             barcode='hammer-101',
-            stock=0,
             costo=Decimal('10.00'),
             category=self.category,
             brand=self.brand,
-            provedor=self.provider,
         )
         ProductProvider.objects.create(
             product=self.product1,
@@ -282,11 +274,9 @@ class PurchaseOrderWorkflowTests(TestCase):
             id=102,
             name='Wrench',
             barcode='wrench-102',
-            stock=0,
             costo=Decimal('8.00'),
             category=self.category,
             brand=self.brand,
-            provedor=self.provider,
         )
         ProductProvider.objects.create(
             product=self.product2,

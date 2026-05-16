@@ -45,7 +45,6 @@ def pos_index(request):
             'price_mayoreo': float(p.priceMayoreo),
             'price_granel': float(granel_price) if granel_price else None,
             'stock': available_stock,
-            'unidadEmpaque': p.unidadEmpaque,
             'granel': p.granel,
             'minimo': p.minimo,
         })

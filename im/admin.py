@@ -19,7 +19,7 @@ admin.site.register(Category,categoryAdmin)
 class productResource(resources.ModelResource):
     class Meta:
         model=Product
-        fields = ('name','clave','barcode','costo','margen','margenMayoreo','margenGranel','active','sat','category','brand','stockMax','stockMin','minimo','unidad','granel','monedero_percentaje','provedor')
+        fields = ('name','clave','barcode','costo','margen','margenMayoreo','margenGranel','active','sat','category','brand','stockMax','stockMin','minimo','unidad','granel')
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ()  # Don't use any field as ID lookup
@@ -40,21 +40,21 @@ class ProductProviderInline(admin.TabularInline):
 class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     search_fields=['name','category__name','brand__name','id','barcode','clave']
     list_display=('id','clave','full_name','get_stock_ready_to_sale','costo','priceLista','priceListaGranel','priceMayoreo','active','sat')
-    list_filter=('active','brand','category','provedor')
+    list_filter=('active','brand','category')
     resocurce_class = productResource
     ordering=('id','last_updated')
-    raw_id_fields=('provedor','brand','category')
+    raw_id_fields=('brand','category')
     inlines = [ProductProviderInline]
     change_list_template = "admin/im/product/change_list.html"
     #list_per_page = 1000
-    exclude = ('stock', 'unidadEmpaque')  # Exclude deprecated stock field, unidadEmpaque moved to ProductProvider
+    exclude = ()
 
     fieldsets = (
         ('Basic Info', {
             'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active')
         }),
         ('Inventory Settings', {
-            'fields': ('minimo', 'stockMax', 'stockMin', 'unidad', 'granel', 'inventory_no', 'display_stock')
+            'fields': ('minimo', 'stockMax', 'stockMin', 'unidad', 'granel', 'display_stock')
         }),
         ('Cost', {
             'fields': ('costo',)
@@ -70,9 +70,6 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         ('Pricing - Granel (Bulk)', {
             'fields': ('granel_pricing_mode', 'margenGranel', 'precio_granel_manual'),
             'description': 'Only active when "Granel" is enabled. Select "Usar Margen" to set margin and calculate price, or "Usar Precio Manual" to set price and calculate margin'
-        }),
-        ('Monedero', {
-            'fields': ('monedero_percentaje',)
         }),
         ('System', {
             'fields': ('date_created', 'last_updated'),

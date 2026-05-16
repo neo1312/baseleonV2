@@ -146,7 +146,7 @@ def saleGetData(request):
 
         qs=Product.objects.filter(barcode=pk)
 
-        product=qs.filter(sat=False, stock__gt=0).first()
+        product=qs.filter(sat=False).first()
         if not product:
             product = qs.filter(sat=True).first()
         if not product:

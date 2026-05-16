@@ -1,7 +1,6 @@
 import csv
 from django.core.management.base import BaseCommand, CommandError
 from im.models import Product, Category, Brand
-from scm.models import Provider
 from decimal import Decimal
 
 class Command(BaseCommand):
@@ -74,7 +73,6 @@ class Command(BaseCommand):
         data['margen'] = row.get('margen', 0) or 0
         data['margenMayoreo'] = row.get('margenMayoreo', 0) or 0
         data['margenGranel'] = row.get('margenGranel', 0) or 0
-        data['monedero_percentaje'] = row.get('monedero_percentaje', 0) or 0
         data['stockMax'] = int(row.get('stockMax', 0) or 0)
         data['stockMin'] = int(row.get('stockMin', 0) or 0)
         data['minimo'] = int(row.get('minimo', 0) or 0)
@@ -86,7 +84,6 @@ class Command(BaseCommand):
         
         # String fields
         data['unidad'] = row.get('unidad', 'Pieza').strip()
-        data['unidadEmpaque'] = row.get('unidadEmpaque', '1').strip()
         
         # Foreign key fields
         category_id = row.get('category')
@@ -102,13 +99,6 @@ class Command(BaseCommand):
                 data['brand'] = Brand.objects.get(name=brand_name)
             except Brand.DoesNotExist:
                 raise ValueError(f"Brand not found: {brand_name}")
-        
-        provider_id = row.get('provedor')
-        if provider_id:
-            try:
-                data['provedor'] = Provider.objects.get(id=provider_id)
-            except Provider.DoesNotExist:
-                raise ValueError(f"Provider not found: {provider_id}")
         
         return data
 

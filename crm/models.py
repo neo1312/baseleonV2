@@ -358,7 +358,7 @@ def OrderItemSignalDelete(sender,instance,**kwargs):
         clientId = instance.sale.client.id
         cliente = Client.objects.get(id=clientId)
         if instance.sale.monedero == False:
-            monedero_percentaje = float(instance.product.monedero_percentaje) if instance.product else 0
+            monedero_percentaje = 0
             cliente.monedero = float(cliente.monedero) - (instance.get_total * monedero_percentaje) 
             cliente.save()
             logger.info(f"Removed monedero from client {clientId}: {instance.get_total * monedero_percentaje}")
