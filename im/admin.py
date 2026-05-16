@@ -1,5 +1,5 @@
 from django.contrib import admin
-from im.models import Product, Category, Cost, Margin, Brand, InventoryUnit, ABCConfiguration, ProductABCMetrics, ForecastConfiguration, DemandForecast, ProductProvider, InventoryAudit, AuditItem, AdjustmentTransaction
+from im.models import Product, Category, Cost, Margin, Brand, InventoryUnit, ABCConfiguration, ProductABCMetrics, ForecastConfiguration, DemandForecast, ProductProvider, ProductGroup, InventoryAudit, AuditItem, AdjustmentTransaction
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 from django.db.models import Sum, F, DecimalField
@@ -39,8 +39,8 @@ class ProductProviderInline(admin.TabularInline):
 
 class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     search_fields=['name','category__name','brand__name','id','barcode','clave']
-    list_display=('id','clave','full_name','get_stock_ready_to_sale','costo','priceLista','priceListaGranel','priceMayoreo','active','sat')
-    list_filter=('active','brand','category')
+    list_display=('id','clave','full_name','display_group','get_stock_ready_to_sale','costo','priceLista','priceListaGranel','priceMayoreo','active','sat')
+    list_filter=('active','brand','category','group')
     resocurce_class = productResource
     ordering=('id','last_updated')
     raw_id_fields=('brand','category')
@@ -51,7 +51,7 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
 
     fieldsets = (
         ('Basic Info', {
-            'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active')
+            'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'group')
         }),
         ('Inventory Settings', {
             'fields': ('minimo', 'stockMax', 'stockMin', 'unidad', 'granel', 'display_stock')
@@ -83,16 +83,25 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         fieldsets = super().get_fieldsets(request, obj)
         if obj is None:  # Creating new product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'group')})
         else:  # Editing existing product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'group')})
         return fieldsets
 
     def display_stock(self, obj):
         """Display stock_ready_to_sale as 'Stock' in the form"""
         return obj.stock_ready_to_sale
     display_stock.short_description = 'Stock'
+
+    def display_group(self, obj):
+        """Show group badge if product belongs to a group"""
+        if obj.group:
+            members = obj.group.products.count()
+            return f'{obj.group.name} ({members})'
+        return ''
+    display_group.short_description = 'Group'
+    display_group.admin_order_field = 'group__name'
 
     def get_stock_ready_to_sale(self, obj):
         """Display stock_ready_to_sale as a read-only field"""
@@ -166,6 +175,19 @@ class brandAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     resocurce_class = brandResource
 
 admin.site.register(Brand,brandAdmin)
+
+
+class ProductGroupAdmin(admin.ModelAdmin):
+    search_fields=['name']
+    list_display=('name', 'stockMin', 'stockMax', 'active', 'product_count')
+    list_filter=('active',)
+    ordering=('name',)
+
+    def product_count(self, obj):
+        return obj.products.count()
+    product_count.short_description = 'Products'
+
+admin.site.register(ProductGroup, ProductGroupAdmin)
 
 
 class ProductProviderResource(resources.ModelResource):

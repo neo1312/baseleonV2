@@ -36,7 +36,13 @@
                                     <tr{% if pp_unidad > 1 %} class="table-warning"{% endif %}>
                                         <td>{{ item.pv1 }}</td>
                                         <td>{{ item.product.full_name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</td>
-                                        <td class="text-success font-weight-bold">{{ item.product.stock_ready_to_sale }}</td>
+                                        <td class="text-success font-weight-bold">
+                                            {% if item.group_stock is not None %}
+                                                <span title="Group total ({{ item.group_min }}/{{ item.group_max }})">{{ item.group_stock }}</span>
+                                            {% else %}
+                                                {{ item.product.stock_ready_to_sale }}
+                                            {% endif %}
+                                        </td>
                                         <td class="text-info">{{ item.quantity_needed }}</td>
                                         <td>
                                             <input type="hidden" name="product_id" value="{{ item.product.id }}">

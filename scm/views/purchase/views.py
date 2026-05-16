@@ -189,8 +189,13 @@ def purchaseOrder(request, pk):
     writer.writerow(['cantidad', 'Clave', 'Descripcion', 'Empaque','Total','id','product', 'purchase','quantity','cost','date_created','last_update'])
 
     seen_barcodes = set()  # Track unique products by SKU
+    seen_groups = set()
 
     for p in productFaltante:
+        if p.group and p.group.id in seen_groups:
+            continue
+        if p.group:
+            seen_groups.add(p.group.id)
         pv1 = p.get_pv1(provider)
         # Skip if we've already added this product based on SKU
         if pv1 in seen_barcodes:

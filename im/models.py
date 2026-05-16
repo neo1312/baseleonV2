@@ -52,6 +52,28 @@ class Category(models.Model):
         verbose_name_plural = 'Categories'
         ordering = ['name']
 
+class ProductGroup(models.Model):
+    name = models.CharField(max_length=200, verbose_name='Group Name')
+    stockMin = models.PositiveIntegerField(default=0, verbose_name='Min Stock (Group)')
+    stockMax = models.PositiveIntegerField(default=0, verbose_name='Max Stock (Group)')
+    active = models.BooleanField(default=True)
+
+    date_created = models.DateTimeField(blank=True, null=True)
+    last_updated = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if self.date_created is None:
+            self.date_created = timezone.localtime(timezone.now())
+        self.last_updated = timezone.localtime(timezone.now())
+        super(ProductGroup, self).save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = 'Product Group'
+        verbose_name_plural = 'Product Groups'
+
 class Product(models.Model):
 
     Pieza=1
@@ -94,6 +116,7 @@ class Product(models.Model):
     #foreing Fields
     category = models.ForeignKey(Category, on_delete=models.SET_NULL,null=True)
     brand = models.ForeignKey(Brand, on_delete=models.SET_NULL,null=True)
+    group = models.ForeignKey('ProductGroup', on_delete=models.SET_NULL, null=True, blank=True, related_name='products', verbose_name='Grupo equivalente')
 
   #utility fields
     date_created = models.DateTimeField(blank=True, null=True)
@@ -301,15 +324,27 @@ class Product(models.Model):
 
     @property
     def faltante(self):
+        if self.group:
+            total_stock = sum(p.stock_ready_to_sale for p in self.group.products.all())
+            if total_stock <= self.group.stockMin:
+                return math.ceil(float(self.group.stockMax - total_stock))
+            return 'no'
         if self.stock_ready_to_sale <= self.stockMin:
             a1= float(self.stockMax-self.stock_ready_to_sale)
             a=math.ceil(a1)
         else:
             a='no'
         return a
+
     @property
     def faltante1(self):
         from im.models import InventoryUnit
+        
+        if self.group:
+            total_stock = sum(p.stock_ready_to_sale for p in self.group.products.all())
+            if total_stock <= self.group.stockMin:
+                return math.ceil(float(self.group.stockMax - total_stock))
+            return 'no'
         
         # Get total stock_ready_to_sale for all products with same barcode
         products = Product.objects.filter(barcode=self.barcode)

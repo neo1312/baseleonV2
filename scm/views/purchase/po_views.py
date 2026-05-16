@@ -51,9 +51,15 @@ def po_select_provider(request):
         
         # Filter by stock needed (faltante1 != 0 and != 'no')
         items = []
+        seen_groups = set()
         for p in products:
+            # Skip if this product's group was already handled
+            if p.group and p.group.id in seen_groups:
+                continue
             faltante = getattr(p, 'faltante1', 0)
             if faltante and faltante != 'no' and faltante != 0:
+                if p.group:
+                    seen_groups.add(p.group.id)
                 pp_unidad = p.get_unidad_empaque(provider)
                 quantity_needed = int(faltante) * pp_unidad
                 provider_per_piece = float(p.get_provider_cost(provider))
@@ -62,6 +68,7 @@ def po_select_provider(request):
                     'name': p.full_name,
                     'sku': p.get_pv1(provider),
                     'available_stock': p.stock_ready_to_sale,
+                    'group_stock': sum(m.stock_ready_to_sale for m in p.group.products.all()) if p.group else None,
                     'costo': provider_per_piece,
                     'quantity_needed': quantity_needed,
                     'packaging_unit': pp_unidad,
@@ -111,9 +118,14 @@ def po_items_list(request, provider_id):
                 pass
     else:
         # Manual method: Show products with faltante > 0
+        seen_groups = set()
         for p in products:
+            if p.group and p.group.id in seen_groups:
+                continue
             faltante = getattr(p, 'faltante1', 0)
             if faltante and faltante != 'no' and faltante != 0:
+                if p.group:
+                    seen_groups.add(p.group.id)
                 pp_unidad = p.get_unidad_empaque(provider)
                 package_qty = int(faltante)  # Number of packages to order
                 pieces_needed = package_qty * pp_unidad  # Total pieces
@@ -127,6 +139,9 @@ def po_items_list(request, provider_id):
                     'quantity': package_qty,
                     'cost_per_unit': cost_per_package,
                     'total': package_qty * cost_per_package,
+                    'group_stock': sum(m.stock_ready_to_sale for m in p.group.products.all()) if p.group else None,
+                    'group_min': p.group.stockMin if p.group else None,
+                    'group_max': p.group.stockMax if p.group else None,
                 })
     
     context = {
