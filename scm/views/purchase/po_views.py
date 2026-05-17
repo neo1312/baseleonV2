@@ -408,6 +408,145 @@ def po_delete(request, po_id):
     return redirect('scm:po_placed_orders')
 
 
+def po_upload_csv(request):
+    """Upload CSV to create a purchase order"""
+    providers = Provider.objects.all()
+
+    if request.method == 'POST':
+        provider_id = request.POST.get('provider_id')
+        csv_file = request.FILES.get('csv')
+
+        if not provider_id or not csv_file:
+            messages.error(request, 'Select a provider and upload a CSV file')
+            return redirect('scm:po_upload_csv')
+
+        provider = get_object_or_404(Provider, id=provider_id)
+        rows, errors = _parse_po_csv(csv_file, provider)
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+            return redirect('scm:po_upload_csv')
+
+        if not rows:
+            messages.error(request, 'No valid rows found in CSV')
+            return redirect('scm:po_upload_csv')
+
+        session_rows = [
+            {
+                'product_id': r['product_id'],
+                'product_name': r['product'].full_name,
+                'pv1': r['pv1'],
+                'quantity': r['quantity'],
+                'cost': str(r['cost']),
+                'total': str(r['total']),
+            }
+            for r in rows
+        ]
+        request.session['po_csv_data'] = {
+            'provider_id': provider.id,
+            'provider_name': provider.name,
+            'rows': session_rows,
+        }
+
+        context = {
+            'title': 'Verify CSV Data',
+            'provider': provider,
+            'rows': rows,
+            'total': sum(r['total'] for r in rows),
+        }
+        return render(request, 'purchase/po/upload_csv_preview.html', context)
+
+    context = {
+        'title': 'Upload CSV - Purchase Order',
+        'providers': providers,
+    }
+    return render(request, 'purchase/po/upload_csv.html', context)
+
+
+def _parse_po_csv(csv_file, provider):
+    """Parse CSV file and return (rows, errors). Each row: {product, product_id, pv1, quantity, cost, total}"""
+    import csv
+    from io import TextIOWrapper
+    from im.models import ProductProvider
+
+    rows = []
+    errors = []
+    reader = csv.DictReader(TextIOWrapper(csv_file, encoding='utf-8-sig'))
+
+    for i, row in enumerate(reader, start=2):
+        pv1 = (row.get('pv1') or '').strip()
+        qty_str = (row.get('quantity') or '').strip()
+        cost_str = (row.get('cost') or '').strip()
+
+        if not pv1:
+            errors.append(f'Row {i}: missing pv1')
+            continue
+
+        if not qty_str:
+            errors.append(f'Row {i}: missing quantity')
+            continue
+
+        try:
+            quantity = int(qty_str)
+            if quantity <= 0:
+                errors.append(f'Row {i}: quantity must be > 0')
+                continue
+        except ValueError:
+            errors.append(f'Row {i}: quantity must be a whole number')
+            continue
+
+        pp = ProductProvider.objects.filter(pv1=pv1, provider=provider).select_related('product').first()
+        if not pp:
+            errors.append(f'Row {i}: PV1 "{pv1}" not found for {provider.name}')
+            continue
+
+        product = pp.product
+        try:
+            cost = Decimal(cost_str) if cost_str else product.get_provider_cost(provider)
+        except Exception:
+            cost = product.get_provider_cost(provider)
+
+        rows.append({
+            'product': product,
+            'product_id': product.id,
+            'pv1': pv1,
+            'quantity': quantity,
+            'cost': cost,
+            'total': quantity * cost,
+        })
+
+    return rows, errors
+
+
+def po_upload_csv_confirm(request):
+    """Confirm CSV data and create the purchase order"""
+    data = request.session.pop('po_csv_data', None)
+    if not data:
+        messages.error(request, 'No CSV data found. Please upload again.')
+        return redirect('scm:po_upload_csv')
+
+    provider = get_object_or_404(Provider, id=data['provider_id'])
+    items_data = [
+        {'product_id': r['product_id'], 'quantity': r['quantity'], 'cost_per_unit': str(r['cost'])}
+        for r in data['rows']
+    ]
+
+    try:
+        po = create_po_from_manual(provider, items_data, created_by=str(request.user))
+        approve_purchase_order(po, approved_by=str(request.user))
+
+        units_count = InventoryUnit.objects.filter(purchase_order=po).count()
+        messages.success(
+            request,
+            f'PO {po.po_number} created from CSV with {po.items.count()} items and {units_count} inventory units.'
+        )
+        return redirect('scm:po_placed_orders')
+    except Exception as e:
+        messages.error(request, f'Error creating PO: {str(e)}')
+        return redirect('scm:po_upload_csv')
+
+
 def test_whatsapp(request):
     """Test WhatsApp integration (development/debugging)"""
     import os
@@ -515,102 +654,39 @@ def po_instant_lookup_pv1(request):
 
 
 def po_instant_submit(request):
-    """Create and complete instant purchase order"""
+    """Create purchase order following normal workflow (draft -> approve)"""
     if request.method == 'POST':
         try:
             provider_id = request.POST.get('provider_id')
-            items_json = request.POST.get('items')  # JSON string of items
-            
+            items_json = request.POST.get('items')
+
             if not provider_id or not items_json:
                 return JsonResponse({'error': 'Missing provider or items'}, status=400)
-            
+
             import json
             items = json.loads(items_json)
-            
+
             if not items:
                 return JsonResponse({'error': 'No items provided'}, status=400)
-            
+
             provider = get_object_or_404(Provider, id=provider_id)
-            
-            # Create PO
-            from django.db import transaction
-            with transaction.atomic():
-                # Generate PO number
-                last_po = PurchaseOrder.objects.order_by('-id').first()
-                po_number = f"INST-{timezone.now().strftime('%Y%m%d')}-{(last_po.id if last_po else 0) + 1:05d}"
-                
-                po = PurchaseOrder.objects.create(
-                    po_number=po_number,
-                    provider=provider,
-                    status='completed',
-                    order_type='instant',
-                    created_by=request.user.username if request.user.is_authenticated else 'System',
-                    completed_by=request.user.username if request.user.is_authenticated else 'System',
-                    completed_date=timezone.now(),
-                )
-                
-                total_cost = Decimal('0')
-                total_quantity = 0
-                
-                # Add items and create inventory units
-                for item in items:
-                    product = get_object_or_404(Product, id=item['product_id'])
-                    quantity = int(item['quantity'])
-                    cost = Decimal(str(item['cost']))
-                    
-                    # Create PO item
-                    po_item = PurchaseOrderItem.objects.create(
-                        purchase_order=po,
-                        product=product,
-                        ordered_quantity=quantity,
-                        ordered_cost_per_unit=cost,
-                        ordered_total=quantity * cost,
-                    )
-                    
-                    # Create inventory units (mark as received immediately for instant orders)
-                    for i in range(quantity):
-                        # Generate unique tracking ID: PO#-Product#-Sequential
-                        tracking_id = f"PO{po.id}-P{product.id}-{i+1}"
-                        
-                        # Ensure uniqueness by checking for duplicates
-                        counter = 1
-                        base_tracking_id = tracking_id
-                        while InventoryUnit.objects.filter(tracking_id=tracking_id).exists():
-                            tracking_id = f"{base_tracking_id}-{counter}"
-                            counter += 1
-                        
-                        InventoryUnit.objects.create(
-                            product=product,
-                            purchase_order=po,
-                            purchase_item=None,  # Not using old purchaseItem model for PO workflow
-                            status='ready_to_sale',  # Instantly ready for instant orders
-                            purchase_cost=cost,
-                            received_cost=cost,
-                            received_date=timezone.now(),
-                            tracking_id=tracking_id,
-                        )
-                    
-                    # NOTE: Stock is now tracked only via InventoryUnit.objects.filter(status='ready_to_sale')
-                    # Product.stock field removed - InventoryUnit is single source of truth
-                    
-                    total_cost += po_item.ordered_total
-                    total_quantity += quantity
-                
-                # Update PO totals
-                po.total_items = total_quantity
-                po.total_ordered_cost = total_cost
-                po.total_received_cost = total_cost
-                po.received_date = timezone.now()
-                po.save()
-                
+
+            items_data = [
+                {'product_id': item['product_id'], 'quantity': int(item['quantity']), 'cost_per_unit': str(item['cost'])}
+                for item in items
+            ]
+
+            po = create_po_from_manual(provider, items_data, created_by=str(request.user))
+            approve_purchase_order(po, approved_by=str(request.user))
+
             return JsonResponse({
                 'success': True,
                 'po_id': po.id,
                 'po_number': po.po_number,
-                'message': f'Instant PO {po.po_number} created and completed',
+                'message': f'PO {po.po_number} created and approved — ready to send',
             })
-        
+
         except Exception as e:
             return JsonResponse({'error': f'Error: {str(e)}'}, status=500)
-    
+
     return JsonResponse({'error': 'Invalid request'}, status=400)

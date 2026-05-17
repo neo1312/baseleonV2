@@ -1,0 +1,44 @@
+{% extends 'body.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>{{ title }}</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="form-group mb-3">
+                            <label for="provider_id">Select Provider:</label>
+                            <select class="form-control" id="provider_id" name="provider_id" required>
+                                <option value="">Choose a provider...</option>
+                                {% for provider in providers %}
+                                <option value="{{ provider.id }}">{{ provider.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="csv">CSV File:</label>
+                            <input type="file" class="form-control-file" id="csv" name="csv" accept=".csv" required>
+                            <small class="form-text text-muted">
+                                CSV must have columns: <code>pv1</code>, <code>quantity</code>, <code>cost</code> (cost optional).
+                            </small>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-success btn-lg w-100">
+                                <i class="fas fa-upload"></i> Upload & Preview
+                            </button>
+                            <a href="{% url 'scm:po_create' %}" class="btn btn-secondary w-100 mt-2">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

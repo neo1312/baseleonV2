@@ -1,0 +1,62 @@
+{% extends 'body.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4>{{ title }}</h4>
+                    <span class="badge badge-pill badge-light">{{ provider.name }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> Parsed <strong>{{ rows|length }}</strong> items from CSV.
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>PV1</th>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Cost per Unit</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in rows %}
+                                <tr>
+                                    <td><code>{{ row.pv1 }}</code></td>
+                                    <td>{{ row.product.full_name }}</td>
+                                    <td>{{ row.quantity }}</td>
+                                    <td>${{ row.cost|floatformat:2 }}</td>
+                                    <td class="text-end">${{ row.total|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-active">
+                                    <td colspan="4" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
+                                    <td class="text-end font-weight-bold">${{ total|floatformat:2 }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-4">
+                        <form method="post" action="{% url 'scm:po_upload_csv_confirm' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check"></i> Confirm & Create Order
+                            </button>
+                            <a href="{% url 'scm:po_upload_csv' %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-undo"></i> Go Back
+                            </a>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

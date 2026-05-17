@@ -35,6 +35,7 @@ ROLE_FEATURES = {
                 'items': [
                     {'title': 'Compras', 'description': 'Registrar compras', 'icon': '🛍️', 'url': '/purchase/new', 'color': '#A61E2C'},
                     {'title': 'Órdenes de Compra', 'description': 'Crear órdenes', 'icon': '📄', 'url': '/po/create/', 'color': '#8B3A3A'},
+                    {'title': 'CSV Upload', 'description': 'Subir CSV para orden', 'icon': '📄', 'url': '/po/upload-csv/', 'color': '#9B4D4D'},
                     {'title': 'Órdenes Colocadas', 'description': 'Ver órdenes', 'icon': '📋', 'url': '/po/placed/', 'color': '#704040'},
                 ]
             },
@@ -142,6 +143,7 @@ ROLE_FEATURES = {
                 'items': [
                     {'title': 'Nueva Compra', 'description': 'Registrar compra', 'icon': '🛍️', 'url': '/purchase/new', 'color': '#A61E2C'},
                     {'title': 'Nueva Orden', 'description': 'Crear orden de compra', 'icon': '📄', 'url': '/po/create/', 'color': '#8B3A3A'},
+                    {'title': 'CSV Upload', 'description': 'Subir CSV para orden', 'icon': '📄', 'url': '/po/upload-csv/', 'color': '#9B4D4D'},
                     {'title': 'Mis Órdenes', 'description': 'Ver órdenes', 'icon': '📋', 'url': '/po/placed/', 'color': '#704040'},
                 ]
             },
@@ -167,6 +169,7 @@ MENU_STRUCTURE = {
         {'divider': True},
         {'category': 'Compras', 'icon': 'fas fa-shopping-bag', 'url': '/purchase/new', 'color': 'text-danger'},
         {'category': 'Órdenes de Compra', 'icon': 'fas fa-file-invoice-dollar', 'url': '/po/create/', 'color': 'text-danger'},
+        {'category': 'CSV Upload', 'icon': 'fas fa-upload', 'url': '/po/upload-csv/', 'color': 'text-danger'},
         {'category': 'Órdenes Colocadas', 'icon': 'fas fa-list', 'url': '/po/placed/', 'color': 'text-danger'},
         {'category': 'Ventas', 'icon': 'fas fa-shopping-cart', 'url': '/sale/new', 'color': 'text-primary'},
         {'category': 'Cotizaciones', 'icon': 'fas fa-quote-left', 'url': '/quote/new', 'color': 'text-info'},
@@ -205,6 +208,7 @@ MENU_STRUCTURE = {
     'Buyer': [
         {'category': 'Compras', 'icon': 'fas fa-shopping-bag', 'url': '/purchase/new', 'color': 'text-danger'},
         {'category': 'Órdenes de Compra', 'icon': 'fas fa-file-invoice-dollar', 'url': '/po/create/', 'color': 'text-danger'},
+        {'category': 'CSV Upload', 'icon': 'fas fa-upload', 'url': '/po/upload-csv/', 'color': 'text-danger'},
         {'category': 'Órdenes Colocadas', 'icon': 'fas fa-list', 'url': '/po/placed/', 'color': 'text-danger'},
         {'divider': True},
         {'category': 'Productos', 'icon': 'fas fa-boxes', 'url': '/im/product/list', 'color': 'text-success'},

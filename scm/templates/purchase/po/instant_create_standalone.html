@@ -97,7 +97,7 @@
                     <!-- Action Buttons -->
                     <div class="mt-4">
                         <button type="button" class="btn btn-success btn-lg" id="submit_btn">
-                            <i class="fas fa-check"></i> Create & Complete Order
+                            <i class="fas fa-check"></i> Create & Approve Order
                         </button>
                         <a href="/" class="btn btn-secondary btn-lg">Cancel</a>
                     </div>
@@ -323,18 +323,18 @@ document.getElementById('submit_btn').addEventListener('click', function() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(`✓ SUCCESS!\n\n${data.message}\n\nPO Number: ${data.po_number}\n\nInventory updated and ready to sale!`);
+            alert(`✓ SUCCESS!\n\n${data.message}\n\nPO Number: ${data.po_number}`);
             window.location.href = `/po/placed/`;
         } else {
             alert(`❌ Error Creating Order\n\n${data.error}`);
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-check"></i> Create & Complete Order';
+            btn.innerHTML = '<i class="fas fa-check"></i> Create & Approve Order';
         }
     })
     .catch(error => {
         alert(`❌ Connection Error!\n\nUnable to create order.\n\nError: ${error}`);
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check"></i> Create & Complete Order';
+        btn.innerHTML = '<i class="fas fa-check"></i> Create & Approve Order';
     });
 });
 
