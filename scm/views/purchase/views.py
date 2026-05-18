@@ -1,4 +1,6 @@
-#basic libraries
+import logging
+
+logger = logging.getLogger(__name__)
 
 from decimal import Decimal, InvalidOperation
 
@@ -572,28 +574,45 @@ def upload_csv_action(request):
     if not file:
         return HttpResponse('<div class="alert alert-danger">No file.</div>')
 
-    decoded = file.read().decode('utf-8-sig', errors='replace').replace('\x00', '')
+    try:
+        raw = file.read()
+        if len(raw) > 10 * 1024 * 1024:
+            return HttpResponse('<div class="alert alert-danger">File too large (max 10 MB).</div>')
+        decoded = raw.decode('utf-8-sig', errors='replace').replace('\x00', '')
+    except Exception as e:
+        logger.error('CSV upload read error: %s', e, exc_info=True)
+        return HttpResponse('<div class="alert alert-danger">Could not read file: {}</div>'.format(e))
+
     sample = decoded[:2048]
     try:
         dialect = csv.Sniffer().sniff(sample, delimiters=',;\t|')
     except csv.Error:
         dialect = csv.excel
 
-    reader = csv.DictReader(io.StringIO(decoded), dialect=dialect)
-    rows = [
-        {
-            normalize_csv_key(key): value
-            for key, value in row.items()
-            if normalize_csv_key(key) is not None
-        }
-        for row in reader
-    ]
+    try:
+        reader = csv.DictReader(io.StringIO(decoded), dialect=dialect)
+        rows = [
+            {
+                normalize_csv_key(key): value
+                for key, value in row.items()
+                if normalize_csv_key(key) is not None
+            }
+            for row in reader
+        ]
+    except Exception as e:
+        logger.error('CSV parse error: %s', e, exc_info=True)
+        return HttpResponse('<div class="alert alert-danger">Could not parse CSV: {}</div>'.format(e))
 
     if not rows:
         request.session.pop('csv_rows', None)
-        return HttpResponse('<div class="alert alert-warning">CSV is empty.</div>')
+        return HttpResponse('<div class="alert alert-warning">CSV is empty or has no data rows.</div>')
 
-    validations = validate_csv_rows(rows)
+    try:
+        validations = validate_csv_rows(rows)
+    except Exception as e:
+        logger.error('CSV validation error: %s', e, exc_info=True)
+        return HttpResponse('<div class="alert alert-danger">Error validating CSV data: {}</div>'.format(e))
+
     if any(validation['errors'] for validation in validations):
         request.session.pop('csv_rows', None)
     else:
@@ -609,9 +628,14 @@ def upload_csv_action(request):
 def upload_csv_confirm(request):
     rows = request.session.pop('csv_rows', [])
     if not rows:
-        return HttpResponse('<div class="alert alert-danger">No data to import.</div>')
+        return HttpResponse('<div class="alert alert-danger">No data to import. Please upload a CSV first.</div>')
 
-    validations = validate_csv_rows(rows)
+    try:
+        validations = validate_csv_rows(rows)
+    except Exception as e:
+        logger.error('CSV re-validation error: %s', e, exc_info=True)
+        return HttpResponse('<div class="alert alert-danger">Error re-validating CSV data: {}</div>'.format(e))
+
     error_rows = [validation for validation in validations if validation['errors']]
     if error_rows:
         html = (
@@ -649,7 +673,8 @@ def upload_csv_confirm(request):
                     date_created=timezone.now(),
                     last_update=timezone.now(),
                 )
-    except (IntegrityError, ValueError, TypeError) as exc:
+    except Exception as exc:
+        logger.error('CSV import creation error: %s', exc, exc_info=True)
         return HttpResponse(
             '<div class="alert alert-danger">'
             'Import aborted. No rows were inserted. Error: {}'
@@ -766,28 +791,45 @@ def upload_csv_action_barcode(request):
     if not file:
         return HttpResponse('<div class="alert alert-danger">No file.</div>')
 
-    decoded = file.read().decode('utf-8-sig', errors='replace').replace('\x00', '')
+    try:
+        raw = file.read()
+        if len(raw) > 10 * 1024 * 1024:
+            return HttpResponse('<div class="alert alert-danger">File too large (max 10 MB).</div>')
+        decoded = raw.decode('utf-8-sig', errors='replace').replace('\x00', '')
+    except Exception as e:
+        logger.error('Barcode CSV read error: %s', e, exc_info=True)
+        return HttpResponse('<div class="alert alert-danger">Could not read file: {}</div>'.format(e))
+
     sample = decoded[:2048]
     try:
         dialect = csv.Sniffer().sniff(sample, delimiters=',;\t|')
     except csv.Error:
         dialect = csv.excel
 
-    reader = csv.DictReader(io.StringIO(decoded), dialect=dialect)
-    rows = [
-        {
-            normalize_csv_key(key): value
-            for key, value in row.items()
-            if normalize_csv_key(key) is not None
-        }
-        for row in reader
-    ]
+    try:
+        reader = csv.DictReader(io.StringIO(decoded), dialect=dialect)
+        rows = [
+            {
+                normalize_csv_key(key): value
+                for key, value in row.items()
+                if normalize_csv_key(key) is not None
+            }
+            for row in reader
+        ]
+    except Exception as e:
+        logger.error('Barcode CSV parse error: %s', e, exc_info=True)
+        return HttpResponse('<div class="alert alert-danger">Could not parse CSV: {}</div>'.format(e))
 
     if not rows:
         request.session.pop('csv_rows_barcode', None)
-        return HttpResponse('<div class="alert alert-warning">CSV is empty.</div>')
+        return HttpResponse('<div class="alert alert-warning">CSV is empty or has no data rows.</div>')
 
-    validations = validate_csv_rows_barcode(rows)
+    try:
+        validations = validate_csv_rows_barcode(rows)
+    except Exception as e:
+        logger.error('Barcode CSV validation error: %s', e, exc_info=True)
+        return HttpResponse('<div class="alert alert-danger">Error validating CSV data: {}</div>'.format(e))
+
     if any(validation['errors'] for validation in validations):
         request.session.pop('csv_rows_barcode', None)
     else:
@@ -801,9 +843,14 @@ def upload_csv_confirm_barcode(request):
     """Confirm and import barcode CSV data"""
     rows = request.session.pop('csv_rows_barcode', [])
     if not rows:
-        return HttpResponse('<div class="alert alert-danger">No data to import.</div>')
+        return HttpResponse('<div class="alert alert-danger">No data to import. Please upload a CSV first.</div>')
 
-    validations = validate_csv_rows_barcode(rows)
+    try:
+        validations = validate_csv_rows_barcode(rows)
+    except Exception as e:
+        logger.error('Barcode CSV re-validation error: %s', e, exc_info=True)
+        return HttpResponse('<div class="alert alert-danger">Error re-validating CSV data: {}</div>'.format(e))
+
     error_rows = [validation for validation in validations if validation['errors']]
     if error_rows:
         html = (
@@ -841,7 +888,8 @@ def upload_csv_confirm_barcode(request):
                     date_created=timezone.now(),
                     last_update=timezone.now(),
                 )
-    except (IntegrityError, ValueError, TypeError) as exc:
+    except Exception as exc:
+        logger.error('Barcode CSV import creation error: %s', exc, exc_info=True)
         return HttpResponse(
             '<div class="alert alert-danger">'
             'Import aborted. No rows were inserted. Error: {}'

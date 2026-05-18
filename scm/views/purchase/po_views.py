@@ -2,6 +2,10 @@
 Purchase Order creation and management views.
 Provides simple UI for creating, managing, and receiving purchase orders.
 """
+import logging
+
+logger = logging.getLogger(__name__)
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
@@ -421,7 +425,20 @@ def po_upload_csv(request):
             return redirect('scm:po_upload_csv')
 
         provider = get_object_or_404(Provider, id=provider_id)
-        rows, errors = _parse_po_csv(csv_file, provider)
+
+        try:
+            if csv_file.size > 10 * 1024 * 1024:
+                messages.error(request, 'File too large (max 10 MB).')
+                return redirect('scm:po_upload_csv')
+        except Exception:
+            pass
+
+        try:
+            rows, errors = _parse_po_csv(csv_file, provider)
+        except Exception as e:
+            logger.error('PO CSV parse error: %s', e, exc_info=True)
+            messages.error(request, 'Error parsing CSV: {}'.format(e))
+            return redirect('scm:po_upload_csv')
 
         if errors:
             for err in errors:
@@ -504,8 +521,14 @@ def _parse_po_csv(csv_file, provider):
         product = pp.product
         try:
             cost = Decimal(cost_str) if cost_str else product.get_provider_cost(provider)
-        except Exception:
-            cost = product.get_provider_cost(provider)
+        except Exception as exc:
+            logger.warning('Row %s: cost parse failed (%s), using default provider cost', i, exc)
+            try:
+                cost = product.get_provider_cost(provider)
+            except Exception as exc2:
+                logger.error('Row %s: could not get provider cost either: %s', i, exc2)
+                errors.append('Row {}: invalid cost and no default cost available'.format(i))
+                continue
 
         rows.append({
             'product': product,
@@ -543,6 +566,7 @@ def po_upload_csv_confirm(request):
         )
         return redirect('scm:po_placed_orders')
     except Exception as e:
+        logger.error('PO CSV confirm error: %s', e, exc_info=True)
         messages.error(request, f'Error creating PO: {str(e)}')
         return redirect('scm:po_upload_csv')
 
