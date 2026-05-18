@@ -8,16 +8,19 @@
 			<h5>Upload CSV (Barcode)</h5>
 		</div>
 		<div class="card-body">
-			<form 
-		     		method="post"
+			<form
+				method="post"
+				action="{% url 'scm:uploadcsv_action_barcode' %}"
 				enctype="multipart/form-data"
 				hx-post="{% url 'scm:uploadcsv_action_barcode'%}"
 				hx-target="#upload-result"
+				hx-encoding="multipart/form-data"
 				>
 				{% csrf_token%}
-				<input type="file" name="csv" class="form-controlmb-3">
+				<input type="file" name="csv" class="form-control mb-3" required>
 				<button type="submit" class="btn btn-primary">Upload</button>
 				<div id="upload-result"></div>
+				<div id="upload-error" class="mt-2"></div>
 
 
 			</form>
