@@ -25,6 +25,7 @@ ROLE_FEATURES = {
                 'category': 'Inventory',
                 'items': [
                     {'title': 'Productos', 'description': 'Gestionar productos', 'icon': '📦', 'url': '/im/product/list', 'color': '#D84E4E'},
+                    {'title': 'Importar Productos', 'description': 'Importar productos desde CSV', 'icon': '📤', 'url': '/im/product/import-csv/', 'color': '#28A745'},
                     {'title': 'Categorías', 'description': 'Gestionar categorías', 'icon': '🏷️', 'url': '/category/list', 'color': '#CA1B31'},
                     {'title': 'Clientes', 'description': 'Gestionar clientes', 'icon': '👥', 'url': '/client/list', 'color': '#C41C38'},
                     {'title': 'Proveedores', 'description': 'Gestionar proveedores', 'icon': '🚚', 'url': '/provider/list', 'color': '#8B0000'},
@@ -73,6 +74,7 @@ ROLE_FEATURES = {
                 'category': 'View Data',
                 'items': [
                     {'title': 'Productos', 'description': 'Ver todos los productos', 'icon': '📦', 'url': '/im/product/list', 'color': '#D84E4E'},
+                    {'title': 'Importar Productos', 'description': 'Importar productos desde CSV', 'icon': '📤', 'url': '/im/product/import-csv/', 'color': '#28A745'},
                     {'title': 'Clientes', 'description': 'Ver clientes', 'icon': '👥', 'url': '/client/list', 'color': '#C41C38'},
                     {'title': 'Proveedores', 'description': 'Ver proveedores', 'icon': '🚚', 'url': '/provider/list', 'color': '#8B0000'},
                 ]
@@ -151,6 +153,7 @@ ROLE_FEATURES = {
                 'category': 'Reference',
                 'items': [
                     {'title': 'Productos', 'description': 'Ver catálogo', 'icon': '📦', 'url': '/im/product/list', 'color': '#D84E4E'},
+                    {'title': 'Importar Productos', 'description': 'Importar productos desde CSV', 'icon': '📤', 'url': '/im/product/import-csv/', 'color': '#28A745'},
                     {'title': 'Proveedores', 'description': 'Ver proveedores', 'icon': '🚚', 'url': '/provider/list', 'color': '#8B0000'},
                 ]
             },

@@ -1,25 +1,19 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from im.forms import ProductCSVUploadForm
 from im.management.commands.import_products_csv import Command
+from crm.decorators import role_required
 import csv
 from io import StringIO
-import tempfile
-import os
-import json
 
-def staff_required(view_func):
-    """Decorator to require staff permission"""
-    def wrapper(request, *args, **kwargs):
-        if not request.user.is_staff:
-            return redirect('admin:login')
-        return view_func(request, *args, **kwargs)
-    return wrapper
+TEMPLATE = 'admin/import_products.html'
 
-@staff_required
+
+@login_required
+@role_required('Admin', 'Manager', 'Buyer')
 def import_products_csv_view(request):
-    """Admin view for bulk importing products from CSV with preview"""
+    """Frontend view for bulk importing products from CSV with preview"""
     
     if request.method == 'POST' and 'confirm_import' in request.POST:
         # STEP 2: Confirm and import
@@ -52,12 +46,11 @@ def import_products_csv_view(request):
             
             messages.success(
                 request,
-                f"✅ Import complete!\nCreated: {created} | Updated: {updated} | Errors: {errors}"
+                f"Import complete! Created: {created} | Updated: {updated} | Errors: {errors}"
             )
-            # Clean up session data
             request.session.pop('csv_preview_data', None)
             request.session.pop('csv_skip_errors', None)
-            return redirect('admin:im_product_changelist')
+            return redirect('im:import_products_csv')
             
         except Exception as e:
             messages.error(request, f"Error during import: {str(e)}")
@@ -83,23 +76,21 @@ def import_products_csv_view(request):
                     messages.error(request, "CSV file has no data rows")
                     return redirect('im:import_products_csv')
                 
-                # Store preview data in session
                 request.session['csv_preview_data'] = {'rows': rows}
                 request.session['csv_skip_errors'] = skip_errors
                 
-                # Show preview
                 context = {
                     'form': form,
                     'preview': True,
                     'total_rows': len(rows),
-                    'rows': rows[:5],  # Show first 5 rows
+                    'rows': rows[:5],
                     'skip_errors': skip_errors,
                 }
-                return render(request, 'admin/import_products.html', context)
+                return render(request, TEMPLATE, context)
                 
             except Exception as e:
                 messages.error(request, f"Error reading file: {str(e)}")
     else:
         form = ProductCSVUploadForm()
     
-    return render(request, 'admin/import_products.html', {'form': form, 'preview': False})
+    return render(request, TEMPLATE, {'form': form, 'preview': False})

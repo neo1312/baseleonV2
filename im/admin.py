@@ -2,7 +2,7 @@ from django.contrib import admin
 from im.models import Product, Category, Cost, Margin, Brand, InventoryUnit, ABCConfiguration, ProductABCMetrics, ForecastConfiguration, DemandForecast, ProductProvider, ProductGroup, InventoryAudit, AuditItem, AdjustmentTransaction
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
-from django.db.models import Sum, F, DecimalField
+
 
 class categoryResource(resources.ModelResource):
     class Meta:
@@ -45,7 +45,6 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     ordering=('id','last_updated')
     raw_id_fields=('brand','category')
     inlines = [ProductProviderInline]
-    change_list_template = "admin/im/product/change_list.html"
     #list_per_page = 1000
     exclude = ()
 
@@ -109,16 +108,6 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     get_stock_ready_to_sale.short_description = 'Available Stock'
     get_stock_ready_to_sale.admin_order_field = None  # Cannot order by property
 
-    #Calculate total inventory value
-    def changelist_view(self, request, extra_context=None):
-        # Calculate total using Python since stock_ready_to_sale is a @property
-        products = Product.objects.all()
-        total = sum(float(p.costo) * p.stock_ready_to_sale for p in products)
-
-        extra_context = extra_context or {}
-        extra_context['total_inventory_value']=total
-        extra_context['import_csv_url'] = '/im/product/import-csv/'
-        return super().changelist_view(request, extra_context=extra_context)
     
     def delete_model(self, request, obj):
         """Override delete to show what will be deleted"""
