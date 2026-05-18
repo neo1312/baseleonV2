@@ -4,6 +4,21 @@ from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 
 
+class ProviderFilter(admin.SimpleListFilter):
+    title = 'provider'
+    parameter_name = 'provider'
+
+    def lookups(self, request, model_admin):
+        from scm.models import Provider
+        return [(p.id, p.name) for p in Provider.objects.all().order_by('name')]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value:
+            return queryset.filter(provider_pairs__provider_id=value).distinct()
+        return queryset
+
+
 class categoryResource(resources.ModelResource):
     class Meta:
         model=Category
@@ -40,7 +55,7 @@ class ProductProviderInline(admin.TabularInline):
 class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     search_fields=['name','category__name','brand__name','id','barcode','clave']
     list_display=('id','clave','full_name','display_group','get_stock_ready_to_sale','costo','priceLista','priceListaGranel','priceMayoreo','active','sat')
-    list_filter=('active','brand','category','group')
+    list_filter=('active', ProviderFilter, 'brand', 'category', 'group')
     resocurce_class = productResource
     ordering=('id','last_updated')
     raw_id_fields=('brand','category')

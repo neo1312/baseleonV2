@@ -4,14 +4,23 @@ from django.shortcuts import render, redirect, get_object_or_404
 #import 
 from im.models import Product 
 from im.forms import productForm 
+from scm.models import Provider
 
 def productList(request):
+    provider_id = request.GET.get('provider', '')
+    products = Product.objects.filter(active=True)
+
+    if provider_id:
+        products = products.filter(provider_pairs__provider_id=provider_id).distinct()
+
     data = {
             'product_create':'/product/create',
             'title' : 'Listado products',
-            'products' : Product.objects.filter(active=True),
+            'products' : products,
             'entity':'products',
             'url_create':'/product/create',
+            'providers': Provider.objects.all().order_by('name'),
+            'selected_provider': provider_id,
             }
     return render(request, 'product/list.html', data)
 

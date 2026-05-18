@@ -1,5 +1,22 @@
 {% extends 'list.html' %}
 
+{% block list_filter %}
+<div class="card-body pb-0">
+    <form method="get" class="form-inline">
+        <label class="mr-2 font-weight-bold">Proveedor:</label>
+        <select name="provider" class="form-control form-control-sm mr-3" onchange="this.form.submit()">
+            <option value="">Todos los proveedores</option>
+            {% for p in providers %}
+            <option value="{{ p.id }}" {% if selected_provider == p.id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+        </select>
+        {% if selected_provider %}
+        <a href="{% url 'im:productList' %}" class="btn btn-sm btn-outline-secondary">Limpiar filtro</a>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}
+
 {% block columns %}
     <tr>
         <th scope="col">BarCode</th>
