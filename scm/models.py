@@ -17,7 +17,7 @@ class Provider(models.Model):
     last_updated = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
-        return '{}'.format(self.name)
+        return '{} ({})'.format(self.name, self.id)
 
     def save(self, *args, **kwargs):
         if self.date_created is None:

@@ -14,9 +14,22 @@ class providerResource(resources.ModelResource):
 
 class providerAdmin(ImportExportModelAdmin, admin.ModelAdmin):
     search_fields=('id','name')
+    list_display=('id','name')
     list_filter=()
     resource_class=providerResource
     actions = ['create_bulk_order']
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if 'id' in form.base_fields:
+            del form.base_fields['id']
+        return form
+
+    def save_model(self, request, obj, form, change):
+        if not obj.id:
+            ids = [int(p.id) for p in Provider.objects.only('id').all() if p.id.isdigit()]
+            obj.id = str(max(ids) + 1) if ids else '1'
+        super().save_model(request, obj, form, change)
     
     def create_bulk_order(self, request, queryset):
         """Action to create bulk purchase orders"""
