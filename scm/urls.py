@@ -4,7 +4,7 @@ from django.urls import path
 #import 
 from scm.views.provider.views import providerList, providerCreate,providerEdit,providerDelete
 from scm.views.purchase.views import purchaseList, purchaseInicia,purchaseEdit,purchaseDelete,purchaseCreate,purchaseGetData,purchaseItemView,purchaseItemDelete,purchaseOrder,purchaseNew, upload_purchase_items,htmx_one,htmx_form,upload_csv,upload_csv_action,upload_csv_confirm,upload_csv_barcode,upload_csv_action_barcode,upload_csv_confirm_barcode,mark_ready_to_sale,purchaseUpdateQuantity
-from scm.views.purchase.po_views import po_create, po_select_provider, po_items_list, po_submit, po_placed_orders, po_send, po_receive, po_delete, test_whatsapp, po_upload_csv, po_upload_csv_confirm, po_instant_create, po_instant_lookup_pv1, po_instant_submit
+from scm.views.purchase.po_views import po_create, po_select_provider, po_items_list, po_submit, po_placed_orders, po_send, po_receive, po_delete, test_whatsapp, po_upload_csv, po_upload_csv_confirm, po_instant_create, po_instant_lookup_pv1, po_instant_submit, po_instant_full_create, po_instant_full_submit
 
 app_name='scm'
 urlpatterns=[
@@ -51,4 +51,6 @@ urlpatterns=[
         path('po/instant/', po_instant_create, name='po_instant_create'),
         path('po/instant/lookup-pv1/', po_instant_lookup_pv1, name='po_instant_lookup_pv1'),
         path('po/instant/submit/', po_instant_submit, name='po_instant_submit'),
+        path('po/instant-full/', po_instant_full_create, name='po_instant_full_create'),
+        path('po/instant-full/submit/', po_instant_full_submit, name='po_instant_full_submit'),
         ]

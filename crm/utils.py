@@ -34,7 +34,8 @@ ROLE_FEATURES = {
             {
                 'category': 'Purchasing',
                 'items': [
-                    {'title': 'Compras', 'description': 'Registrar compras', 'icon': '🛍️', 'url': '/purchase/new', 'color': '#A61E2C'},
+                    {'title': 'Orden Instantánea', 'description': 'Pedido completo en 1 clic', 'icon': '⚡', 'url': '/po/instant-full/', 'color': '#28A745'},
+                    {'title': 'Compras / Manual', 'description': 'Agregar productos manualmente', 'icon': '🛍️', 'url': '/purchase/new', 'color': '#A61E2C'},
                     {'title': 'Órdenes de Compra', 'description': 'Crear órdenes', 'icon': '📄', 'url': '/po/create/', 'color': '#8B3A3A'},
                     {'title': 'CSV Upload', 'description': 'Subir CSV para orden', 'icon': '📄', 'url': '/po/upload-csv/', 'color': '#9B4D4D'},
                     {'title': 'Órdenes Colocadas', 'description': 'Ver órdenes', 'icon': '📋', 'url': '/po/placed/', 'color': '#704040'},
@@ -143,7 +144,8 @@ ROLE_FEATURES = {
             {
                 'category': 'Purchasing',
                 'items': [
-                    {'title': 'Nueva Compra', 'description': 'Registrar compra', 'icon': '🛍️', 'url': '/purchase/new', 'color': '#A61E2C'},
+                    {'title': 'Orden Instantánea', 'description': 'Pedido completo en 1 clic', 'icon': '⚡', 'url': '/po/instant-full/', 'color': '#28A745'},
+                    {'title': 'Nueva Compra / Manual', 'description': 'Registrar compra manual', 'icon': '🛍️', 'url': '/purchase/new', 'color': '#A61E2C'},
                     {'title': 'Nueva Orden', 'description': 'Crear orden de compra', 'icon': '📄', 'url': '/po/create/', 'color': '#8B3A3A'},
                     {'title': 'CSV Upload', 'description': 'Subir CSV para orden', 'icon': '📄', 'url': '/po/upload-csv/', 'color': '#9B4D4D'},
                     {'title': 'Mis Órdenes', 'description': 'Ver órdenes', 'icon': '📋', 'url': '/po/placed/', 'color': '#704040'},

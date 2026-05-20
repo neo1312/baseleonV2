@@ -17,6 +17,7 @@ class providerAdmin(ImportExportModelAdmin, admin.ModelAdmin):
     list_display=('id','name')
     list_filter=()
     resource_class=providerResource
+    ordering = ['name']
     actions = ['create_bulk_order']
 
     def get_form(self, request, obj=None, **kwargs):

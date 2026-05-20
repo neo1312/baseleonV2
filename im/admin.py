@@ -28,13 +28,26 @@ class categoryAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_display=('id','name')
     list_filter=('id',)
     resocurce_class = categoryResource
+    ordering = ['name']
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if 'id' in form.base_fields:
+            del form.base_fields['id']
+        return form
+
+    def save_model(self, request, obj, form, change):
+        if not obj.id:
+            ids = [int(c.id) for c in Category.objects.only('id').all() if c.id.isdigit()]
+            obj.id = str(max(ids) + 1) if ids else '1'
+        super().save_model(request, obj, form, change)
 
 admin.site.register(Category,categoryAdmin)
 
 class productResource(resources.ModelResource):
     class Meta:
         model=Product
-        fields = ('name','clave','barcode','costo','margen','margenMayoreo','margenGranel','active','sat','category','brand','stockMax','stockMin','minimo','unidad','granel')
+        fields = ('name','clave','barcode','costo','margen','margenMayoreo','margenGranel','active','sat','Granel_Item','category','brand','stockMax','stockMin','minimo','unidad','granel')
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ()  # Don't use any field as ID lookup
@@ -54,7 +67,7 @@ class ProductProviderInline(admin.TabularInline):
 
 class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     search_fields=['name','category__name','brand__name','id','barcode','clave']
-    list_display=('id','clave','full_name','display_group','get_stock_ready_to_sale','costo','priceLista','priceListaGranel','priceMayoreo','active','sat')
+    list_display=('id','clave','full_name','display_group','get_stock_ready_to_sale','costo','priceLista','priceListaGranel','priceMayoreo','active','sat','Granel_Item')
     list_filter=('active', ProviderFilter, 'brand', 'category', 'group')
     resocurce_class = productResource
     ordering=('id','last_updated')
@@ -65,7 +78,7 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
 
     fieldsets = (
         ('Basic Info', {
-            'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'group')
+            'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')
         }),
         ('Inventory Settings', {
             'fields': ('minimo', 'stockMax', 'stockMin', 'unidad', 'granel', 'display_stock')
@@ -97,10 +110,10 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         fieldsets = super().get_fieldsets(request, obj)
         if obj is None:  # Creating new product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')})
         else:  # Editing existing product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')})
         return fieldsets
 
     def display_stock(self, obj):
@@ -177,6 +190,7 @@ class brandAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_display=('id','name')
     list_filter=()
     resocurce_class = brandResource
+    ordering = ['name']
 
 admin.site.register(Brand,brandAdmin)
 

@@ -1,28 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>FL|Manual Purchase Order</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <style>
-        body { padding: 20px; }
-        #items_table tbody tr:hover { background-color: #f5f5f5; }
-        #total_items, #total_cost { color: #28a745; font-size: 1.2em; }
-    </style>
-</head>
-<body>
-<div class="container mt-5">
+{% extends 'body.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
     <div class="row">
         <div class="col-md-10 offset-md-1">
             <div class="card">
                 <div class="card-header bg-success text-white">
-                    <h4>{{ title }}</h4>
+                    <h4 class="mb-0"><i class="fas fa-bolt mr-2"></i> {{ title }}</h4>
                 </div>
                 <div class="card-body">
                     {% csrf_token %}
-                    
+
                     <!-- Provider Selection -->
                     <div class="form-group mb-3">
                         <label for="provider_id"><strong>Select Provider:</strong></label>
@@ -34,7 +23,7 @@
                         </select>
                     </div>
 
-                    <!-- Items Table -->
+                    <!-- Items Section -->
                     <div class="card mt-4">
                         <div class="card-header">
                             <h5>Order Items</h5>
@@ -51,12 +40,10 @@
                                 </div>
                             </div>
 
-                            <!-- Add Item Button -->
                             <button type="button" class="btn btn-primary mb-3" id="add_item_btn">
                                 <i class="fas fa-plus"></i> Add Item
                             </button>
 
-                            <!-- Items List -->
                             <table class="table table-striped table-hover" id="items_table">
                                 <thead class="table-dark">
                                     <tr>
@@ -68,12 +55,9 @@
                                         <th>Action</th>
                                     </tr>
                                 </thead>
-                                <tbody id="items_tbody">
-                                    <!-- Items will be added here -->
-                                </tbody>
+                                <tbody id="items_tbody"></tbody>
                             </table>
 
-                            <!-- Totals -->
                             <div class="row mt-4">
                                 <div class="col-md-6 offset-md-6">
                                     <div class="card bg-light">
@@ -97,27 +81,24 @@
                     <!-- Action Buttons -->
                     <div class="mt-4">
                         <button type="button" class="btn btn-success btn-lg" id="submit_btn">
-                            <i class="fas fa-check"></i> Create Order
+                            <i class="fas fa-bolt"></i> Create Instant Order
                         </button>
-                        <a href="/" class="btn btn-secondary btn-lg">Cancel</a>
+                        <a href="/po/placed/" class="btn btn-secondary btn-lg">Cancel</a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block javascrip %}
 <script>
 const items = [];
 
-// Get CSRF token from Django's hidden input field
 function getCSRFToken() {
     const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (tokenInput) {
-        return tokenInput.value;
-    }
-    // Fallback to cookie if input not found
+    if (tokenInput) return tokenInput.value;
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
         const cookies = document.cookie.split(';');
@@ -132,63 +113,35 @@ function getCSRFToken() {
     return cookieValue;
 }
 
-const csrftoken = getCSRFToken();
-
 function addItem() {
     const provider_id = document.getElementById('provider_id').value;
     const pv1 = document.getElementById('pv1_input').value.trim();
     const quantity = parseInt(document.getElementById('quantity_input').value) || 1;
 
-    if (!provider_id) {
-        alert('❌ Please select a provider');
-        return;
-    }
+    if (!provider_id) { alert('Please select a provider'); return; }
+    if (!pv1) { alert('Please enter a PV1'); return; }
+    if (quantity < 1) { alert('Quantity must be at least 1'); return; }
 
-    if (!pv1) {
-        alert('❌ Please enter a PV1');
-        return;
-    }
-
-    if (quantity < 1) {
-        alert('❌ Quantity must be at least 1');
-        return;
-    }
-
-    // Show loading state
     const btn = document.getElementById('add_item_btn');
     const originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validating PV1...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validating...';
 
-    console.log(`Attempting to lookup: PV1=${pv1}, Provider=${provider_id}`);
-
-    // Lookup PV1
     fetch(`/po/instant/lookup-pv1/?pv1=${encodeURIComponent(pv1)}&provider_id=${provider_id}`)
-        .then(response => {
-            console.log(`Response status: ${response.status}`);
-            return response.json();
-        })
+        .then(r => r.json())
         .then(data => {
-            console.log('Response data:', data);
-            
             btn.disabled = false;
             btn.innerHTML = originalText;
-            
+
             if (data.error) {
-                alert(`❌ PV1 Not Found!\n\nError: ${data.error}\n\nPlease verify:\n• PV1 code is correct\n• Provider has this product`);
+                alert(`PV1 Not Found: ${data.error}`);
                 return;
             }
 
-            // Check if product already exists in items
             const existingIndex = items.findIndex(item => item.pv1 === data.pv1);
-            
             if (existingIndex !== -1) {
-                // Update existing item quantity
                 items[existingIndex].quantity += quantity;
-                console.log(`✓ Updated existing item: ${data.product_name}, new quantity: ${items[existingIndex].quantity}`);
-                alert(`✓ Updated: ${data.product_name}\n\nNew Quantity: ${items[existingIndex].quantity}`);
             } else {
-                // Add new item
                 items.push({
                     product_id: data.product_id,
                     pv1: data.pv1,
@@ -196,30 +149,23 @@ function addItem() {
                     cost: data.cost,
                     quantity: quantity,
                 });
-                console.log(`✓ Added new item: ${data.product_name}`);
-                alert(`✓ Item added: ${data.product_name} (Qty: ${quantity})`);
             }
 
-            // Clear inputs
             document.getElementById('pv1_input').value = '';
             document.getElementById('quantity_input').value = '1';
             document.getElementById('pv1_input').focus();
-
-            // Render items
             renderItems();
         })
         .catch(error => {
-            console.error('Fetch error:', error);
             btn.disabled = false;
             btn.innerHTML = originalText;
-            alert(`❌ Connection Error!\n\nUnable to validate PV1.\n\nError: ${error}\n\nPlease check:\n• Your internet connection\n• The PV1 code`);
+            alert('Connection error validating PV1');
         });
 }
 
 function renderItems() {
     const tbody = document.getElementById('items_tbody');
     tbody.innerHTML = '';
-
     let total_items = 0;
     let total_cost = 0;
 
@@ -234,20 +180,14 @@ function renderItems() {
             <td>${item.product_name}</td>
             <td>$${parseFloat(item.cost).toFixed(2)}</td>
             <td>
-                <div style="display: flex; gap: 5px; align-items: center; width: fit-content;">
-                    <button type="button" class="btn btn-sm btn-danger" onclick="decrementItem(${index})" title="Decrease">−</button>
-                    <input type="number" class="form-control form-control-sm text-center" 
-                           value="${item.quantity}" min="1" 
-                           style="width: 60px; font-weight: bold;" readonly>
-                    <button type="button" class="btn btn-sm btn-success" onclick="incrementItem(${index})" title="Increase">+</button>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="decrementItem(${index})">−</button>
+                    <input type="number" class="form-control form-control-sm text-center" value="${item.quantity}" min="1" style="width: 60px;" readonly>
+                    <button type="button" class="btn btn-sm btn-success" onclick="incrementItem(${index})">+</button>
                 </div>
             </td>
             <td>$${item_total.toFixed(2)}</td>
-            <td>
-                <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${index})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
+            <td><button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${index})"><i class="fas fa-trash"></i></button></td>
         `;
         tbody.appendChild(row);
     });
@@ -257,108 +197,68 @@ function renderItems() {
 }
 
 function incrementItem(index) {
-    if (index >= 0 && index < items.length) {
-        items[index].quantity += 1;
-        console.log(`Increased ${items[index].product_name} qty to ${items[index].quantity}`);
+    if (index >= 0 && index < items.length) { items[index].quantity += 1; renderItems(); }
+}
+function decrementItem(index) {
+    if (index >= 0 && index < items.length && items[index].quantity > 1) { items[index].quantity -= 1; renderItems(); }
+}
+function removeItem(index) {
+    if (index >= 0 && index < items.length && confirm(`Remove "${items[index].product_name}"?`)) {
+        items.splice(index, 1);
         renderItems();
     }
 }
 
-function decrementItem(index) {
-    if (index >= 0 && index < items.length) {
-        if (items[index].quantity > 1) {
-            items[index].quantity -= 1;
-            console.log(`Decreased ${items[index].product_name} qty to ${items[index].quantity}`);
-            renderItems();
-        }
-    }
+function calculateTotal() {
+    return items.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
 }
 
-function removeItem(index) {
-    if (index >= 0 && index < items.length) {
-        const item = items[index];
-        if (confirm(`Remove "${item.product_name}" from order?`)) {
-            items.splice(index, 1);
-            console.log(`Removed: ${item.product_name}`);
-            renderItems();
-        }
-    }
-}
-
-// Submit order
+// Submit
 document.getElementById('submit_btn').addEventListener('click', function() {
     const provider_id = document.getElementById('provider_id').value;
+    if (!provider_id) { alert('Please select a provider'); return; }
+    if (items.length === 0) { alert('Add at least one item'); return; }
 
-    if (!provider_id) {
-        alert('❌ Please select a provider');
-        return;
-    }
+    if (!confirm(`Create instant order with ${items.length} item(s)?\n\nTotal: $${calculateTotal().toFixed(2)}\n\nAll items will be ready to sale immediately.`)) return;
 
-    if (items.length === 0) {
-        alert('❌ Please add at least one item to the order');
-        return;
-    }
-
-    if (!confirm(`✓ Create order with ${items.length} item(s)?\n\nTotal: $${calculateTotal().toFixed(2)}`)) {
-        return;
-    }
-
-    // Disable button and show loading
     const btn = this;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Order...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Instant Order...';
 
-    // Submit form
     const formData = new FormData();
     formData.append('provider_id', provider_id);
     formData.append('items', JSON.stringify(items));
 
-    fetch('/po/instant/submit/', {
+    fetch('/po/instant-full/submit/', {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-CSRFToken': csrftoken,
-        }
+        headers: { 'X-CSRFToken': csrftoken }
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
-            alert(`✓ SUCCESS!\n\n${data.message}\n\nPO Number: ${data.po_number}`);
-            window.location.href = `/po/placed/`;
+            alert(`✓ Instant Order Complete!\n\nPO: ${data.po_number}\n${data.message}`);
+            window.location.href = '/po/placed/';
         } else {
-            alert(`❌ Error Creating Order\n\n${data.error}`);
+            alert(`Error: ${data.error}`);
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-check"></i> Create Order';
+            btn.innerHTML = '<i class="fas fa-bolt"></i> Create Instant Order';
         }
     })
     .catch(error => {
-        alert(`❌ Connection Error!\n\nUnable to create order.\n\nError: ${error}`);
+        alert('Connection error');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check"></i> Create Order';
+        btn.innerHTML = '<i class="fas fa-bolt"></i> Create Instant Order';
     });
 });
 
-// Add item on Enter key in quantity
+// Event listeners
 document.getElementById('quantity_input').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        addItem();
-    }
+    if (e.key === 'Enter') addItem();
 });
-
-// Add item on Enter in PV1 input
 document.getElementById('pv1_input').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        document.getElementById('quantity_input').focus();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('quantity_input').focus(); }
 });
-
-// Add item button click
 document.getElementById('add_item_btn').addEventListener('click', addItem);
-
-function calculateTotal() {
-    return items.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
-}
 </script>
-</body>
-</html>
+{% endblock %}

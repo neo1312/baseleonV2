@@ -610,3 +610,24 @@ textarea {
 ::-webkit-scrollbar-thumb:hover {
     background: #333;
 }
+
+/* GRANEL ITEM INDICATOR */
+.row-granel {
+    background-color: #fff3cd !important;
+}
+
+.row-granel:hover {
+    background-color: #ffe69c !important;
+}
+
+.badge-granel {
+    display: inline-block;
+    background: #dc3545;
+    color: #fff;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 5px;
+    vertical-align: middle;
+}

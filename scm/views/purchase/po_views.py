@@ -633,10 +633,10 @@ def test_whatsapp(request):
 
 
 def po_instant_create(request):
-    """Create instant purchase order - show provider selection"""
+    """Manual order - select provider and add items"""
     providers = Provider.objects.all()
     context = {
-        'title': 'Instant Purchase Order',
+        'title': 'Manual Purchase Order',
         'providers': providers,
     }
     return render(request, 'purchase/po/instant_create_standalone.html', context)
@@ -712,5 +712,58 @@ def po_instant_submit(request):
 
         except Exception as e:
             return JsonResponse({'error': f'Error: {str(e)}'}, status=500)
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+def po_instant_full_create(request):
+    """Instant order page — user scans PV1 and adds items, then submits"""
+    providers = Provider.objects.all()
+    context = {
+        'title': 'Instant Order',
+        'providers': providers,
+    }
+    return render(request, 'purchase/po/instant_full.html', context)
+
+
+def po_instant_full_submit(request):
+    """Instant order submit — full workflow draft -> approved -> sent -> received -> completed (ready to sale)"""
+    if request.method == 'POST':
+        try:
+            provider_id = request.POST.get('provider_id')
+            items_json = request.POST.get('items')
+
+            if not provider_id or not items_json:
+                return JsonResponse({'error': 'Missing provider or items'}, status=400)
+
+            import json
+            items = json.loads(items_json)
+
+            if not items:
+                return JsonResponse({'error': 'No items provided'}, status=400)
+
+            provider = get_object_or_404(Provider, id=provider_id)
+
+            items_data = [
+                {'product_id': item['product_id'], 'quantity': int(item['quantity']), 'cost_per_unit': str(item['cost'])}
+                for item in items
+            ]
+
+            po = create_po_from_manual(provider, items_data, created_by=str(request.user))
+            approve_purchase_order(po, approved_by=str(request.user))
+            send_purchase_order(po, sent_by=str(request.user))
+            receive_purchase_order(po, received_by=str(request.user))
+            complete_purchase_order(po, completed_by=str(request.user))
+
+            return JsonResponse({
+                'success': True,
+                'po_id': po.id,
+                'po_number': po.po_number,
+                'message': f'{po.total_items} items — all ready to sale!',
+            })
+
+        except Exception as e:
+            logger.error('Instant order full submit failed: %s', e, exc_info=True)
+            return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request'}, status=400)

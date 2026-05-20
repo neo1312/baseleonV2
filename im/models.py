@@ -90,6 +90,7 @@ class Product(models.Model):
     clave = models.CharField(max_length=100, verbose_name='Clave', null=True, blank=True, help_text='Unique identifier for the product. Defaults to the product ID.')
     active=models.BooleanField(default=True)
     sat=models.BooleanField(default=False)
+    Granel_Item = models.BooleanField(default=False, verbose_name='Granel Item')
     name=models.CharField(max_length=500,verbose_name='name')
     barcode=models.CharField(max_length=500,verbose_name='barcode',unique=True)
     stockMax=models.PositiveIntegerField(default=0,verbose_name='stockMaximo')

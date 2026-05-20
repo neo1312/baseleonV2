@@ -48,9 +48,9 @@
                     </thead>
                     <tbody id="products-tbody">
                         {% for product in products %}
-                        <tr data-product-id="{{ product.id }}">
+                        <tr data-product-id="{{ product.id }}" class="{% if product.Granel_Item %}row-granel{% endif %}">
                             <td class="barcode">{{ product.barcode }}</td>
-                            <td class="name">{{ product.name }}</td>
+                            <td class="name">{{ product.name }}{% if product.Granel_Item %} <span class="badge-granel">GRANEL</span>{% endif %}</td>
                             <td class="stock">{{ product.stock }}</td>
                             <td class="price-regular">${{ product.price|floatformat:2 }}</td>
                             <td class="price-mayoreo">${{ product.price_mayoreo|floatformat:2 }}</td>

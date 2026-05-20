@@ -12,6 +12,7 @@ class clientAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     list_filter=('tipo',)
     resource_class=clientResource
     list_display=('id','name','tipo','phoneNumber','monedero','get_client_tier','get_client_status')
+    ordering = ['name']
     readonly_fields=('monedero', 'get_client_tier', 'get_client_status')
     fieldsets = (
         ('Basic Information', {

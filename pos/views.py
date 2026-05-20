@@ -46,6 +46,7 @@ def pos_index(request):
             'price_granel': float(granel_price) if granel_price else None,
             'stock': available_stock,
             'granel': p.granel,
+            'Granel_Item': p.Granel_Item,
             'minimo': p.minimo,
         })
     
@@ -96,6 +97,7 @@ def search_products(request):
                 'price_granel': float(granel_price) if granel_price else None,
                 'stock': available_stock,
                 'granel': p.granel,
+                'Granel_Item': p.Granel_Item,
                 'minimo': p.minimo,
             })
         
