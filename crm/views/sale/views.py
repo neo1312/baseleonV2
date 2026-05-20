@@ -13,7 +13,6 @@ from crm.models import Sale,Client ,Product,saleItem
 from crm.forms import saleForm 
 from django.utils.dateparse import parse_date
 from datetime import datetime, timedelta
-from escpos.printer import File 
 from crm.decorators import role_required
 
 # Section configuration
@@ -281,20 +280,21 @@ def sale_ticket_json(request, pk):
     sale = Sale.objects.get(id=pk)
     items = sale.saleitem_set.all()
 
+    items_data = []
+    for i in items:
+        items_data.append({
+            "name": i.product.name if i.product else "Deleted Product",
+            "price": float(i.price),
+            "quantity": float(i.quantity),
+            "item_total": float(i.price) * float(i.quantity),
+        })
+
     data = {
         "sale_id": sale.id,
-        "total":sale.get_cart_total,
+        "total": float(sale.total_amount),
         "client": sale.client.name if sale.client else "Público en general",
         "date": sale.date_created,
-        "items": [
-            {
-                "name": i.product.semi_full_name,
-                "price": float(i.precioUnitario),
-                "quantity": float(i.quantity),
-                "item_total":i.get_total
-            }
-            for i in items
-        ]
+        "items": items_data,
     }
 
     return JsonResponse(data)

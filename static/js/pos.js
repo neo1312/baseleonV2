@@ -13,15 +13,17 @@ let clientWallet = 0;
 let saleStarted = false; // Flag to block adding products before sale setup
 const TAX_RATE = 0; // NO TAXES
 let cashInputDebounceTimer = null; // For debouncing cash input validation
+let searchDebounceTimer = null; // For debouncing live search input
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateCartDisplay();
+    document.getElementById('search-input').addEventListener('input', handleSearchInput);
     document.getElementById('search-input').addEventListener('keypress', handleSearchKeypress);
     document.getElementById('sale-type-select').addEventListener('change', updateSaleTypeDisplay);
     
-    // Disable search initially
-    disableSearch();
+    // Enable search immediately (browse products without starting a sale)
+    enableSearch();
 });
 
 function disableSearch() {
@@ -40,17 +42,23 @@ function enableSearch() {
 }
 
 // SEARCH & PRODUCT MANAGEMENT
-function handleSearchKeypress(e) {
-    if (!saleStarted) {
-        alert('⚠️ Please create a sale first (click ⚙️)');
-        openSettings();
+function handleSearchInput(e) {
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    const query = e.target.value.trim();
+    if (query.length < 2) {
+        searchDebounceTimer = setTimeout(() => {
+            if (query.length === 0) reloadInventory();
+        }, 200);
         return;
     }
-    
+    searchDebounceTimer = setTimeout(() => searchProducts(query), 150);
+}
+
+function handleSearchKeypress(e) {
     if (e.key === 'Enter') {
         const query = e.target.value.trim();
         if (query.length < 2) return;
-        
+        if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
         searchProducts(query);
         e.target.value = '';
     }
@@ -270,7 +278,6 @@ function saveSettings() {
     
     // Update display
     saleStarted = true;
-    enableSearch();
     updateSaleTypeDisplay();
     document.getElementById('client-display').textContent = `Client: ${clientName}`;
     
@@ -551,7 +558,6 @@ function confirmCheckout() {
             clientWallet = 0;
             
             updateCartDisplay();
-            disableSearch();
             closeCheckout();
             document.getElementById('notes').value = '';
             document.getElementById('sale-type-display').textContent = 'Sale: -';
