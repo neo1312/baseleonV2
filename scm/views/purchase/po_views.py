@@ -51,7 +51,7 @@ def po_select_provider(request):
         # Get products that have a ProductProvider entry for this provider
         from im.models import ProductProvider
         product_ids = ProductProvider.objects.filter(provider=provider).values_list('product_id', flat=True)
-        products = Product.objects.filter(id__in=product_ids, active=True)
+        products = Product.objects.filter(id__in=product_ids, active=True).order_by('id')
         
         # Filter by stock needed (faltante1 != 0 and != 'no')
         items = []

@@ -145,19 +145,20 @@ function addToCart(btn) {
             const priceMayoreo = parseFloat(row.querySelector('.price-mayoreo').textContent.replace('$', ''));
             const price = saleType === 'mayoreo' ? priceMayoreo : priceRegular;
             
-            // Add to cart
-            if (cart[productId]) {
-                cart[productId].qty += quantity;
-            } else {
-                cart[productId] = {
-                    id: productId,
-                    barcode: barcode,
-                    name: name,
-                    qty: quantity,
-                    price: price,
-                    tipo: saleType,
-                };
-            }
+        // Add to cart
+        if (cart[productId]) {
+            cart[productId].qty += quantity;
+        } else {
+            cart[productId] = {
+                id: productId,
+                barcode: barcode,
+                name: name,
+                qty: quantity,
+                price: price,
+                tipo: saleType,
+            };
+        }
+        cart[productId].addedAt = Date.now();
             
             updateCartDisplay();
             qtyInput.value = 1;
@@ -185,14 +186,25 @@ function updateCartDisplay() {
     }
     
     itemsContainer.innerHTML = '';
-    
-    Object.values(cart).forEach(item => {
+
+    // Sort: last added first, then alphabetically by name
+    const entries = Object.values(cart);
+    const lastAdded = entries.reduce((a, b) => a.addedAt > b.addedAt ? a : b);
+    const sorted = [
+        lastAdded,
+        ...entries.filter(e => e.id !== lastAdded.id).sort((a, b) => a.name.localeCompare(b.name)),
+    ];
+
+    // Track which is the last added (first in sorted array)
+    const lastAddedId = sorted.length > 0 ? sorted[0].id : null;
+
+    sorted.forEach(item => {
         const itemTotal = item.qty * item.price;
         totalItems += item.qty;
         totalAmount += itemTotal;
         
         const div = document.createElement('div');
-        div.className = 'cart-item';
+        div.className = 'cart-item' + (item.id === lastAddedId ? ' cart-item-last' : '');
         div.innerHTML = `
             <div class="cart-item-header">
                 <span class="cart-item-name">${item.name}</span>
