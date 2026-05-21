@@ -6,6 +6,7 @@ from django.utils import timezone
 from decimal import Decimal
 import math
 from django.db.models.functions import Lower
+from django.conf import settings
 
 class Brand(models.Model):
     id=models.AutoField(primary_key=True)
@@ -432,6 +433,7 @@ class InventoryUnit(models.Model):
         ('retired_expired', 'Retired - Expired/Obsolete'),
         ('retired_shrinkage', 'Retired - Unknown Shrinkage'),
         ('retired_correction', 'Retired - Manual Correction'),
+        ('retired_converted', 'Retired - Despiece'),
         ('retired_other', 'Retired - Other'),
     ]
     
@@ -1089,4 +1091,66 @@ class AdjustmentTransaction(models.Model):
         # Calculate total value
         self.total_value = Decimal(str(self.quantity_adjusted)) * Decimal(str(self.unit_cost or 0))
         super(AdjustmentTransaction, self).save(*args, **kwargs)
+
+
+class DespieceConfig(models.Model):
+    source_product = models.OneToOneField(
+        Product, on_delete=models.CASCADE,
+        related_name='granel_conversion_as_source',
+        verbose_name='Producto Origen'
+    )
+    destination_product = models.ForeignKey(
+        Product, on_delete=models.CASCADE,
+        related_name='granel_conversion_as_dest',
+        verbose_name='Producto Destino'
+    )
+    units_per_source = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('1.00'),
+        verbose_name='Unidades por Origen',
+        help_text='Cuantas unidades del producto destino genera una unidad del origen (ej: 100 = 1 rollo → 100 metros)'
+    )
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name='Creado por'
+    )
+
+    def __str__(self):
+        return f'{self.source_product.name} → {self.destination_product.name} ({self.units_per_source} c/u)'
+
+    class Meta:
+        verbose_name = 'Configuración de Despiece'
+        verbose_name_plural = 'Configuraciones de Despiece'
+
+
+class DespieceLog(models.Model):
+    config = models.ForeignKey(
+        DespieceConfig, on_delete=models.CASCADE,
+        related_name='conversion_logs',
+        verbose_name='Configuración'
+    )
+    source_quantity = models.DecimalField(
+        max_digits=14, decimal_places=2,
+        verbose_name='Cantidad Origen',
+        help_text='Cuantas unidades del producto origen se convirtieron'
+    )
+    destination_quantity = models.DecimalField(
+        max_digits=14, decimal_places=2,
+        verbose_name='Cantidad Destino',
+        help_text='Cuantas unidades del producto destino se generaron'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name='Usuario'
+    )
+    date_created = models.DateTimeField(auto_now_add=True, verbose_name='Fecha')
+
+    def __str__(self):
+        return f'{self.source_quantity} {self.config.source_product.name} → {self.destination_quantity} {self.config.destination_product.name}'
+
+    class Meta:
+        verbose_name = 'Registro de Despiece'
+        verbose_name_plural = 'Registros de Despiece'
+        ordering = ['-date_created']
 

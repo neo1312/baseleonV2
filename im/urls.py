@@ -9,6 +9,7 @@ from im.views.audit_views import (
     audit_review, audit_apply_adjustments, audit_summary, audit_delete, audit_reports
 )
 from im.views.import_products import import_products_csv_view
+from im.views.despiece_views import despiece_list, despiece_process
 
 
 app_name='im'
@@ -34,4 +35,8 @@ urlpatterns=[
         path('audit/<int:audit_id>/apply/', audit_apply_adjustments, name='audit_apply_adjustments'),
         path('audit/<int:audit_id>/summary/', audit_summary, name='audit_summary'),
         path('audit/<int:audit_id>/delete/', audit_delete, name='audit_delete'),
+
+        # Despiece URLs
+        path('product/despiece/', despiece_list, name='despiece_list'),
+        path('product/despiece/<int:pk>/process/', despiece_process, name='despiece_process'),
         ]

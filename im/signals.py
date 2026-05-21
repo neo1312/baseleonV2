@@ -42,19 +42,20 @@ def purchase_item_post_save(sender, instance, created, **kwargs):
             logger.info(f'InventoryUnits already exist for purchaseItem {instance.id}, skipping creation')
             return
         
-        # Get the next tracking ID
-        last_unit = InventoryUnit.objects.filter(
+        # Get the next tracking ID (find max numeric suffix)
+        all_tracking = InventoryUnit.objects.filter(
             product_id=instance.product_id
-        ).order_by('-tracking_id').first()
-        
-        if last_unit:
+        ).values_list('tracking_id', flat=True)
+
+        max_num = 0
+        for tid in all_tracking:
             try:
-                last_num = int(last_unit.tracking_id.split('-')[-1])
-                next_num = last_num + 1
+                num = int(tid.split('-')[-1])
+                if num > max_num:
+                    max_num = num
             except (ValueError, IndexError):
-                next_num = 1
-        else:
-            next_num = 1
+                pass
+        next_num = max_num + 1
         
         # Create InventoryUnit records for each physical unit
         created_units = []

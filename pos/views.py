@@ -34,7 +34,6 @@ def pos_index(request):
     products_data = []
     for p in products:
         granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
-        # USE stock_ready_to_sale - the ONLY correct source of inventory truth
         available_stock = p.stock_ready_to_sale
         
         products_data.append({
@@ -141,13 +140,12 @@ def get_product_stock(request):
         
         try:
             product = Product.objects.get(id=product_id)
-            # USE stock_ready_to_sale - the ACTUAL available inventory
             available_stock = product.stock_ready_to_sale
             
             return JsonResponse({
                 'id': product.id,
                 'name': product.name,
-                'stock': available_stock,  # NOW CORRECT - from InventoryUnit
+                'stock': available_stock,
                 'success': True,
             })
         except Product.DoesNotExist:
@@ -170,7 +168,6 @@ def validate_stock(request):
                 
                 try:
                     product = Product.objects.get(id=product_id)
-                    # USE stock_ready_to_sale - the ACTUAL available inventory
                     available = product.stock_ready_to_sale
                     is_valid = available >= requested_qty
                     
@@ -225,7 +222,7 @@ def get_product(request):
                 'name': product.name,
                 'price': float(price),
                 'price_granel': float(granel_price) if granel_price else None,
-                'stock': product.stock_ready_to_sale,  # USE CORRECT FIELD
+                'stock': product.stock_ready_to_sale,
                 'granel': product.granel,
                 'minimo': product.minimo,
             })
@@ -292,7 +289,7 @@ def complete_sale(request):
                         # Normal price
                         price = Decimal(str(product.priceLista))
                 
-                # Validate stock - USE stock_ready_to_sale (InventoryUnit ready_to_sale count)
+                # Validate stock (InventoryUnit ready_to_sale)
                 if product.stock_ready_to_sale < quantity:
                     raise ValueError(f"Insufficient stock for {product.name}")
                 

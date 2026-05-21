@@ -1,0 +1,180 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block head %}
+<style>
+    .conversion-card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: box-shadow 0.2s;
+    }
+    .conversion-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    .arrow-icon {
+        font-size: 1.5rem;
+        color: #28A745;
+        margin: 0 10px;
+    }
+    .qty-input {
+        width: 80px;
+        display: inline-block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-exchange-alt mr-2"></i>Despiece de Productos</h2>
+    </div>
+
+    <!-- Search -->
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="Buscar producto origen o destino..." value="{{ q }}">
+            <div class="input-group-append">
+                <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i></button>
+                {% if q %}
+                <a href="{% url 'im:despiece_list' %}" class="btn btn-secondary">Limpiar</a>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+
+    {% if configs %}
+        {% for config, available_stock, dest_stock in configs %}
+        <div class="conversion-card p-4 mb-3">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <strong>{{ config.source_product.full_name }}</strong>
+                    <br>
+                    <small class="text-muted">Stock disponible:
+                        <span class="font-weight-bold {% if available_stock == 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ available_stock }}
+                        </span>
+                    </small>
+                    {% if available_stock == 0 %}
+                    <br><small class="text-danger"><i class="fas fa-exclamation-triangle"></i> Sin stock para convertir</small>
+                    {% endif %}
+                </div>
+                <div class="col-md-1 text-center">
+                    <span class="arrow-icon">→</span>
+                </div>
+                <div class="col-md-4">
+                    <strong>{{ config.destination_product.full_name }}</strong>
+                    <br>
+                    <small class="text-muted">Stock actual:
+                        <span class="font-weight-bold text-info">{{ dest_stock|floatformat:2 }}</span>
+                    </small>
+                </div>
+                <div class="col-md-3 text-right">
+                    <span class="badge badge-info p-2 mb-2 d-inline-block">
+                        {{ config.units_per_source|floatformat:0 }} {{ config.destination_product.get_unidad_display }}s x unidad
+                    </span>
+                    <br>
+                    <form class="convert-form" data-url="{% url 'im:despiece_process' config.pk %}">
+                        {% csrf_token %}
+                        <div class="input-group input-group-sm">
+                            <input type="number" name="source_quantity"
+                                   class="form-control qty-input"
+                                   value="1" min="1"
+                                   max="{{ available_stock }}" step="any"
+                                   {% if available_stock == 0 %}disabled{% endif %}
+                                   required>
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-success btn-sm btn-despiece"
+                                        data-pk="{{ config.pk }}"
+                                        data-name="{{ config.source_product.name }}"
+                                        data-dest="{{ config.destination_product.name }}"
+                                        data-rate="{{ config.units_per_source }}"
+                                        {% if available_stock == 0 %}disabled{% endif %}>
+                                    <i class="fas fa-sync-alt mr-1"></i>Despiece
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    <small class="text-muted">→ <span class="dest-qty-preview" data-pk="{{ config.pk }}">{{ config.units_per_source|floatformat:0 }}</span> {{ config.destination_product.get_unidad_display }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="alert alert-warning">
+        <i class="fas fa-info-circle mr-2"></i>
+        {% if q %}
+            No se encontraron configuraciones para "{{ q }}".
+        {% else %}
+            No hay configuraciones de despiece.
+            <a href="/admin/im/despiececonfig/add/" target="_blank" class="alert-link">Crea una en el panel de administración</a>.
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block javascrip %}
+<script>
+document.querySelectorAll('input[name="source_quantity"]').forEach(input => {
+    input.addEventListener('input', function() {
+        const pk = this.closest('.conversion-card').querySelector('.btn-despiece').dataset.pk;
+        const preview = document.querySelector('.dest-qty-preview[data-pk="' + pk + '"]');
+        const rate = parseFloat(this.closest('.conversion-card').querySelector('.btn-despiece').dataset.rate) || 0;
+        const val = parseFloat(this.value) || 0;
+        preview.textContent = (val * rate).toFixed(0);
+    });
+});
+
+document.querySelectorAll('.btn-despiece').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const pk = this.dataset.pk;
+        const name = this.dataset.name;
+        const dest = this.dataset.dest;
+        const card = this.closest('.conversion-card');
+        const qtyInput = card.querySelector('input[name="source_quantity"]');
+        const qty = parseInt(qtyInput.value) || 1;
+        const max = parseInt(qtyInput.getAttribute('max')) || 0;
+
+        if (qty > max) {
+            alert('❌ Stock insuficiente. Solo hay ' + max + ' unidad(es) disponible(s) de ' + name + '.');
+            return;
+        }
+
+        if (!confirm('¿Convertir ' + qty + ' unidad(es) de "' + name + '" en ' + dest + '?')) {
+            return;
+        }
+
+        const form = this.closest('form');
+        const formData = new FormData(form);
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        fetch(form.dataset.url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: new URLSearchParams(formData),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Despiece completado!\n\nOrigen: ' + data.source_quantity + ' ud(s) de ' + name + '\nDestino: ' + data.destination_quantity + ' ud(s) de ' + dest);
+                location.reload();
+            } else {
+                alert('❌ ' + (data.error || 'Error desconocido'));
+            }
+        })
+        .catch(err => {
+            alert('❌ Error de conexión: ' + err);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i>Despiece';
+        });
+    });
+});
+</script>
+{% endblock %}

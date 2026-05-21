@@ -1,5 +1,5 @@
 from django.contrib import admin
-from im.models import Product, Category, Cost, Margin, Brand, InventoryUnit, ABCConfiguration, ProductABCMetrics, ForecastConfiguration, DemandForecast, ProductProvider, ProductGroup, InventoryAudit, AuditItem, AdjustmentTransaction
+from im.models import Product, Category, Cost, Margin, Brand, InventoryUnit, ABCConfiguration, ProductABCMetrics, ForecastConfiguration, DemandForecast, ProductProvider, ProductGroup, InventoryAudit, AuditItem, AdjustmentTransaction, DespieceConfig, DespieceLog
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 
@@ -235,11 +235,14 @@ class ProductProviderAdmin(ImportExportModelAdmin, admin.ModelAdmin):
 admin.site.register(ProductProvider, ProductProviderAdmin)
 
 
+
+
 class InventoryUnitAdmin(admin.ModelAdmin):
     search_fields=['tracking_id', 'product__name', 'product__barcode', 'purchase_order__po_number', 'purchase_order__provider__name']
-    list_display=('tracking_id', 'product', 'get_po_number', 'get_provider_name', 'status', 'purchase_cost', 'received_cost', 'abc_classification', 'received_date')
-    list_filter=('status', 'abc_classification', 'date_created', 'product')
-    readonly_fields=('tracking_id', 'date_created', 'last_updated', 'purchase_item', 'sale_item')
+    list_display=('tracking_id', 'product', 'get_po_number', 'get_provider_name', 'status', 'get_purchase_cost', 'get_received_cost', 'abc_classification', 'received_date')
+    list_filter=('status', 'abc_classification', 'product')
+    date_hierarchy = 'date_created'
+    readonly_fields=('tracking_id', 'date_created', 'last_updated', 'purchase_item', 'sale_item', 'purchase_order')
     ordering=('-date_created',)
     
     def get_po_number(self, obj):
@@ -257,10 +260,20 @@ class InventoryUnitAdmin(admin.ModelAdmin):
         return "-"
     get_provider_name.short_description = 'Provider'
     get_provider_name.admin_order_field = 'purchase_order__provider__name'
+
+    def get_purchase_cost(self, obj):
+        return f'{obj.purchase_cost:.2f}' if obj.purchase_cost else '0.00'
+    get_purchase_cost.short_description = 'Purchase Cost'
+    get_purchase_cost.admin_order_field = 'purchase_cost'
+
+    def get_received_cost(self, obj):
+        return f'{obj.received_cost:.2f}' if obj.received_cost else '0.00'
+    get_received_cost.short_description = 'Received Cost'
+    get_received_cost.admin_order_field = 'received_cost'
     
     fieldsets = (
         ('Identification', {
-            'fields': ('tracking_id', 'product', 'purchase_item', 'sale_item')
+            'fields': ('tracking_id', 'product', 'purchase_order', 'purchase_item', 'sale_item')
         }),
         ('Status & Classification', {
             'fields': ('status', 'abc_classification')
@@ -549,4 +562,19 @@ class AdjustmentTransactionAdmin(admin.ModelAdmin):
     mark_as_cancelled.short_description = 'Mark selected as Cancelled'
 
 admin.site.register(AdjustmentTransaction, AdjustmentTransactionAdmin)
+
+
+@admin.register(DespieceConfig)
+class DespieceConfigAdmin(admin.ModelAdmin):
+    list_display = ('source_product', 'destination_product', 'units_per_source')
+    search_fields = ('source_product__name', 'destination_product__name')
+    autocomplete_fields = ('source_product', 'destination_product')
+
+
+@admin.register(DespieceLog)
+class DespieceLogAdmin(admin.ModelAdmin):
+    list_display = ('config', 'source_quantity', 'destination_quantity', 'user', 'date_created')
+    list_filter = ('date_created',)
+    search_fields = ('config__source_product__name', 'config__destination_product__name')
+    readonly_fields = ('date_created',)
 
