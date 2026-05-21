@@ -27,6 +27,14 @@ from scm.po_pdf import generate_po_pdf
 from scm.po_whatsapp import send_po_via_whatsapp
 
 
+def _barcode_sort_key(barcode):
+    """Sort barcodes numerically when possible, lexicographically otherwise."""
+    try:
+        return (0, int(str(barcode)))
+    except (ValueError, TypeError):
+        return (1, str(barcode or ''))
+
+
 def po_create(request):
     """Initial PO creation page - select provider and method"""
     providers = Provider.objects.all()
@@ -71,6 +79,7 @@ def po_select_provider(request):
                     'id': p.id,
                     'name': p.full_name,
                     'sku': p.get_pv1(provider),
+                    'barcode': p.barcode,
                     'available_stock': p.stock_ready_to_sale,
                     'group_stock': sum(m.stock_ready_to_sale for m in p.group.products.all()) if p.group else None,
                     'costo': provider_per_piece,
@@ -82,7 +91,7 @@ def po_select_provider(request):
             'provider_id': provider.id,
             'provider_name': provider.name,
             'method': method,
-            'items': sorted(items, key=lambda x: int(x['sku']) if str(x['sku']).isdigit() else str(x['sku'])),
+            'items': sorted(items, key=lambda x: _barcode_sort_key(x['barcode'])),
         })
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
@@ -150,7 +159,7 @@ def po_items_list(request, provider_id):
                     'group_max': p.group.stockMax if p.group else None,
                 })
     
-    items_data.sort(key=lambda x: x['product'].barcode or '')
+    items_data.sort(key=lambda x: _barcode_sort_key(x['product'].barcode))
 
     context = {
         'title': f'PO for {provider.name} ({method.upper()})',
@@ -381,10 +390,13 @@ def po_receive(request, po_id):
         except Exception as e:
             messages.error(request, f'Error: {str(e)}')
     
+    po_items = list(po.items.select_related('product').all())
+    po_items.sort(key=lambda x: _barcode_sort_key(x.product.barcode))
+
     context = {
         'title': f'Receive {po.po_number}',
         'po': po,
-        'po_items': po.items.select_related('product').order_by('product__barcode'),
+        'po_items': po_items,
         'can_complete': po.status == 'received',
     }
     
