@@ -223,6 +223,7 @@ class PurchaseOrderItem(models.Model):
         verbose_name = 'Purchase Order Item'
         verbose_name_plural = 'Purchase Order Items'
         unique_together = ('purchase_order', 'product')
+        ordering = ['product_id']
     
     def __str__(self):
         return f"{self.purchase_order.po_number} - {self.product.name}"

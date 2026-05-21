@@ -51,7 +51,7 @@ def po_select_provider(request):
         # Get products that have a ProductProvider entry for this provider
         from im.models import ProductProvider
         product_ids = ProductProvider.objects.filter(provider=provider).values_list('product_id', flat=True)
-        products = Product.objects.filter(id__in=product_ids, active=True).order_by('id')
+        products = Product.objects.filter(id__in=product_ids, active=True).order_by('barcode')
         
         # Filter by stock needed (faltante1 != 0 and != 'no')
         items = []
@@ -82,7 +82,7 @@ def po_select_provider(request):
             'provider_id': provider.id,
             'provider_name': provider.name,
             'method': method,
-            'items': items,
+            'items': sorted(items, key=lambda x: int(x['sku']) if str(x['sku']).isdigit() else str(x['sku'])),
         })
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
@@ -96,7 +96,7 @@ def po_items_list(request, provider_id):
     # Get products that have a ProductProvider entry for this provider
     from im.models import ProductProvider
     product_ids = ProductProvider.objects.filter(provider=provider).values_list('product_id', flat=True)
-    products = Product.objects.filter(id__in=product_ids, active=True).order_by('id')
+    products = Product.objects.filter(id__in=product_ids, active=True).order_by('barcode')
     
     # Prepare items data
     items_data = []
@@ -150,6 +150,8 @@ def po_items_list(request, provider_id):
                     'group_max': p.group.stockMax if p.group else None,
                 })
     
+    items_data.sort(key=lambda x: x['product'].barcode or '')
+
     context = {
         'title': f'PO for {provider.name} ({method.upper()})',
         'provider': provider,
@@ -382,6 +384,7 @@ def po_receive(request, po_id):
     context = {
         'title': f'Receive {po.po_number}',
         'po': po,
+        'po_items': po.items.select_related('product').order_by('product__barcode'),
         'can_complete': po.status == 'received',
     }
     
@@ -670,7 +673,6 @@ def po_instant_lookup_pv1(request):
                 'pv1': product_provider.pv1,
                 'cost': cost,
                 'unit': product.unidad,
-                'unidad_empaque': int(product_provider.unidad_empaque or 1),
             })
         except ProductProvider.DoesNotExist:
             return JsonResponse({'error': f'PV1 {pv1} not found for this provider'}, status=404)
@@ -698,19 +700,10 @@ def po_instant_submit(request):
 
             provider = get_object_or_404(Provider, id=provider_id)
 
-            items_data = []
-            for item in items:
-                product_id = int(item['product_id'])
-                user_qty = int(item['quantity'])
-                cost_per_piece = str(item['cost'])
-                pp = ProductProvider.objects.filter(product_id=product_id, provider=provider).first()
-                unidad_empaque = int(pp.unidad_empaque or 1) if pp else 1
-                actual_qty = user_qty * unidad_empaque
-                items_data.append({
-                    'product_id': product_id,
-                    'quantity': actual_qty,
-                    'cost_per_unit': cost_per_piece,
-                })
+            items_data = [
+                {'product_id': int(item['product_id']), 'quantity': int(item['quantity']), 'cost_per_unit': str(item['cost'])}
+                for item in items
+            ]
 
             po = create_po_from_manual(provider, items_data, created_by=str(request.user))
             approve_purchase_order(po, approved_by=str(request.user))
@@ -756,19 +749,10 @@ def po_instant_full_submit(request):
 
             provider = get_object_or_404(Provider, id=provider_id)
 
-            items_data = []
-            for item in items:
-                product_id = int(item['product_id'])
-                user_qty = int(item['quantity'])
-                cost_per_piece = str(item['cost'])
-                pp = ProductProvider.objects.filter(product_id=product_id, provider=provider).first()
-                unidad_empaque = int(pp.unidad_empaque or 1) if pp else 1
-                actual_qty = user_qty * unidad_empaque
-                items_data.append({
-                    'product_id': product_id,
-                    'quantity': actual_qty,
-                    'cost_per_unit': cost_per_piece,
-                })
+            items_data = [
+                {'product_id': int(item['product_id']), 'quantity': int(item['quantity']), 'cost_per_unit': str(item['cost'])}
+                for item in items
+            ]
 
             po = create_po_from_manual(provider, items_data, created_by=str(request.user))
             approve_purchase_order(po, approved_by=str(request.user))

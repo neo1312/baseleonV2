@@ -32,7 +32,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for item in po.items.all %}
+                                    {% for item in po_items %}
                                     {% with pp_unidad=item.product|get_unidad_empaque:po.provider %}
                                     <tr data-item-id="{{ item.id }}"{% if pp_unidad > 1 %} class="table-warning"{% endif %}>
                                         <td>
@@ -145,7 +145,7 @@
                             </tr>
                         </thead>
                         <tbody id="confirmReceiveTable">
-                            {% for item in po.items.all %}
+                            {% for item in po_items %}
                             {% with pp_unidad=item.product|get_unidad_empaque:po.provider %}
                             <tr data-item-id="{{ item.id }}"{% if pp_unidad > 1 %} class="table-warning"{% endif %}>
                                 <td><small>{{ item.product.full_name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</small></td>
@@ -206,7 +206,7 @@
                             </tr>
                         </thead>
                         <tbody id="confirmCompleteTable">
-                            {% for item in po.items.all %}
+                            {% for item in po_items %}
                             {% with pp_unidad=item.product|get_unidad_empaque:po.provider %}
                             <tr data-item-id="{{ item.id }}"{% if pp_unidad > 1 %} class="table-warning"{% endif %}>
                                 <td><small>{{ item.product.full_name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</small></td>
