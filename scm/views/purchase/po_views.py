@@ -96,7 +96,7 @@ def po_items_list(request, provider_id):
     # Get products that have a ProductProvider entry for this provider
     from im.models import ProductProvider
     product_ids = ProductProvider.objects.filter(provider=provider).values_list('product_id', flat=True)
-    products = Product.objects.filter(id__in=product_ids, active=True)
+    products = Product.objects.filter(id__in=product_ids, active=True).order_by('id')
     
     # Prepare items data
     items_data = []
