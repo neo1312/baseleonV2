@@ -25,6 +25,7 @@
                                         <th>Product Description</th>
                                         <th>Available Stock</th>
                                         <th>Stock Needed</th>
+                                        <th>Unidad Empaque</th>
                                         <th>Quantity to Order</th>
                                         <th>Cost per Unit</th>
                                         <th>Total</th>
@@ -44,6 +45,13 @@
                                             {% endif %}
                                         </td>
                                         <td class="text-info">{{ item.quantity_needed }}</td>
+                                        <td class="text-center">
+                                            {% if pp_unidad > 1 %}
+                                                <span class="badge badge-warning">{{ pp_unidad }}</span>
+                                            {% else %}
+                                                1
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             <input type="hidden" name="product_id" value="{{ item.product.id }}">
                                             <input type="number" name="quantity" class="form-control form-control-sm quantity-input" 
@@ -68,7 +76,7 @@
                                     {% endwith %}
                                     {% endfor %}
                                     <tr class="table-active">
-                                        <td colspan="6" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
+                                        <td colspan="7" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
                                         <td class="text-end font-weight-bold">
                                             <span id="cart_total">{{ cart_total|floatformat:2 }}</span>
                                         </td>

@@ -50,7 +50,8 @@
                                         <th>PV1</th>
                                         <th>Product</th>
                                         <th>Unit Cost</th>
-                                        <th>Quantity</th>
+                                        <th>Pack Qty</th>
+                                        <th>Pieces</th>
                                         <th>Total</th>
                                         <th>Action</th>
                                     </tr>
@@ -148,6 +149,7 @@ function addItem() {
                     product_name: data.product_name,
                     cost: data.cost,
                     quantity: quantity,
+                    unidad_empaque: data.unidad_empaque || 1,
                 });
             }
 
@@ -170,8 +172,9 @@ function renderItems() {
     let total_cost = 0;
 
     items.forEach((item, index) => {
-        const item_total = item.cost * item.quantity;
-        total_items += item.quantity;
+        const effective_qty = item.quantity * item.unidad_empaque;
+        const item_total = item.cost * effective_qty;
+        total_items += effective_qty;
         total_cost += item_total;
 
         const row = document.createElement('tr');
@@ -186,6 +189,7 @@ function renderItems() {
                     <button type="button" class="btn btn-sm btn-success" onclick="incrementItem(${index})">+</button>
                 </div>
             </td>
+            <td>${effective_qty}</td>
             <td>$${item_total.toFixed(2)}</td>
             <td><button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${index})"><i class="fas fa-trash"></i></button></td>
         `;
@@ -210,7 +214,7 @@ function removeItem(index) {
 }
 
 function calculateTotal() {
-    return items.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
+    return items.reduce((sum, item) => sum + (item.cost * item.quantity * item.unidad_empaque), 0);
 }
 
 // Submit

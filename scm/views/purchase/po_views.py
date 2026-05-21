@@ -122,6 +122,7 @@ def po_items_list(request, provider_id):
                 pass
     else:
         # Manual method: Show products with faltante > 0
+        import math
         seen_groups = set()
         for p in products:
             if p.group and p.group.id in seen_groups:
@@ -131,8 +132,8 @@ def po_items_list(request, provider_id):
                 if p.group:
                     seen_groups.add(p.group.id)
                 pp_unidad = p.get_unidad_empaque(provider)
-                package_qty = int(faltante)  # Number of packages to order
-                pieces_needed = package_qty * pp_unidad  # Total pieces
+                pieces_needed = int(faltante)  # faltante IS already pieces
+                package_qty = math.ceil(pieces_needed / pp_unidad)  # packages to order
                 cost_per_piece = p.get_provider_cost(provider)  # Cost per piece (bundle/unidad_empaque)
                 cost_per_package = cost_per_piece * pp_unidad  # Cost per package
                 
@@ -142,6 +143,7 @@ def po_items_list(request, provider_id):
                     'quantity_needed': pieces_needed,
                     'quantity': package_qty,
                     'cost_per_unit': cost_per_package,
+                    'unidad_empaque': pp_unidad,
                     'total': package_qty * cost_per_package,
                     'group_stock': sum(m.stock_ready_to_sale for m in p.group.products.all()) if p.group else None,
                     'group_min': p.group.stockMin if p.group else None,
@@ -668,6 +670,7 @@ def po_instant_lookup_pv1(request):
                 'pv1': product_provider.pv1,
                 'cost': cost,
                 'unit': product.unidad,
+                'unidad_empaque': int(product_provider.unidad_empaque or 1),
             })
         except ProductProvider.DoesNotExist:
             return JsonResponse({'error': f'PV1 {pv1} not found for this provider'}, status=404)
@@ -695,10 +698,19 @@ def po_instant_submit(request):
 
             provider = get_object_or_404(Provider, id=provider_id)
 
-            items_data = [
-                {'product_id': item['product_id'], 'quantity': int(item['quantity']), 'cost_per_unit': str(item['cost'])}
-                for item in items
-            ]
+            items_data = []
+            for item in items:
+                product_id = int(item['product_id'])
+                user_qty = int(item['quantity'])
+                cost_per_piece = str(item['cost'])
+                pp = ProductProvider.objects.filter(product_id=product_id, provider=provider).first()
+                unidad_empaque = int(pp.unidad_empaque or 1) if pp else 1
+                actual_qty = user_qty * unidad_empaque
+                items_data.append({
+                    'product_id': product_id,
+                    'quantity': actual_qty,
+                    'cost_per_unit': cost_per_piece,
+                })
 
             po = create_po_from_manual(provider, items_data, created_by=str(request.user))
             approve_purchase_order(po, approved_by=str(request.user))
@@ -744,10 +756,19 @@ def po_instant_full_submit(request):
 
             provider = get_object_or_404(Provider, id=provider_id)
 
-            items_data = [
-                {'product_id': item['product_id'], 'quantity': int(item['quantity']), 'cost_per_unit': str(item['cost'])}
-                for item in items
-            ]
+            items_data = []
+            for item in items:
+                product_id = int(item['product_id'])
+                user_qty = int(item['quantity'])
+                cost_per_piece = str(item['cost'])
+                pp = ProductProvider.objects.filter(product_id=product_id, provider=provider).first()
+                unidad_empaque = int(pp.unidad_empaque or 1) if pp else 1
+                actual_qty = user_qty * unidad_empaque
+                items_data.append({
+                    'product_id': product_id,
+                    'quantity': actual_qty,
+                    'cost_per_unit': cost_per_piece,
+                })
 
             po = create_po_from_manual(provider, items_data, created_by=str(request.user))
             approve_purchase_order(po, approved_by=str(request.user))
