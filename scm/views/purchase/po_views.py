@@ -404,13 +404,13 @@ def po_receive(request, po_id):
 
 
 def po_delete(request, po_id):
-    """Delete a purchase order (only allowed for approved or sent status)"""
+    """Delete a purchase order (allowed for approved, sent, or received status)"""
     po = get_object_or_404(PurchaseOrder, id=po_id)
     
     if request.method == 'POST':
-        # Only allow deletion of approved or sent orders
-        if po.status not in ['approved', 'sent']:
-            messages.error(request, f'Cannot delete PO with status "{po.get_status_display()}". Only approved or sent orders can be deleted.')
+        # Allow deletion of approved, sent, or received orders
+        if po.status not in ['approved', 'sent', 'received']:
+            messages.error(request, f'Cannot delete PO with status "{po.get_status_display()}". Only approved, sent, or received orders can be deleted.')
             return redirect('scm:po_placed_orders')
         
         try:

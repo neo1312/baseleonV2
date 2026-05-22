@@ -98,6 +98,9 @@
                                             <a href="{% url 'scm:po_receive' po.id %}" class="btn btn-sm btn-primary">
                                                 <i class="fas fa-check-circle"></i> Complete
                                             </a>
+                                            <button type="button" class="btn btn-sm btn-danger" data-toggle="modal" data-target="#deleteModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
                                         {% endif %}
                                     </td>
                                 </tr>
