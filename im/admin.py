@@ -19,6 +19,25 @@ class ProviderFilter(admin.SimpleListFilter):
         return queryset
 
 
+class ABCClassificationFilter(admin.SimpleListFilter):
+    title = 'ABC classification'
+    parameter_name = 'abc_class'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('A', 'A - High Value'),
+            ('B', 'B - Medium Value'),
+            ('C', 'C - Low Value'),
+            ('unclassified', 'Unclassified'),
+        ]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value:
+            return queryset.filter(abc_metrics__abc_classification=value)
+        return queryset
+
+
 class categoryResource(resources.ModelResource):
     class Meta:
         model=Category
@@ -67,8 +86,8 @@ class ProductProviderInline(admin.TabularInline):
 
 class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     search_fields=['name','category__name','brand__name','id','barcode','clave']
-    list_display=('id','clave','name','brand','display_group','get_stock_ready_to_sale','costo','priceLista','priceMayoreo','active','sat','Granel_Item')
-    list_filter=('active', ProviderFilter, 'brand', 'category', 'group')
+    list_display=('id','clave','name','brand','display_group','get_stock_ready_to_sale','get_abc_classification','costo','priceLista','priceMayoreo','active','sat','Granel_Item')
+    list_filter=('active', ProviderFilter, 'brand', 'category', 'group', ABCClassificationFilter)
     resocurce_class = productResource
     ordering=('id','last_updated')
     raw_id_fields=('brand','category')
@@ -135,6 +154,14 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         return obj.stock_ready_to_sale
     get_stock_ready_to_sale.short_description = 'Available Stock'
     get_stock_ready_to_sale.admin_order_field = None  # Cannot order by property
+
+    def get_abc_classification(self, obj):
+        try:
+            return obj.abc_metrics.abc_classification
+        except:
+            return '-'
+    get_abc_classification.short_description = 'ABC'
+    get_abc_classification.admin_order_field = None
 
     
     def delete_model(self, request, obj):
