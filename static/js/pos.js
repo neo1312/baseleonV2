@@ -75,6 +75,8 @@ function searchProducts(query) {
             products.forEach(p => {
                 const row = document.createElement('tr');
                 row.dataset.productId = p.id;
+                row.dataset.priceGranel = p.price_granel || '';
+                row.dataset.minimo = p.minimo || '';
                 if (p.Granel_Item) row.classList.add('row-granel');
                 row.innerHTML = `
                     <td class="barcode">${p.barcode}</td>
@@ -82,8 +84,6 @@ function searchProducts(query) {
                     <td class="stock">${p.stock}</td>
                     <td class="price-regular">$${parseFloat(p.price).toFixed(2)}</td>
                     <td class="price-mayoreo">$${parseFloat(p.price_mayoreo).toFixed(2)}</td>
-                    <td class="price-granel">${p.price_granel ? '$' + parseFloat(p.price_granel).toFixed(2) : '-'}</td>
-                    <td class="minimo">${p.minimo}</td>
                     <td class="action">
                         <input type="number" class="qty-input" value="1" min="1" style="width: 50px;">
                         <button class="btn-add" onclick="addToCart(this)">+</button>

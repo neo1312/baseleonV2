@@ -4,6 +4,8 @@ from django.utils import timezone
 from django.db.models import Sum, F, Q
 from datetime import datetime, timedelta
 from decimal import Decimal
+from django.db.models.functions import Cast
+from django.db.models import DecimalField
 from crm.models import Sale, saleItem, Devolution, devolutionItem
 from im.models import InventoryUnit
 from crm.decorators import role_required
@@ -41,11 +43,23 @@ def daily_report(request):
             date_created__lt=to_datetime
         )
         
-        # Calculate totals by tipo
+        # Calculate SAT metrics
+        sat_items = saleItem.objects.filter(
+            sale__date_created__gte=from_datetime,
+            sale__date_created__lt=to_datetime,
+            sat=True,
+        )
+        sat_count = sat_items.count()
+        sat_total = sat_items.aggregate(
+            total=Sum(F('price') * Cast('quantity', output_field=DecimalField(max_digits=10, decimal_places=0)))
+        )['total'] or Decimal('0')
+
         date_range_data = {
             'date_from': from_datetime.date(),
             'date_to': to_datetime.date() - timedelta(days=1),
             'totals': calculate_report_totals(sales, devolutions),
+            'sat_count': sat_count,
+            'sat_total': sat_total,
         }
         
     except ValueError:

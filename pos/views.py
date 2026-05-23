@@ -299,6 +299,7 @@ def complete_sale(request):
                     product=product,
                     quantity=quantity,
                     price=price,
+                    sat=product.sat,
                 )
                 
                 # NOTE: InventoryUnit signal handlers automatically manage inventory status changes

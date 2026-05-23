@@ -321,7 +321,8 @@ def quoteToSale(request, quote_id):
             quantity=quote_item.quantity,
             cost=quote_item.cost,
             margen=quote_item.margen,
-            monedero=quote_item.monedero
+            monedero=quote_item.monedero,
+            sat=quote_item.product.sat if quote_item.product else False,
         )
     
     # Redirect to the sale creation/edit page
