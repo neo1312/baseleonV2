@@ -113,6 +113,14 @@ def sale_item_post_save(sender, instance, created, **kwargs):
             status='ready_to_sale'
         ).order_by('date_created')[:quantity]
         
+        available = ready_units.count()
+        if available < quantity:
+            logger.warning(
+                f'Attempted to sell {quantity} of product {instance.product_id} '
+                f'but only {available} ready_to_sale units available. '
+                f'Selling {available} instead.'
+            )
+        
         sold_count = 0
         for unit in ready_units:
             unit.status = 'sold'

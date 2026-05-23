@@ -7,6 +7,7 @@ from decimal import Decimal
 import math
 from django.db.models.functions import Lower
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 class Brand(models.Model):
     id=models.AutoField(primary_key=True)
@@ -69,7 +70,12 @@ class ProductGroup(models.Model):
         if self.date_created is None:
             self.date_created = timezone.localtime(timezone.now())
         self.last_updated = timezone.localtime(timezone.now())
+        self.clean()
         super(ProductGroup, self).save(*args, **kwargs)
+
+    def clean(self):
+        if self.stockMin is not None and self.stockMax is not None and self.stockMin > self.stockMax:
+            raise ValidationError({'stockMin': 'Stock min cannot be greater than stock max.'})
 
     class Meta:
         verbose_name = 'Product Group'
@@ -183,7 +189,15 @@ class Product(models.Model):
         except (ValueError, TypeError):
             pass
         
+        self.clean()
         super(Product, self).save(*args, **kwargs)
+
+    def clean(self):
+        if self.stockMin is not None and self.stockMax is not None and self.stockMin > self.stockMax:
+            raise ValidationError({
+                'stockMin': 'Stock min cannot be greater than stock max.',
+                'stockMax': 'Stock max must be greater than or equal to stock min.',
+            })
 
     class Meta:
         verbose_name = 'Product'

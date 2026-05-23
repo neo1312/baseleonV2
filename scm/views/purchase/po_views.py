@@ -11,6 +11,7 @@ from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django.utils import timezone
 from decimal import Decimal
+from django.db.models import Q
 from scm.models import Provider, PurchaseOrder, PurchaseOrderItem
 from im.models import Product, DemandForecast, ProductProvider, InventoryUnit
 from scm.po_operations import (
@@ -130,7 +131,7 @@ def po_items_list(request, provider_id):
                 # Skip products without forecasts
                 pass
     else:
-        # Manual method: Show products with faltante > 0
+        # Manual method: Show products with faltante > 0 (user can add more manually)
         import math
         seen_groups = set()
         for p in products:
@@ -141,11 +142,11 @@ def po_items_list(request, provider_id):
                 if p.group:
                     seen_groups.add(p.group.id)
                 pp_unidad = p.get_unidad_empaque(provider)
-                pieces_needed = int(faltante)  # faltante IS already pieces
-                package_qty = math.ceil(pieces_needed / pp_unidad)  # packages to order
-                cost_per_piece = p.get_provider_cost(provider)  # Cost per piece (bundle/unidad_empaque)
-                cost_per_package = cost_per_piece * pp_unidad  # Cost per package
-                
+                pieces_needed = int(faltante)
+                package_qty = math.ceil(pieces_needed / pp_unidad)
+                cost_per_piece = p.get_provider_cost(provider)
+                cost_per_package = cost_per_piece * pp_unidad
+
                 items_data.append({
                     'product': p,
                     'pv1': p.get_pv1(provider),
@@ -170,6 +171,33 @@ def po_items_list(request, provider_id):
     }
     
     return render(request, 'purchase/po/items.html', context)
+
+
+def po_search_product(request):
+    """AJAX: search products from a provider by barcode or name"""
+    provider_id = request.GET.get('provider_id')
+    q = request.GET.get('q', '').strip()
+    if not provider_id or not q:
+        return JsonResponse({'results': []})
+    from im.models import ProductProvider
+    products = Product.objects.filter(
+        provider_pairs__provider_id=provider_id,
+        active=True,
+    ).filter(
+        Q(barcode__icontains=q) | Q(name__icontains=q)
+    ).order_by('barcode')[:20]
+    results = []
+    for p in products:
+        pp = ProductProvider.objects.filter(provider_id=provider_id, product=p).first()
+        results.append({
+            'id': p.id,
+            'barcode': p.barcode,
+            'pv1': pp.pv1 if pp else '',
+            'name': p.full_name,
+            'cost': float(p.get_provider_cost(provider_id)),
+            'unidad_empaque': int(p.get_unidad_empaque(provider_id) or 1),
+        })
+    return JsonResponse({'results': results})
 
 
 def po_submit(request):
