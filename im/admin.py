@@ -599,12 +599,5 @@ class DespieceConfigAdmin(admin.ModelAdmin):
     list_display = ('source_product', 'destination_product', 'units_per_source')
     search_fields = ('source_product__name', 'destination_product__name')
     autocomplete_fields = ('source_product', 'destination_product')
-
-
-@admin.register(DespieceLog)
-class DespieceLogAdmin(admin.ModelAdmin):
-    list_display = ('config', 'source_quantity', 'destination_quantity', 'user', 'date_created')
-    list_filter = ('date_created',)
-    search_fields = ('config__source_product__name', 'config__destination_product__name')
-    readonly_fields = ('date_created',)
+    readonly_fields = ('date_created', 'last_updated')
 

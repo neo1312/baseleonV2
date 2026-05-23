@@ -1136,6 +1136,29 @@ class DespieceConfig(models.Model):
     def __str__(self):
         return f'{self.source_product.name} → {self.destination_product.name} ({self.units_per_source} c/u)'
 
+    def save(self, *args, **kwargs):
+        from decimal import Decimal, ROUND_HALF_UP
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        # Auto-create/update ProductProvider for destination product
+        from scm.models import Provider
+        provider, _ = Provider.objects.get_or_create(
+            name='Despiece',
+            defaults={'id': 'despiece', 'phoneNumber': '0000'}
+        )
+        bundle_price = (
+            Decimal(str(self.source_product.costo or 0)) / self.units_per_source
+        ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        ProductProvider.objects.update_or_create(
+            product=self.destination_product,
+            provider=provider,
+            defaults={
+                'pv1': self.source_product.barcode,
+                'bundle_price': bundle_price,
+                'unidad_empaque': '1',
+            }
+        )
+
     class Meta:
         verbose_name = 'Configuración de Despiece'
         verbose_name_plural = 'Configuraciones de Despiece'
