@@ -66,16 +66,23 @@ admin.site.register(Category,categoryAdmin)
 class productResource(resources.ModelResource):
     class Meta:
         model=Product
-        fields = ('name','clave','barcode','costo','margen','margenMayoreo','margenGranel','active','sat','Granel_Item','category','brand','stockMax','stockMin','minimo','unidad','granel')
+        fields = ('name','clave','barcode','costo','margen','margenMayoreo','active','sat','Granel_Item','brand','stockMax','stockMin')
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ()  # Don't use any field as ID lookup
     
     def before_create_instance(self, data, row_number, **kwargs):
         """Let Django auto-generate the ID - don't try to set it"""
-        # Remove id if it's in data
         data.pop('id', None)
         return data
+
+    def before_save_instance(self, instance, row, **kwargs):
+        """Ensure default category and unidad for imported products"""
+        if instance.category_id is None:
+            category, _ = Category.objects.get_or_create(name='General')
+            instance.category = category
+        if not instance.unidad:
+            instance.unidad = 'Pieza'
 
 class ProductProviderInline(admin.TabularInline):
     model = ProductProvider
@@ -97,10 +104,10 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
 
     fieldsets = (
         ('Basic Info', {
-            'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')
+            'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')
         }),
         ('Inventory Settings', {
-            'fields': ('minimo', 'stockMax', 'stockMin', 'unidad', 'granel', 'display_stock')
+            'fields': ('stockMax', 'stockMin', 'display_stock')
         }),
         ('Cost', {
             'fields': ('costo',)
@@ -112,10 +119,6 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         ('Pricing - Mayoreo (Wholesale)', {
             'fields': ('mayoreo_pricing_mode', 'margenMayoreo', 'precio_mayoreo_manual'),
             'description': 'Select "Usar Margen" to set margin and calculate price, or "Usar Precio Manual" to set price and calculate margin'
-        }),
-        ('Pricing - Granel (Bulk)', {
-            'fields': ('granel_pricing_mode', 'margenGranel', 'precio_granel_manual'),
-            'description': 'Only active when "Granel" is enabled. Select "Usar Margen" to set margin and calculate price, or "Usar Precio Manual" to set price and calculate margin'
         }),
         ('System', {
             'fields': ('date_created', 'last_updated'),
@@ -129,10 +132,10 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         fieldsets = super().get_fieldsets(request, obj)
         if obj is None:  # Creating new product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')})
         else:  # Editing existing product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'category', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')})
         return fieldsets
 
     def display_stock(self, obj):

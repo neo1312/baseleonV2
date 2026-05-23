@@ -25,7 +25,10 @@
 
         <!-- SEARCH BAR -->
         <div class="pos-search-bar">
-            <input type="text" id="search-input" placeholder="Search by product name or barcode..." autofocus>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <input type="text" id="search-input" placeholder="Search by product name or barcode..." autofocus style="flex:1;">
+                <button id="toggleMayoreoBtn" class="btn-config" title="Show/hide wholesale price">💰 Mayoreo</button>
+            </div>
             <span class="search-hint">Type to search • Enter to add • ESC clears cart</span>
         </div>
 
@@ -41,7 +44,7 @@
                             <th>Brand</th>
                             <th>Stock</th>
                             <th>Regular</th>
-                            <th>Mayoreo</th>
+                            <th class="col-mayoreo">Mayoreo</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -53,7 +56,7 @@
                             <td class="brand">{{ product.brand }}</td>
                             <td class="stock">{{ product.stock }}</td>
                             <td class="price-regular">${{ product.price|floatformat:2 }}</td>
-                            <td class="price-mayoreo">${{ product.price_mayoreo|floatformat:2 }}</td>
+                            <td class="price-mayoreo col-mayoreo">${{ product.price_mayoreo|floatformat:2 }}</td>
                             <td class="action">
                                 <input type="number" class="qty-input" value="1" min="1" style="width: 50px;">
                                 <button class="btn-add" onclick="addToCart(this)">+</button>

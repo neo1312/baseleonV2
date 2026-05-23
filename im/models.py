@@ -198,6 +198,9 @@ class Product(models.Model):
                 'stockMin': 'Stock min cannot be greater than stock max.',
                 'stockMax': 'Stock max must be greater than or equal to stock min.',
             })
+        if self.category_id is None:
+            category, _ = Category.objects.get_or_create(name='General')
+            self.category = category
 
     class Meta:
         verbose_name = 'Product'

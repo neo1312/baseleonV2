@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('search-input').addEventListener('input', handleSearchInput);
     document.getElementById('search-input').addEventListener('keypress', handleSearchKeypress);
     document.getElementById('sale-type-select').addEventListener('change', updateSaleTypeDisplay);
+    document.getElementById('toggleMayoreoBtn').addEventListener('click', toggleMayoreoColumn);
+    applyMayoreoVisibility();
     
     // Enable search immediately (browse products without starting a sale)
     enableSearch();
@@ -84,7 +86,7 @@ function searchProducts(query) {
                     <td class="brand">${p.brand || ''}</td>
                     <td class="stock">${p.stock}</td>
                     <td class="price-regular">$${parseFloat(p.price).toFixed(2)}</td>
-                    <td class="price-mayoreo">$${parseFloat(p.price_mayoreo).toFixed(2)}</td>
+                    <td class="price-mayoreo col-mayoreo">$${parseFloat(p.price_mayoreo).toFixed(2)}</td>
                     <td class="action">
                         <input type="number" class="qty-input" value="1" min="1" style="width: 50px;">
                         <button class="btn-add" onclick="addToCart(this)">+</button>
@@ -92,6 +94,8 @@ function searchProducts(query) {
                 `;
                 tbody.appendChild(row);
             });
+            // Re-apply mayoreo column visibility after search
+            applyMayoreoVisibility();
         })
         .catch(err => console.error('Search error:', err));
 }
@@ -299,6 +303,21 @@ function saveSettings() {
 
 function updateSaleTypeDisplay() {
     document.getElementById('sale-type-display').textContent = `Sale: ${saleType === 'mayoreo' ? 'Mayoreo' : 'Menudeo'}`;
+}
+
+function toggleMayoreoColumn() {
+    const table = document.getElementById('products-table');
+    const isVisible = table.dataset.mayoreoVisible === 'true';
+    table.dataset.mayoreoVisible = isVisible ? 'false' : 'true';
+    applyMayoreoVisibility();
+}
+
+function applyMayoreoVisibility() {
+    const table = document.getElementById('products-table');
+    const isVisible = table.dataset.mayoreoVisible === 'true';
+    table.querySelectorAll('.col-mayoreo').forEach(el => {
+        el.style.display = isVisible ? 'table-cell' : 'none';
+    });
 }
 
 // CHECKOUT - WITH BACKEND STOCK VALIDATION

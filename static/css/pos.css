@@ -637,3 +637,8 @@ textarea {
     background: #e8f5e9;
     border: 2px solid #2e7d32;
 }
+
+/* MAYOREO COLUMN TOGGLE */
+.col-mayoreo {
+    display: none;
+}
