@@ -9,7 +9,7 @@ from django.db.models.functions import Cast, TruncDate, Coalesce
 from django.db.models import DecimalField, Value
 from crm.models import Sale, saleItem
 from scm.models import PurchaseOrder, PurchaseOrderItem
-from im.models import Product, ProductABCMetrics, InventoryUnit
+from im.models import Product, ProductABCMetrics
 from crm.decorators import role_required
 
 
@@ -35,7 +35,7 @@ def my_reports_data(request):
 
     data = {}
 
-    # --- 1. Trend data: daily sales, cost, profit ---
+    # --- 1. Trend data: daily sales ---
     daily_data = (
         saleItem.objects
         .filter(sale__date_created__gte=start_date, sale__date_created__lte=end_date)
@@ -50,8 +50,10 @@ def my_reports_data(request):
     # Build date range series
     date_series = []
     sales_series = []
-    cost_series = []
-    profit_series = []
+    cost_fifo_series = []
+    cost_accounting_series = []
+    profit_fifo_series = []
+    profit_accounting_series = []
 
     date_map = {}
     for d in daily_data:
@@ -60,62 +62,74 @@ def my_reports_data(request):
         }
 
     current = start_date.date()
-    total_sales = 0
-    total_cost = 0
     while current <= end_date.date():
         entry = date_map.get(current, {'sales': 0})
-        date_str = current.strftime('%Y-%m-%d')
-        date_series.append(date_str)
+        date_series.append(current.strftime('%Y-%m-%d'))
         sales_series.append(entry['sales'])
-        # Cost estimated from product.costo for the items sold that day
-        cost_series.append(0)
-        profit_series.append(0)
+        cost_fifo_series.append(0)
+        cost_accounting_series.append(0)
+        profit_fifo_series.append(0)
+        profit_accounting_series.append(0)
         current += timedelta(days=1)
 
-    # Get costs per day for accuracy
-    cost_data = (
+    # --- FIFO cost (financial): actual purchase_cost of InventoryUnits sold ---
+    from im.models import InventoryUnit
+    fifo_data = (
+        InventoryUnit.objects
+        .filter(
+            sale_item__sale__date_created__gte=start_date,
+            sale_item__sale__date_created__lte=end_date,
+            status='sold',
+            sale_item__isnull=False,
+        )
+        .annotate(date=TruncDate('sale_item__sale__date_created'))
+        .values('date')
+        .annotate(cost_total=Sum('purchase_cost'))
+        .order_by('date')
+    )
+    fifo_map = {}
+    for d in fifo_data:
+        if d['cost_total']:
+            fifo_map[d['date']] = float(d['cost_total'])
+
+    # --- Accounting cost: saleItem.quantity * Product.costo (current product cost) ---
+    accounting_data = (
         saleItem.objects
-        .filter(sale__date_created__gte=start_date, sale__date_created__lte=end_date, cost__isnull=False)
-        .exclude(cost='')
+        .filter(sale__date_created__gte=start_date, sale__date_created__lte=end_date)
         .annotate(date=TruncDate('sale__date_created'))
         .values('date')
         .annotate(
             cost_total=Sum(
-                Coalesce(Cast('cost', output_field=DecimalField(max_digits=10, decimal_places=2)), Value(Decimal('0')))
-                * Cast('quantity', output_field=DecimalField(max_digits=10, decimal_places=0))
+                Cast('quantity', output_field=DecimalField(max_digits=10, decimal_places=0))
+                * Coalesce('product__costo', Value(Decimal('0')))
             ),
         )
         .order_by('date')
     )
-
-    cost_map = {}
-    for d in cost_data:
+    accounting_map = {}
+    for d in accounting_data:
         if d['cost_total']:
-            cost_map[d['date']] = float(d['cost_total'])
+            accounting_map[d['date']] = float(d['cost_total'])
 
     for i, date_str in enumerate(date_series):
         dt = datetime.strptime(date_str, '%Y-%m-%d').date()
-        cost_val = cost_map.get(dt, 0)
-        cost_series[i] = cost_val
-        profit_series[i] = round(sales_series[i] - cost_val, 2)
+        fifo_val = fifo_map.get(dt, 0)
+        accounting_val = accounting_map.get(dt, 0)
+        cost_fifo_series[i] = fifo_val
+        cost_accounting_series[i] = accounting_val
+        profit_fifo_series[i] = round(sales_series[i] - fifo_val, 2)
+        profit_accounting_series[i] = round(sales_series[i] - accounting_val, 2)
 
     data['trend'] = {
         'labels': date_series,
         'sales': sales_series,
-        'costs': cost_series,
-        'profits': profit_series,
+        'cost_fifo': cost_fifo_series,
+        'cost_accounting': cost_accounting_series,
+        'profit_fifo': profit_fifo_series,
+        'profit_accounting': profit_accounting_series,
     }
 
-    # --- 2. Inventory value ---
-    total_inventory_value = Product.total_inventory_value()
-    ready_count = InventoryUnit.objects.filter(status='ready_to_sale').count()
-
-    data['inventory'] = {
-        'total_value': float(total_inventory_value),
-        'total_units': ready_count,
-    }
-
-    # --- 3. Product lookup ---
+    # --- 2. Product lookup ---
     if product_id:
         try:
             product = Product.objects.get(id=product_id)
@@ -185,3 +199,26 @@ def my_reports_data(request):
         }
 
     return JsonResponse(data)
+
+
+@login_required
+@role_required('Admin', 'Manager', 'Auditor')
+def inventory_value(request):
+    from im.models import InventoryUnit
+    from django.db.models import Sum
+
+    # Financial (FIFO): sum of actual purchase_cost of ready_to_sale units
+    fifo_value = InventoryUnit.objects.filter(
+        status='ready_to_sale',
+        purchase_cost__gt=0,
+    ).aggregate(total=Sum('purchase_cost'))['total'] or 0
+
+    # Accounting: ready_count * product.costo (current cost)
+    accounting_value = Product.total_inventory_value()
+    ready_count = InventoryUnit.objects.filter(status='ready_to_sale').count()
+
+    return JsonResponse({
+        'fifo_value': float(fifo_value),
+        'accounting_value': float(accounting_value),
+        'total_units': ready_count,
+    })

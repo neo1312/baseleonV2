@@ -8,7 +8,7 @@ from crm.views.sale.views import saleList, saleInicia,saleEdit,saleDelete,saleCr
 from crm.views.quote.views import quoteList, quoteInicia,quoteEdit,quoteDelete,quoteCreate,quoteGetData,quoteItemView,quoteItemDelete,quotepdfPrint,quoteNew,quoteLast,quoteToSale,quoteCheckStock
 from crm.views.devolution.views import devolutionList, devolutionEdit, devolutionDelete, devolutionCreate,devolutionInicia,devolutionItemView,devolutionGetData,devolutionItemDelete,devpdfPrint,devolutionNew,devolutionLast
 from crm.views.report_views import daily_report
-from crm.views.my_reports_views import my_reports, my_reports_data
+from crm.views.my_reports_views import my_reports, my_reports_data, inventory_value
 
 
 app_name='crm'
@@ -75,4 +75,5 @@ urlpatterns=[
         path('report/daily/',daily_report,name='daily_report'),
         path('report/my-reports/', my_reports, name='my_reports'),
         path('report/my-reports/data/', my_reports_data, name='my_reports_data'),
+        path('report/my-reports/inventory-value/', inventory_value, name='inventory_value'),
         ]

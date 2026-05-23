@@ -31,7 +31,10 @@
             <div class="card border-danger">
                 <div class="card-body">
                     <h6 class="card-title text-muted">Total Cost</h6>
-                    <h3 class="text-danger" id="totalCost">$0.00</h3>
+                    <h3 class="text-danger" id="totalCostFifo">$0.00</h3>
+                    <small class="text-muted">FIFO (financial)</small>
+                    <h5 class="text-danger" id="totalCostAcctg">$0.00</h5>
+                    <small class="text-muted">Product.costo (accounting)</small>
                 </div>
             </div>
         </div>
@@ -39,7 +42,10 @@
             <div class="card border-success">
                 <div class="card-body">
                     <h6 class="card-title text-muted">Gross Profit</h6>
-                    <h3 class="text-success" id="totalProfit">$0.00</h3>
+                    <h3 class="text-success" id="totalProfitFifo">$0.00</h3>
+                    <small class="text-muted">FIFO (financial)</small>
+                    <h5 class="text-success" id="totalProfitAcctg">$0.00</h5>
+                    <small class="text-muted">Product.costo (accounting)</small>
                 </div>
             </div>
         </div>
@@ -47,7 +53,19 @@
             <div class="card border-info">
                 <div class="card-body">
                     <h6 class="card-title text-muted">Inventory Value</h6>
-                    <h3 class="text-info" id="inventoryValue">$0.00</h3>
+                    <h3 class="text-info" id="inventoryValue">
+                        <button class="btn btn-sm btn-outline-info" onclick="loadInventoryValue()">
+                            <i class="fas fa-calculator"></i> Calculate
+                        </button>
+                    </h3>
+                    <div id="inventoryDetails" style="display:none;">
+                        <h5 class="text-info" id="invFifoValue">$0.00</h5>
+                        <small class="text-muted">FIFO (financial)</small>
+                        <h5 class="text-info" id="invAcctgValue">$0.00</h5>
+                        <small class="text-muted">Product.costo (accounting)</small>
+                        <br>
+                        <small id="inventoryUnits" class="text-muted"></small>
+                    </div>
                 </div>
             </div>
         </div>
@@ -135,12 +153,17 @@ function loadReportData(days) {
 
             // Summary cards
             const totalSales = trend.sales.reduce((a, b) => a + b, 0);
-            const totalCost = trend.costs.reduce((a, b) => a + b, 0);
-            const totalProfit = trend.profits.reduce((a, b) => a + b, 0);
+            const totalCostFifo = trend.cost_fifo.reduce((a, b) => a + b, 0);
+            const totalCostAcctg = trend.cost_accounting.reduce((a, b) => a + b, 0);
+            const totalProfitFifo = trend.profit_fifo.reduce((a, b) => a + b, 0);
+            const totalProfitAcctg = trend.profit_accounting.reduce((a, b) => a + b, 0);
             document.getElementById('totalSales').textContent = '$' + totalSales.toFixed(2);
-            document.getElementById('totalCost').textContent = '$' + totalCost.toFixed(2);
-            document.getElementById('totalProfit').textContent = '$' + totalProfit.toFixed(2);
-            document.getElementById('inventoryValue').textContent = '$' + (data.inventory?.total_value || 0).toFixed(2);
+            document.getElementById('totalCostFifo').textContent = '$' + totalCostFifo.toFixed(2);
+            document.getElementById('totalCostAcctg').textContent = '$' + totalCostAcctg.toFixed(2);
+            document.getElementById('totalProfitFifo').textContent = '$' + totalProfitFifo.toFixed(2);
+            document.getElementById('totalProfitAcctg').textContent = '$' + totalProfitAcctg.toFixed(2);
+            // Reset inventory card to button state (don't touch innerHTML to keep button)
+            document.getElementById('inventoryDetails').style.display = 'none';
 
             // Trend chart
             if (trendChartInstance) trendChartInstance.destroy();
@@ -151,8 +174,10 @@ function loadReportData(days) {
                     labels: trend.labels,
                     datasets: [
                         { label: 'Sales', data: trend.sales, borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.1)', fill: true, tension: 0.3 },
-                        { label: 'Cost', data: trend.costs, borderColor: '#dc3545', backgroundColor: 'rgba(220,53,69,0.1)', fill: true, tension: 0.3 },
-                        { label: 'Profit', data: trend.profits, borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.1)', fill: true, tension: 0.3 },
+                        { label: 'Cost (FIFO)', data: trend.cost_fifo, borderColor: '#dc3545', backgroundColor: 'rgba(220,53,69,0.1)', fill: false, tension: 0.3, borderDash: [5, 5] },
+                        { label: 'Cost (Product.costo)', data: trend.cost_accounting, borderColor: '#fd7e14', backgroundColor: 'rgba(253,126,20,0.1)', fill: false, tension: 0.3, borderDash: [2, 2] },
+                        { label: 'Profit (FIFO)', data: trend.profit_fifo, borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.1)', fill: false, tension: 0.3, borderDash: [5, 5] },
+                        { label: 'Profit (Product.costo)', data: trend.profit_accounting, borderColor: '#20c997', backgroundColor: 'rgba(32,201,151,0.1)', fill: false, tension: 0.3, borderDash: [2, 2] },
                     ]
                 },
                 options: {
@@ -168,22 +193,35 @@ function loadReportData(days) {
 
             // Margin chart
             if (marginChartInstance) marginChartInstance.destroy();
-            const marginData = trend.labels.map((_, i) => {
+            const marginFifo = trend.labels.map((_, i) => {
                 const s = trend.sales[i];
-                return s > 0 ? ((trend.profits[i] / s) * 100) : 0;
+                return s > 0 ? ((trend.profit_fifo[i] / s) * 100) : 0;
+            });
+            const marginAcctg = trend.labels.map((_, i) => {
+                const s = trend.sales[i];
+                return s > 0 ? ((trend.profit_accounting[i] / s) * 100) : 0;
             });
             const ctx2 = document.getElementById('marginChart').getContext('2d');
             marginChartInstance = new Chart(ctx2, {
                 type: 'bar',
                 data: {
                     labels: trend.labels,
-                    datasets: [{
-                        label: 'Margin %',
-                        data: marginData,
-                        backgroundColor: marginData.map(v => v >= 0 ? 'rgba(25,135,84,0.7)' : 'rgba(220,53,69,0.7)'),
-                        borderColor: marginData.map(v => v >= 0 ? '#198754' : '#dc3545'),
-                        borderWidth: 1,
-                    }]
+                    datasets: [
+                        {
+                            label: 'Margin % (FIFO)',
+                            data: marginFifo,
+                            backgroundColor: marginFifo.map(v => v >= 0 ? 'rgba(25,135,84,0.6)' : 'rgba(220,53,69,0.6)'),
+                            borderColor: marginFifo.map(v => v >= 0 ? '#198754' : '#dc3545'),
+                            borderWidth: 1,
+                        },
+                        {
+                            label: 'Margin % (Product.costo)',
+                            data: marginAcctg,
+                            backgroundColor: marginAcctg.map(v => v >= 0 ? 'rgba(32,201,151,0.6)' : 'rgba(253,126,20,0.6)'),
+                            borderColor: marginAcctg.map(v => v >= 0 ? '#20c997' : '#fd7e14'),
+                            borderWidth: 1,
+                        },
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -249,6 +287,24 @@ function lookupProduct() {
                     }
                 }
             });
+        });
+}
+
+function loadInventoryValue() {
+    const el = document.getElementById('inventoryValue');
+    el.innerHTML = '<span class="spinner-border spinner-border-sm text-info"></span> Calculating...';
+    document.getElementById('inventoryDetails').style.display = 'none';
+    fetch('/report/my-reports/inventory-value/')
+        .then(r => r.json())
+        .then(data => {
+            el.textContent = '';
+            document.getElementById('invFifoValue').textContent = '$' + data.fifo_value.toFixed(2);
+            document.getElementById('invAcctgValue').textContent = '$' + data.accounting_value.toFixed(2);
+            document.getElementById('inventoryUnits').textContent = data.total_units + ' units';
+            document.getElementById('inventoryDetails').style.display = 'block';
+        })
+        .catch(() => {
+            el.innerHTML = '<button class="btn btn-sm btn-outline-info" onclick="loadInventoryValue()"><i class="fas fa-calculator"></i> Calculate</button>';
         });
 }
 
