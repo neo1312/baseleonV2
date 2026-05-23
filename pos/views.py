@@ -40,6 +40,7 @@ def pos_index(request):
             'id': p.id,
             'barcode': p.barcode,
             'name': p.name,
+            'brand': p.brand.name if p.brand else '',
             'price': float(p.priceLista),
             'price_mayoreo': float(p.priceMayoreo),
             'price_granel': float(granel_price) if granel_price else None,
@@ -70,8 +71,9 @@ def search_products(request):
             products = Product.objects.filter(
                 active=True
             ).filter(
+                models.Q(barcode__icontains=query) |
                 models.Q(name__icontains=query) |
-                models.Q(barcode__icontains=query)
+                models.Q(clave__icontains=query)
             )[:50]
         
         # Filter to only products with available stock and sort by availability
@@ -91,6 +93,7 @@ def search_products(request):
                 'id': p.id,
                 'barcode': p.barcode,
                 'name': p.name,
+                'brand': p.brand.name if p.brand else '',
                 'price': float(p.priceLista),
                 'price_mayoreo': float(p.priceMayoreo),
                 'price_granel': float(granel_price) if granel_price else None,

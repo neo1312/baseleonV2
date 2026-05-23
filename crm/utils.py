@@ -47,6 +47,7 @@ ROLE_FEATURES = {
                 'items': [
                     {'title': 'Auditoría de Inventario', 'description': 'Realizar auditoría', 'icon': '🔍', 'url': '/im/audit/', 'color': '#4169E1'},
                     {'title': 'Reportes de Auditoría', 'description': 'Ver análisis', 'icon': '📊', 'url': '/im/audit/reports/', 'color': '#1E90FF'},
+                    {'title': 'My Reports', 'description': 'Dashboard con gráficas', 'icon': '📊', 'url': '/report/my-reports/', 'color': '#6F42C1'},
                     {'title': 'Reporte Diario', 'description': 'Ganancia diaria', 'icon': '💰', 'url': '/report/daily/', 'color': '#0047AB'},
                 ]
             },
@@ -68,6 +69,7 @@ ROLE_FEATURES = {
                 'category': 'Reports',
                 'items': [
                     {'title': 'Reportes de Auditoría', 'description': 'Ver análisis de inventario', 'icon': '📊', 'url': '/im/audit/reports/', 'color': '#1E90FF'},
+                    {'title': 'My Reports', 'description': 'Dashboard con gráficas', 'icon': '📊', 'url': '/report/my-reports/', 'color': '#6F42C1'},
                     {'title': 'Reporte Diario', 'description': 'Ganancia del día', 'icon': '💰', 'url': '/report/daily/', 'color': '#0047AB'},
                     {'title': 'Reportes de Ventas', 'description': 'Análisis de ventas', 'icon': '📈', 'url': '/report/sale', 'color': '#4169E1'},
                 ]
@@ -184,6 +186,7 @@ MENU_STRUCTURE = {
         {'divider': True},
         {'category': 'Auditoría', 'icon': 'fas fa-magnifying-glass-chart', 'url': '/im/audit/', 'color': 'text-info'},
         {'category': 'Reportes de Auditoría', 'icon': 'fas fa-chart-line', 'url': '/im/audit/reports/', 'color': 'text-success'},
+        {'category': 'My Reports', 'icon': 'fas fa-chart-pie', 'url': '/report/my-reports/', 'color': 'text-success'},
         {'category': 'Reporte Diario', 'icon': 'fas fa-chart-line', 'url': '/report/daily/', 'color': 'text-success'},
         {'category': 'Reportes de Ventas', 'icon': 'fas fa-chart-bar', 'url': '/report/sale', 'color': 'text-success'},
         {'divider': True},
@@ -191,6 +194,7 @@ MENU_STRUCTURE = {
     ],
     'Manager': [
         {'category': 'Reportes de Auditoría', 'icon': 'fas fa-chart-line', 'url': '/im/audit/reports/', 'color': 'text-success'},
+        {'category': 'My Reports', 'icon': 'fas fa-chart-pie', 'url': '/report/my-reports/', 'color': 'text-success'},
         {'category': 'Reporte Diario', 'icon': 'fas fa-chart-line', 'url': '/report/daily/', 'color': 'text-success'},
         {'category': 'Reportes de Ventas', 'icon': 'fas fa-chart-bar', 'url': '/report/sale', 'color': 'text-success'},
         {'divider': True},
