@@ -257,7 +257,7 @@ def audit_enter_counts(request, audit_id):
 @require_http_methods(["GET", "POST"])
 def audit_review(request, audit_id):
     """Review and approve discrepancies"""
-    audit = get_object_or_404(InventoryAudit, id=audit_id, status='in_progress')
+    audit = get_object_or_404(InventoryAudit, id=audit_id, status__in=['in_progress', 'under_review'])
     
     if audit.audit_type == 'bulk':
         audit_items = audit.items.all()
