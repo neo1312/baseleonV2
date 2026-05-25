@@ -270,19 +270,27 @@ def audit_review(request, audit_id):
     items_page = page_obj.object_list
     
     if request.method == 'POST':
-        # Process adjustment approvals for ALL items (not just current page)
         all_items = audit_items
-        for item in all_items:
-            adjustment_reason = request.POST.get(f'adjustment_reason_{item.id}')
-            approved = request.POST.get(f'approved_{item.id}')
-            notes = request.POST.get(f'notes_{item.id}', '')
-            
-            if approved and adjustment_reason:
-                item.adjustment_reason = adjustment_reason
-                item.adjustment_status = 'approved'
-                item.notes = notes
-                item.verified_by = str(request.user)
-                item.save()
+        
+        if audit.audit_type == 'bulk':
+            approve_all = request.POST.get('approve_all')
+            if approve_all:
+                for item in all_items:
+                    item.adjustment_status = 'approved'
+                    item.verified_by = str(request.user)
+                    item.save()
+        else:
+            for item in all_items:
+                adjustment_reason = request.POST.get(f'adjustment_reason_{item.id}')
+                approved = request.POST.get(f'approved_{item.id}')
+                notes = request.POST.get(f'notes_{item.id}', '')
+                
+                if approved and adjustment_reason:
+                    item.adjustment_reason = adjustment_reason
+                    item.adjustment_status = 'approved'
+                    item.notes = notes
+                    item.verified_by = str(request.user)
+                    item.save()
         
         audit.status = 'under_review'
         audit.reviewed_by = str(request.user)

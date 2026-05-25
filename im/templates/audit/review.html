@@ -9,9 +9,42 @@
 
     <div class="alert alert-warning">
         <strong>Audit #{{ audit.id }}</strong> | 
-        {{ items.count }} discrepancies found | 
+        {{ items|length }} item(s) | 
+        {% if audit.audit_type == 'bulk' %}Total: {{ page_obj.paginator.count }} items{% else %}{{ page_obj.paginator.count }} discrepancies found{% endif %} |
         Auditor: {{ audit.auditor }}
     </div>
+
+    {% if audit.audit_type == 'bulk' %}
+    <div class="card mb-3 border-info">
+        <div class="card-header bg-info text-white py-2">
+            <i class="fas fa-layer-group"></i> Auditoría Masiva
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>Causa Global:</strong>
+                    <p class="mb-0">
+                        {% with reason=audit.items.first.adjustment_reason %}
+                            {% if reason %}
+                                <span class="badge bg-secondary">{{ reason }}</span>
+                            {% else %}
+                                <span class="text-muted">No especificada</span>
+                            {% endif %}
+                        {% endwith %}
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <strong>Nota Global:</strong>
+                    <p class="mb-0 text-muted">
+                        {% with note=audit.items.first.notes %}
+                            {{ note|default:"Sin nota" }}
+                        {% endwith %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <form method="post">
         {% csrf_token %}
@@ -24,9 +57,11 @@
                         <th class="text-center" style="width: 100px;">System</th>
                         <th class="text-center" style="width: 100px;">Physical</th>
                         <th class="text-center" style="width: 100px;">Discrepancy</th>
+                        {% if audit.audit_type != 'bulk' %}
                         <th style="width: 200px;">Adjustment Reason <span class="text-danger">*</span></th>
                         <th style="width: 200px;">Notes</th>
                         <th style="width: 100px;">Approve?</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -49,6 +84,7 @@
                                 {% endif %}
                             </span>
                         </td>
+                        {% if audit.audit_type != 'bulk' %}
                         <td>
                             <select class="form-select form-select-sm" 
                                     name="adjustment_reason_{{ item.id }}" 
@@ -75,6 +111,7 @@
                                        style="width: 2rem; height: 2rem;">
                             </div>
                         </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -116,6 +153,26 @@
         </nav>
         {% endif %}
 
+        {% if audit.audit_type == 'bulk' %}
+        <div class="card mt-3 border-success">
+            <div class="card-body">
+                <div class="form-check form-switch">
+                    <input type="checkbox" 
+                           class="form-check-input" 
+                           name="approve_all" 
+                           id="approve_all"
+                           value="on"
+                           style="width: 2rem; height: 2rem;">
+                    <label class="form-check-label fw-bold" for="approve_all">
+                        Aprobar todos los ajustes
+                    </label>
+                </div>
+                <small class="text-muted d-block mt-1">
+                    Se aprobarán todos los items con la causa y nota global ya asignadas
+                </small>
+            </div>
+        </div>
+        {% else %}
         <div class="alert alert-info mt-3">
             <strong>Tips:</strong>
             <ul class="mb-0 small">
@@ -125,11 +182,14 @@
                 <li>Approved adjustments will update the inventory system</li>
             </ul>
         </div>
+        {% endif %}
 
-        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+            {% if audit.audit_type != 'bulk' %}
             <a href="{% url 'im:audit_enter_counts' audit.id %}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left"></i> Back
             </a>
+            {% endif %}
             <button type="submit" class="btn btn-primary btn-lg">
                 <i class="fas fa-check"></i> Approve & Continue
             </button>
