@@ -947,6 +947,7 @@ class InventoryAudit(models.Model):
         ('full', 'Full Inventory'),
         ('category', 'By Category'),
         ('manual', 'Manual Selection'),
+        ('bulk', 'Bulk Audit'),
     ]
     
     id = models.AutoField(primary_key=True)

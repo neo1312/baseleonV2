@@ -59,6 +59,7 @@ def audit_product_search(request):
             'name': p.name,
             'clave': p.clave or '',
             'barcode': p.barcode or '',
+            'system_count': p.stock_ready_to_sale,
         })
 
     return JsonResponse({'results': results})
@@ -71,21 +72,67 @@ def audit_start(request):
     if request.method == 'POST':
         audit_type = request.POST.get('audit_type')
         auditor = request.POST.get('auditor') or str(request.user)
-        notes = request.POST.get('notes', '')
         
         if not audit_type:
             messages.error(request, 'Audit type is required')
             return redirect('im:audit_start')
         
-        # Create audit
+        if audit_type == 'bulk':
+            product_ids = request.POST.getlist('product_id')
+            physical_counts = request.POST.getlist('physical_count')
+            global_note = request.POST.get('global_note', '')
+            adjustment_reason = request.POST.get('adjustment_reason', '')
+            
+            if not product_ids:
+                messages.error(request, 'Add at least one product')
+                return redirect('im:audit_start')
+            
+            notes = request.POST.get('notes', '')
+            if global_note:
+                notes = (notes + '\n' if notes else '') + global_note
+            
+            audit = InventoryAudit.objects.create(
+                audit_type='bulk',
+                auditor=auditor,
+                notes=notes,
+                status='under_review'
+            )
+            
+            for i, pid in enumerate(product_ids):
+                product = Product.objects.filter(id=pid).first()
+                if not product:
+                    continue
+                system_count = InventoryUnit.objects.filter(
+                    product=product,
+                    status='ready_to_sale'
+                ).count()
+                physical_count_str = physical_counts[i] if i < len(physical_counts) else '0'
+                physical_count = int(physical_count_str) if physical_count_str else 0
+                
+                AuditItem.objects.create(
+                    audit=audit,
+                    product=product,
+                    system_count=system_count,
+                    physical_count=physical_count,
+                    adjustment_reason=adjustment_reason or None,
+                    adjustment_status='pending',
+                    notes=global_note,
+                )
+            
+            audit.started_at = timezone.now()
+            audit.save()
+            audit.update_stats()
+            
+            messages.success(request, f'Bulk audit created with {audit.items.count()} products')
+            return redirect('im:audit_review', audit_id=audit.id)
+        
+        notes = request.POST.get('notes', '')
         audit = InventoryAudit.objects.create(
             audit_type=audit_type,
             auditor=auditor,
             notes=notes,
             status='draft'
         )
-        
-        # Redirect to product selection
         return redirect('im:audit_select_products', audit_id=audit.id)
     
     context = {
@@ -211,11 +258,21 @@ def audit_enter_counts(request, audit_id):
 def audit_review(request, audit_id):
     """Review and approve discrepancies"""
     audit = get_object_or_404(InventoryAudit, id=audit_id, status='in_progress')
-    audit_items = audit.items.filter(discrepancy__gt=0) | audit.items.filter(discrepancy__lt=0)
+    
+    if audit.audit_type == 'bulk':
+        audit_items = audit.items.all()
+    else:
+        audit_items = audit.items.filter(discrepancy__gt=0) | audit.items.filter(discrepancy__lt=0)
+    
+    paginator = Paginator(audit_items, 5)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    items_page = page_obj.object_list
     
     if request.method == 'POST':
-        # Process adjustment approvals
-        for item in audit_items:
+        # Process adjustment approvals for ALL items (not just current page)
+        all_items = audit_items
+        for item in all_items:
             adjustment_reason = request.POST.get(f'adjustment_reason_{item.id}')
             approved = request.POST.get(f'approved_{item.id}')
             notes = request.POST.get(f'notes_{item.id}', '')
@@ -237,7 +294,8 @@ def audit_review(request, audit_id):
     context = {
         'title': 'Review Discrepancies',
         'audit': audit,
-        'items': audit_items,
+        'items': items_page,
+        'page_obj': page_obj,
         'adjustment_reasons': AuditItem.ADJUSTMENT_REASON_CHOICES,
     }
     return render(request, 'audit/review.html', context)

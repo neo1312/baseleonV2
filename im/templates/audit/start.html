@@ -3,18 +3,24 @@
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block head %}
+{{ block.super }}
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2/css/select2.min.css' %}" rel="stylesheet" />
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid mt-4 px-2 px-sm-4">
     <h1 class="h3 mb-4">{{ title }}</h1>
 
     <div class="row">
-        <div class="col-12 col-lg-6 mb-4">
+        <div class="col-12 col-lg-8 mb-4">
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">Nueva Auditoría de Inventario</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post">
+                    <form method="post" id="audit_form">
                         {% csrf_token %}
 
                         <div class="mb-3">
@@ -30,7 +36,8 @@
                                 <strong>Aleatoria (Custom):</strong> Contar N productos al azar<br>
                                 <strong>Completa:</strong> Contar todos los productos<br>
                                 <strong>Por Categoría:</strong> Contar por categoría<br>
-                                <strong>Manual:</strong> Seleccionar productos específicos
+                                <strong>Manual:</strong> Seleccionar productos específicos<br>
+                                <strong>Bulk:</strong> Agregar productos manualmente con conteo físico, nota global y causa
                             </small>
                         </div>
 
@@ -40,15 +47,72 @@
                                    placeholder="Dejar en blanco para usar usuario actual" value="{{ request.user }}">
                         </div>
 
-                        <div class="mb-3">
+                        <!-- Standard notes (non-bulk) -->
+                        <div class="mb-3" id="standard_notes_group">
                             <label for="notes" class="form-label">Notas</label>
                             <textarea class="form-control" id="notes" name="notes" rows="3"
                                       placeholder="Razón de la auditoría, áreas a enfocarse, etc."></textarea>
                         </div>
 
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-play"></i> Iniciar Auditoría
+                        <!-- Bulk section (hidden by default) -->
+                        <div id="bulk_section" style="display: none;">
+                            <hr class="my-3">
+                            <h5 class="text-primary mb-3"><i class="fas fa-layer-group"></i> Auditoría Masiva</h5>
+
+                            <div class="mb-3">
+                                <label class="form-label">Buscar y agregar productos</label>
+                                <select id="product_search" class="form-control" style="width: 100%;"></select>
+                                <small class="form-text text-muted">Busca por clave, código de barras o nombre del producto</small>
+                            </div>
+
+                            <div id="bulk_items_container" style="display: none;">
+                                <label class="form-label">Productos agregados:</label>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered" id="bulk_table">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Producto</th>
+                                                <th>Clave/Barcode</th>
+                                                <th class="text-center" style="width: 120px;">Conteo Sistema</th>
+                                                <th class="text-center" style="width: 130px;">Conteo Físico <span class="text-danger">*</span></th>
+                                                <th class="text-center" style="width: 100px;">Diferencia</th>
+                                                <th style="width: 40px;"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="bulk_table_body"></tbody>
+                                    </table>
+                                </div>
+                                <small class="text-muted" id="bulk_count">0 producto(s) agregado(s)</small>
+                            </div>
+
+                            <hr class="my-3">
+
+                            <div class="mb-3">
+                                <label for="adjustment_reason" class="form-label">Causa Global</label>
+                                <select class="form-select" id="adjustment_reason" name="adjustment_reason">
+                                    <option value="">-- Selecciona causa --</option>
+                                    <option value="correction">Corrección Manual</option>
+                                    <option value="miscounted">Error de Conteo en Sistema</option>
+                                    <option value="shrinkage">Merma Desconocida</option>
+                                    <option value="stolen">Robo</option>
+                                    <option value="damaged">Dañado/Inservible</option>
+                                    <option value="expired">Vencido/Obsoleto</option>
+                                    <option value="warranty">Devolución Garantía</option>
+                                    <option value="other">Otro</option>
+                                </select>
+                                <small class="form-text text-muted">Esta causa se aplicará a todos los productos con discrepancia</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="global_note" class="form-label">Nota Global</label>
+                                <textarea class="form-control" id="global_note" name="global_note" rows="2"
+                                          placeholder="Nota general para todos los items de esta auditoría"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary" id="submit_btn">
+                                <i class="fas fa-play"></i> <span id="submit_text">Iniciar Auditoría</span>
                             </button>
                             <a href="{% url 'im:audit_list' %}" class="btn btn-outline-secondary">
                                 Cancelar
@@ -59,7 +123,7 @@
             </div>
         </div>
 
-        <div class="col-12 col-lg-6 mb-4">
+        <div class="col-12 col-lg-4 mb-4">
             <div class="card bg-light shadow-sm">
                 <div class="card-header bg-secondary text-white">
                     <h5 class="mb-0">Proceso de Auditoría</h5>
@@ -89,15 +153,231 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block javascrip %}
+{{ block.super }}
+<script src="{% static 'lib/AdminLTE-3.1.0/plugins/select2/js/select2.min.js' %}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var auditTypeSelect = document.getElementById('audit_type');
+    var bulkSection = document.getElementById('bulk_section');
+    var standardNotesGroup = document.getElementById('standard_notes_group');
+    var submitBtn = document.getElementById('submit_btn');
+    var submitText = document.getElementById('submit_text');
+
+    var bulkProducts = [];
+    var productSearchEl = document.getElementById('product_search');
+    var bulkTableBody = document.getElementById('bulk_table_body');
+    var bulkContainer = document.getElementById('bulk_items_container');
+    var bulkCount = document.getElementById('bulk_count');
+    var $search = $('#product_search');
+
+    function toggleBulkMode() {
+        var val = auditTypeSelect.value;
+        if (val === 'bulk') {
+            bulkSection.style.display = 'block';
+            standardNotesGroup.style.display = 'none';
+            submitText.textContent = 'Crear Auditoría Masiva';
+        } else {
+            bulkSection.style.display = 'none';
+            standardNotesGroup.style.display = 'block';
+            submitText.textContent = 'Iniciar Auditoría';
+        }
+    }
+
+    auditTypeSelect.addEventListener('change', toggleBulkMode);
+    toggleBulkMode();
+
+    if (typeof $search.select2 !== 'function') {
+        console.error('Select2 not loaded');
+        return;
+    }
+
+    $search.select2({
+        theme: 'bootstrap4',
+        placeholder: 'Escriba clave, código de barras o descripción...',
+        allowClear: true,
+        minimumInputLength: 1,
+        ajax: {
+            url: '{% url "im:audit_product_search" %}',
+            dataType: 'json',
+            delay: 300,
+            data: function(params) {
+                return { q: params.term };
+            },
+            processResults: function(data) {
+                return { results: data.results || [] };
+            },
+            cache: true
+        },
+        templateResult: function(product) {
+            if (product.loading) return product.text;
+            var text = product.text || '';
+            return $('<span>' + text + '</span>');
+        },
+        templateSelection: function(product) {
+            return product.text || product.id;
+        }
+    });
+
+    $search.on('select2:select', function(e) {
+        var data = e.params.data;
+        if (!data || !data.id) return;
+
+        var exists = false;
+        for (var i = 0; i < bulkProducts.length; i++) {
+            if (bulkProducts[i].id == data.id) { exists = true; break; }
+        }
+        if (exists) {
+            $search.val(null).trigger('change');
+            return;
+        }
+
+        bulkProducts.push({
+            id: data.id,
+            name: data.name || data.text,
+            clave: data.clave || '',
+            barcode: data.barcode || '',
+            system_count: data.system_count !== undefined ? data.system_count : 0,
+            physical_count: data.system_count !== undefined ? data.system_count : 0
+        });
+
+        renderBulkTable();
+        $search.val(null).trigger('change');
+    });
+
+    function renderBulkTable() {
+        bulkTableBody.innerHTML = '';
+        if (bulkProducts.length === 0) {
+            bulkContainer.style.display = 'none';
+            return;
+        }
+        bulkContainer.style.display = 'block';
+
+        for (var i = 0; i < bulkProducts.length; i++) {
+            (function(p, idx) {
+                var tr = document.createElement('tr');
+
+                var nameTd = document.createElement('td');
+                nameTd.innerHTML = '<strong>' + p.name + '</strong>';
+
+                var idTd = document.createElement('td');
+                var idText = '';
+                if (p.clave) idText = '<code>' + p.clave + '</code>';
+                else if (p.barcode) idText = '<code>' + p.barcode + '</code>';
+                idTd.innerHTML = idText;
+
+                var sysTd = document.createElement('td');
+                sysTd.className = 'text-center';
+                sysTd.innerHTML = '<strong>' + p.system_count + '</strong>';
+
+                var physTd = document.createElement('td');
+                physTd.className = 'text-center';
+                var input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'form-control form-control-sm text-center physical-input';
+                input.min = '0';
+                input.value = p.physical_count;
+                input.dataset.index = idx;
+                input.addEventListener('change', function() {
+                    var val = parseInt(this.value) || 0;
+                    bulkProducts[parseInt(this.dataset.index)].physical_count = val;
+                    updateDiscrepancyRow(this.dataset.index);
+                });
+                physTd.appendChild(input);
+
+                var discTd = document.createElement('td');
+                discTd.className = 'text-center discrepancy-cell';
+                discTd.dataset.index = idx;
+                discTd.innerHTML = '<span class="text-muted">—</span>';
+
+                var actionTd = document.createElement('td');
+                actionTd.className = 'text-center';
+                var removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-sm btn-outline-danger';
+                removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+                removeBtn.addEventListener('click', function() {
+                    bulkProducts.splice(idx, 1);
+                    renderBulkTable();
+                });
+                actionTd.appendChild(removeBtn);
+
+                tr.appendChild(nameTd);
+                tr.appendChild(idTd);
+                tr.appendChild(sysTd);
+                tr.appendChild(physTd);
+                tr.appendChild(discTd);
+                tr.appendChild(actionTd);
+
+                bulkTableBody.appendChild(tr);
+                updateDiscrepancyRow(idx);
+            })(bulkProducts[i], i);
+        }
+        bulkCount.textContent = bulkProducts.length + ' producto(s) agregado(s)';
+    }
+
+    function updateDiscrepancyRow(idx) {
+        var p = bulkProducts[idx];
+        var disc = p.physical_count - p.system_count;
+        var cells = document.querySelectorAll('.discrepancy-cell[data-index="' + idx + '"]');
+        if (cells.length === 0) return;
+        var cell = cells[0];
+        var cls = 'text-muted';
+        var val = '—';
+        if (disc > 0) { cls = 'text-success'; val = '+' + disc; }
+        else if (disc < 0) { cls = 'text-danger'; val = disc; }
+        else if (disc === 0) { cls = 'text-muted'; val = '0'; }
+        cell.innerHTML = '<strong class="' + cls + '">' + val + '</strong>';
+    }
+
+    document.getElementById('audit_form').addEventListener('submit', function(e) {
+        if (auditTypeSelect.value !== 'bulk') return;
+
+        if (bulkProducts.length === 0) {
+            e.preventDefault();
+            alert('Agrega al menos un producto');
+            return;
+        }
+
+        var existing = document.querySelectorAll('.bulk-hidden-input');
+        existing.forEach(function(el) { el.remove(); });
+
+        for (var i = 0; i < bulkProducts.length; i++) {
+            var pid = document.createElement('input');
+            pid.type = 'hidden';
+            pid.name = 'product_id';
+            pid.value = bulkProducts[i].id;
+            pid.className = 'bulk-hidden-input';
+            e.target.appendChild(pid);
+
+            var pcount = document.createElement('input');
+            pcount.type = 'hidden';
+            pcount.name = 'physical_count';
+            pcount.value = bulkProducts[i].physical_count;
+            pcount.className = 'bulk-hidden-input';
+            e.target.appendChild(pcount);
+        }
+    });
+});
+</script>
 
 <style>
+    .select2-container--bootstrap4 .select2-selection--single {
+        height: calc(2.25rem + 2px) !important;
+    }
+    .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+        line-height: calc(2.25rem + 2px) !important;
+    }
+    .physical-input {
+        max-width: 100px;
+        margin: 0 auto;
+    }
     @media (max-width: 576px) {
         .container-fluid { padding-left: 8px; padding-right: 8px; }
-        .card { margin-bottom: 1.5rem; }
-        .card-body { padding: 1rem; }
-        .form-label { font-size: 0.95rem; font-weight: 600; }
-        .form-text { font-size: 0.8rem; }
-        ol, ul { margin-bottom: 0; }
+        .card-body { padding: 0.75rem; }
     }
 </style>
 {% endblock %}
