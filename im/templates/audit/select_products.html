@@ -3,6 +3,12 @@
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block head %}
+{{ block.super }}
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2/css/select2.min.css' %}" rel="stylesheet" />
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid mt-4 px-2 px-sm-4">
     <h1 class="h3 mb-4">{{ title }}</h1>
@@ -176,28 +182,30 @@
 
 {% block javascrip %}
 {{ block.super }}
-<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2/css/select2.min.css' %}" rel="stylesheet" />
-<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css' %}" rel="stylesheet" />
 <script src="{% static 'lib/AdminLTE-3.1.0/plugins/select2/js/select2.min.js' %}"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // --- State ---
-    let inlineProducts = [];  // {id, name, clave, barcode}
+    var inlineProducts = [];
+    var searchEl = document.getElementById('product_search');
+    if (!searchEl) return;
 
-    // --- DOM refs ---
-    const $search = $('#product_search');
-    const inlineContainer = document.getElementById('inline_selected_container');
-    const inlineList = document.getElementById('inline_selected_list');
-    const productIdsInput = document.getElementById('product_ids_input');
-    const selectAll = document.getElementById('select_all');
-    const productCheckboxes = document.querySelectorAll('.product-checkbox');
-    const selectionCount = document.getElementById('selection_count');
-    const inlineCount = document.getElementById('inline_count');
-    const totalBadge = document.getElementById('total_count_badge');
-    const submitBtn = document.getElementById('submit_btn');
+    var $search = $('#product_search');
+    var inlineContainer = document.getElementById('inline_selected_container');
+    var inlineList = document.getElementById('inline_selected_list');
+    var productIdsInput = document.getElementById('product_ids_input');
+    var selectAll = document.getElementById('select_all');
+    var productCheckboxes = document.querySelectorAll('.product-checkbox');
+    var selectionCount = document.getElementById('selection_count');
+    var inlineCount = document.getElementById('inline_count');
+    var totalBadge = document.getElementById('total_count_badge');
+    var submitBtn = document.getElementById('submit_btn');
 
-    // --- Init Select2 ---
+    if (typeof $search.select2 !== 'function') {
+        console.error('Select2 not loaded');
+        return;
+    }
+
     $search.select2({
         theme: 'bootstrap4',
         placeholder: 'Escriba clave, código de barras o descripción...',
@@ -208,40 +216,37 @@ document.addEventListener('DOMContentLoaded', function() {
             dataType: 'json',
             delay: 300,
             data: function(params) {
-                return {
-                    q: params.term,
-                    audit_id: {{ audit.id }}
-                };
+                return { q: params.term, audit_id: {{ audit.id }} };
             },
             processResults: function(data) {
-                return { results: data.results };
+                return { results: data.results || [] };
             },
             cache: true
         },
         templateResult: function(product) {
             if (product.loading) return product.text;
-            const clave = product.clave ? ` <code>${product.clave}</code>` : '';
-            const barcode = product.barcode ? ` <span class="text-muted">${product.barcode}</span>` : '';
-            return $(`<span>${product.text}${clave}${barcode}</span>`);
+            var text = product.text || '';
+            return $('<span>' + text + '</span>');
         },
         templateSelection: function(product) {
             return product.text || product.id;
         }
     });
 
-    // --- When a product is selected from search ---
     $search.on('select2:select', function(e) {
-        const data = e.params.data;
+        var data = e.params.data;
         if (!data || !data.id) return;
 
-        // Don't add duplicates
-        if (inlineProducts.some(p => p.id === data.id)) {
+        var exists = false;
+        for (var i = 0; i < inlineProducts.length; i++) {
+            if (inlineProducts[i].id == data.id) { exists = true; break; }
+        }
+        if (exists) {
             $search.val(null).trigger('change');
             return;
         }
 
-        // Also uncheck from table if present
-        const cb = document.querySelector(`.product-checkbox[value="${data.id}"]`);
+        var cb = document.querySelector('.product-checkbox[value="' + data.id + '"]');
         if (cb) cb.checked = false;
 
         inlineProducts.push({
@@ -256,7 +261,6 @@ document.addEventListener('DOMContentLoaded', function() {
         $search.val(null).trigger('change');
     });
 
-    // --- Render inline selected products as tags ---
     function renderInlineProducts() {
         inlineList.innerHTML = '';
         if (inlineProducts.length === 0) {
@@ -265,83 +269,85 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         inlineContainer.style.display = 'block';
 
-        inlineProducts.forEach(function(p) {
-            const tag = document.createElement('span');
-            tag.className = 'badge d-inline-flex align-items-center gap-1 py-2 px-3 mb-1';
-            tag.style.cssText = 'background: #e8f0fe; color: #1967d2; font-size: 0.85rem; border: 1px solid #c6dafc;';
+        for (var i = 0; i < inlineProducts.length; i++) {
+            (function(p) {
+                var tag = document.createElement('span');
+                tag.className = 'badge d-inline-flex align-items-center gap-1 py-2 px-3 mb-1';
+                tag.style.cssText = 'background: #e8f0fe; color: #1967d2; font-size: 0.85rem; border: 1px solid #c6dafc;';
 
-            const label = document.createElement('span');
-            label.textContent = p.name;
-            if (p.clave) label.textContent += ` (${p.clave})`;
-            else if (p.barcode) label.textContent += ` (${p.barcode})`;
+                var label = document.createElement('span');
+                label.textContent = p.name;
+                if (p.clave) label.textContent += ' (' + p.clave + ')';
+                else if (p.barcode) label.textContent += ' (' + p.barcode + ')';
 
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'btn-close btn-close-sm ms-2';
-            removeBtn.style.cssText = 'font-size: 0.65rem; padding: 0; line-height: 1;';
-            removeBtn.setAttribute('aria-label', 'Remove');
-            removeBtn.addEventListener('click', function() {
-                inlineProducts = inlineProducts.filter(x => x.id !== p.id);
-                renderInlineProducts();
-                updateCounts();
-            });
+                var removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn-close btn-close-sm ms-2';
+                removeBtn.style.cssText = 'font-size: 0.65rem; padding: 0; line-height: 1;';
+                removeBtn.setAttribute('aria-label', 'Remove');
+                removeBtn.addEventListener('click', function() {
+                    var idx = inlineProducts.indexOf(p);
+                    if (idx > -1) inlineProducts.splice(idx, 1);
+                    renderInlineProducts();
+                    updateCounts();
+                });
 
-            tag.appendChild(label);
-            tag.appendChild(removeBtn);
-            inlineList.appendChild(tag);
-        });
+                tag.appendChild(label);
+                tag.appendChild(removeBtn);
+                inlineList.appendChild(tag);
+            })(inlineProducts[i]);
+        }
     }
 
-    // --- Update all counters ---
     function updateCounts() {
-        const checked = document.querySelectorAll('.product-checkbox:checked').length;
+        var checked = document.querySelectorAll('.product-checkbox:checked').length;
         selectionCount.textContent = checked;
         inlineCount.textContent = inlineProducts.length;
         totalBadge.textContent = (checked + inlineProducts.length) + ' producto(s) seleccionado(s)';
         submitBtn.disabled = (checked + inlineProducts.length) === 0;
 
-        // Update hidden input with all IDs
-        const allIds = [];
+        var allIds = [];
         document.querySelectorAll('.product-checkbox:checked').forEach(function(cb) {
             allIds.push(cb.value);
         });
-        inlineProducts.forEach(function(p) {
-            allIds.push(p.id);
-        });
+        for (var i = 0; i < inlineProducts.length; i++) {
+            allIds.push(inlineProducts[i].id);
+        }
         productIdsInput.value = allIds.join(',');
     }
 
-    // --- Existing checkbox handlers ---
     if (selectAll) {
         selectAll.addEventListener('change', function() {
-            productCheckboxes.forEach(function(cb) {
-                // Don't check if product is already in inline list
-                cb.checked = this.checked && !inlineProducts.some(p => p.id == cb.value);
-            }, this);
+            for (var i = 0; i < productCheckboxes.length; i++) {
+                var cb = productCheckboxes[i];
+                var isInline = false;
+                for (var j = 0; j < inlineProducts.length; j++) {
+                    if (inlineProducts[j].id == cb.value) { isInline = true; break; }
+                }
+                cb.checked = this.checked && !isInline;
+            }
             updateCounts();
         });
     }
 
-    productCheckboxes.forEach(function(cb) {
-        cb.addEventListener('change', updateCounts);
-    });
+    for (var i = 0; i < productCheckboxes.length; i++) {
+        productCheckboxes[i].addEventListener('change', updateCounts);
+    }
 
-    // --- Form submission: add hidden inputs for inline products ---
     document.getElementById('audit_form').addEventListener('submit', function(e) {
         document.querySelectorAll('.inline-hidden-input').forEach(function(el) {
             el.remove();
         });
-        inlineProducts.forEach(function(p) {
+        for (var i = 0; i < inlineProducts.length; i++) {
             var input = document.createElement('input');
             input.type = 'hidden';
             input.name = 'product_ids';
-            input.value = p.id;
+            input.value = inlineProducts[i].id;
             input.className = 'inline-hidden-input';
             e.target.appendChild(input);
-        });
+        }
     });
 
-    // Initial count
     updateCounts();
 });
 </script>

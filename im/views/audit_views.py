@@ -32,13 +32,15 @@ def audit_product_search(request):
         Q(clave__icontains=q) |
         Q(barcode__icontains=q) |
         Q(name__icontains=q)
-    )[:20]
+    )
 
-    # Exclude already selected products if audit_id provided
+    # Exclude already selected products BEFORE slicing
     if audit_id:
         audit = get_object_or_404(InventoryAudit, id=audit_id)
         already_selected = audit.items.values_list('product_id', flat=True)
         products = products.exclude(id__in=already_selected)
+
+    products = products[:20]
 
     results = []
     for p in products:
