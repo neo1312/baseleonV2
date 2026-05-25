@@ -48,7 +48,7 @@
         <div class="conversion-card p-4 mb-3">
             <div class="row align-items-center">
                 <div class="col-md-4">
-                    <strong>{{ config.source_product.full_name }}</strong>
+                    <strong>{{ config.source_product.name }}</strong>
                     <br>
                     <small class="text-muted">Stock disponible:
                         <span class="font-weight-bold {% if available_stock == 0 %}text-danger{% else %}text-success{% endif %}">
@@ -63,7 +63,7 @@
                     <span class="arrow-icon">→</span>
                 </div>
                 <div class="col-md-4">
-                    <strong>{{ config.destination_product.full_name }}</strong>
+                    <strong>{{ config.destination_product.name }}</strong>
                     <br>
                     <small class="text-muted">Stock actual:
                         <span class="font-weight-bold text-info">{{ dest_stock|floatformat:2 }}</span>

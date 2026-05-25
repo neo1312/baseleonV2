@@ -36,7 +36,7 @@
                                     {% with pp_unidad=item.product|get_unidad_empaque:po.provider %}
                                     <tr data-item-id="{{ item.id }}"{% if pp_unidad > 1 %} class="table-warning"{% endif %}>
                                         <td>
-                                            <small><strong>{{ item.product.full_name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</strong></small>
+                                            <small><strong>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</strong></small>
                                         </td>
                                         <td class="text-center"><small>{{ item.product|get_provider_pv1:po.provider }}</small></td>
                                         <td class="text-center">
@@ -148,7 +148,7 @@
                             {% for item in po_items %}
                             {% with pp_unidad=item.product|get_unidad_empaque:po.provider %}
                             <tr data-item-id="{{ item.id }}"{% if pp_unidad > 1 %} class="table-warning"{% endif %}>
-                                <td><small>{{ item.product.full_name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</small></td>
+                                <td><small>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</small></td>
                                 <td class="text-center modal-qty">-</td>
                                 <td class="text-end modal-cost">-</td>
                                 <td class="text-end"><span class="modal-line-total">$0.00</span></td>
@@ -209,7 +209,7 @@
                             {% for item in po_items %}
                             {% with pp_unidad=item.product|get_unidad_empaque:po.provider %}
                             <tr data-item-id="{{ item.id }}"{% if pp_unidad > 1 %} class="table-warning"{% endif %}>
-                                <td><small>{{ item.product.full_name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</small></td>
+                                <td><small>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</small></td>
                                 <td class="text-center modal-qty">-</td>
                                 <td class="text-end modal-cost">-</td>
                                 <td class="text-end"><span class="modal-line-total">$0.00</span></td>

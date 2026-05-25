@@ -78,7 +78,7 @@ def po_select_provider(request):
                 provider_per_piece = float(p.get_provider_cost(provider))
                 items.append({
                     'id': p.id,
-                    'name': p.full_name,
+                    'name': p.name,
                     'sku': p.get_pv1(provider),
                     'barcode': p.barcode,
                     'available_stock': p.stock_ready_to_sale,
@@ -193,7 +193,7 @@ def po_search_product(request):
             'id': p.id,
             'barcode': p.barcode,
             'pv1': pp.pv1 if pp else '',
-            'name': p.full_name,
+            'name': p.name,
             'cost': float(p.get_provider_cost(provider_id)),
             'unidad_empaque': int(p.get_unidad_empaque(provider_id) or 1),
         })
@@ -497,7 +497,7 @@ def po_upload_csv(request):
         session_rows = [
             {
                 'product_id': r['product_id'],
-                'product_name': r['product'].full_name,
+                'product_name': r['product'].name,
                 'pv1': r['pv1'],
                 'quantity': r['quantity'],
                 'cost': str(r['cost']),
@@ -709,7 +709,7 @@ def po_instant_lookup_pv1(request):
             return JsonResponse({
                 'success': True,
                 'product_id': product.id,
-                'product_name': product.full_name,
+                'product_name': product.name,
                 'pv1': product_provider.pv1,
                 'cost': cost,
                 'unit': product.unidad,

@@ -207,7 +207,7 @@ def purchaseOrder(request, pk):
         writer.writerow([
             p.faltante1,
             pv1,              # Barcode / Provider Key
-            p.full_name,
+            p.name,
             1,
             float(p.costo),
             " ",
