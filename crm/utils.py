@@ -49,6 +49,7 @@ ROLE_FEATURES = {
                     {'title': 'Reportes de Auditoría', 'description': 'Ver análisis', 'icon': '📊', 'url': '/im/audit/reports/', 'color': '#1E90FF'},
                     {'title': 'My Reports', 'description': 'Dashboard con gráficas', 'icon': '📊', 'url': '/report/my-reports/', 'color': '#6F42C1'},
                     {'title': 'Reporte Diario', 'description': 'Ganancia diaria', 'icon': '💰', 'url': '/report/daily/', 'color': '#0047AB'},
+                    {'title': 'Alarmas', 'description': 'Monitorear márgenes y alertas', 'icon': '🔔', 'url': '/im/alarms/', 'color': '#FF8C00'},
                 ]
             },
             {
@@ -72,6 +73,7 @@ ROLE_FEATURES = {
                     {'title': 'My Reports', 'description': 'Dashboard con gráficas', 'icon': '📊', 'url': '/report/my-reports/', 'color': '#6F42C1'},
                     {'title': 'Reporte Diario', 'description': 'Ganancia del día', 'icon': '💰', 'url': '/report/daily/', 'color': '#0047AB'},
                     {'title': 'Reportes de Ventas', 'description': 'Análisis de ventas', 'icon': '📈', 'url': '/report/sale', 'color': '#4169E1'},
+                    {'title': 'Alarmas', 'description': 'Monitorear márgenes y alertas', 'icon': '🔔', 'url': '/im/alarms/', 'color': '#FF8C00'},
                 ]
             },
             {
@@ -189,6 +191,7 @@ MENU_STRUCTURE = {
         {'category': 'My Reports', 'icon': 'fas fa-chart-pie', 'url': '/report/my-reports/', 'color': 'text-success'},
         {'category': 'Reporte Diario', 'icon': 'fas fa-chart-line', 'url': '/report/daily/', 'color': 'text-success'},
         {'category': 'Reportes de Ventas', 'icon': 'fas fa-chart-bar', 'url': '/report/sale', 'color': 'text-success'},
+        {'category': 'Alarmas', 'icon': 'fas fa-bell', 'url': '/im/alarms/', 'color': 'text-warning'},
         {'divider': True},
         {'category': 'Parámetros de Pronóstico', 'icon': 'fas fa-sliders-h', 'url': '/admin/im/forecastconfiguration/', 'color': 'text-info'},
     ],
@@ -197,6 +200,7 @@ MENU_STRUCTURE = {
         {'category': 'My Reports', 'icon': 'fas fa-chart-pie', 'url': '/report/my-reports/', 'color': 'text-success'},
         {'category': 'Reporte Diario', 'icon': 'fas fa-chart-line', 'url': '/report/daily/', 'color': 'text-success'},
         {'category': 'Reportes de Ventas', 'icon': 'fas fa-chart-bar', 'url': '/report/sale', 'color': 'text-success'},
+        {'category': 'Alarmas', 'icon': 'fas fa-bell', 'url': '/im/alarms/', 'color': 'text-warning'},
         {'divider': True},
         {'category': 'Auditoría', 'icon': 'fas fa-magnifying-glass-chart', 'url': '/im/audit/', 'color': 'text-info'},
         {'divider': True},

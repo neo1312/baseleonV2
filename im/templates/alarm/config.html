@@ -1,0 +1,73 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-2 px-sm-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0"><i class="fas fa-cog text-secondary"></i> {{ title }}</h1>
+        <a href="{% url 'im:alarm_list' %}" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Alarms
+        </a>
+    </div>
+
+    <div class="row">
+        {% for config in configs %}
+        <div class="col-12 col-md-6 col-lg-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header d-flex justify-content-between align-items-center 
+                    {% if config.enabled %}bg-success text-white{% else %}bg-secondary text-white{% endif %}">
+                    <h5 class="mb-0"><i class="fas fa-bell"></i> {{ config.name }}</h5>
+                    <span class="badge {% if config.enabled %}bg-light text-success{% else %}bg-light text-secondary{% endif %}">
+                        {{ config.enabled|yesno:"Enabled,Disabled" }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Type</label>
+                        <p class="mb-0"><code>{{ config.alarm_type }}</code></p>
+                    </div>
+
+                    <form method="post" class="mb-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_threshold">
+                        <input type="hidden" name="config_id" value="{{ config.id }}">
+                        <label class="form-label text-muted small">Threshold (%)</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" name="threshold" class="form-control" 
+                                   value="{{ config.threshold }}" step="0.01" min="0">
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="fas fa-save"></i>
+                            </button>
+                        </div>
+                    </form>
+
+                    <form method="post" class="d-grid">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="toggle">
+                        <input type="hidden" name="config_id" value="{{ config.id }}">
+                        <button type="submit" class="btn btn-sm {% if config.enabled %}btn-warning{% else %}btn-success{% endif %}">
+                            {% if config.enabled %}
+                            <i class="fas fa-pause"></i> Disable
+                            {% else %}
+                            <i class="fas fa-play"></i> Enable
+                            {% endif %}
+                        </button>
+                    </form>
+                </div>
+                <div class="card-footer text-muted small">
+                    Active alarms: {{ config.alarms.active.count }}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle"></i> No alarm configurations yet.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

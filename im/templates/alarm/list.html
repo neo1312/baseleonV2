@@ -1,0 +1,131 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-2 px-sm-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0"><i class="fas fa-bell text-warning"></i> {{ title }}</h1>
+        <div>
+            {% if active_alarms %}
+            <form method="post" action="{% url 'im:alarm_skip_all' %}" class="d-inline" onsubmit="return confirm('Skip all active alarms?')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm">
+                    <i class="fas fa-check-double"></i> Skip All
+                </button>
+            </form>
+            {% endif %}
+            <a href="{% url 'im:alarm_config' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-cog"></i> Config
+            </a>
+        </div>
+    </div>
+
+    {% if not configs %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i> No alarm configurations found.
+        <a href="{% url 'im:alarm_config' %}" class="alert-link">Create one</a> to start monitoring.
+    </div>
+    {% endif %}
+
+    <!-- Active Alarms -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-exclamation-circle"></i> Active Alarms</h5>
+            <span class="badge bg-light text-dark">{{ active_alarms|length }} active</span>
+        </div>
+        <div class="card-body p-0">
+            {% if active_alarms %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product</th>
+                            <th>Barcode</th>
+                            <th>Type</th>
+                            <th class="text-center">Current Margin</th>
+                            <th class="text-center">Min Required</th>
+                            <th class="text-center">Since</th>
+                            <th style="width: 120px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alarm in active_alarms %}
+                        <tr>
+                            <td>
+                                <strong>{{ alarm.product.name }}</strong>
+                                {% if alarm.product.clave %}
+                                <br><small class="text-muted">Clave: {{ alarm.product.clave }}</small>
+                                {% endif %}
+                            </td>
+                            <td><code>{{ alarm.product.barcode }}</code></td>
+                            <td><span class="badge bg-info">{{ alarm.config.name }}</span></td>
+                            <td class="text-center">
+                                <span class="badge bg-danger">{{ alarm.current_value }}%</span>
+                            </td>
+                            <td class="text-center">{{ alarm.threshold }}%</td>
+                            <td class="text-center"><small>{{ alarm.created_at|timesince }}</small></td>
+                            <td class="text-center">
+                                <form method="post" action="{% url 'im:alarm_skip' alarm.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Skip — keep this margin intentionally">
+                                        <i class="fas fa-eye-slash"></i> Skip
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <p class="mb-0">No active alarms. All margins are above threshold.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Skipped Alarms -->
+    {% if dismissed_alarms %}
+    <div class="card shadow-sm">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0"><i class="fas fa-history"></i> Skipped Alarms</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product</th>
+                            <th>Type</th>
+                            <th class="text-center">Margin</th>
+                            <th class="text-center">Skipped</th>
+                            <th class="text-center">By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alarm in dismissed_alarms %}
+                        <tr>
+                            <td>
+                                <strong>{{ alarm.product.name }}</strong>
+                                {% if alarm.product.clave %}
+                                <br><small class="text-muted">Clave: {{ alarm.product.clave }}</small>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-info">{{ alarm.config.name }}</span></td>
+                            <td class="text-center"><span class="badge bg-warning">{{ alarm.current_value }}%</span></td>
+                            <td class="text-center"><small>{{ alarm.resolved_at|timesince }}</small></td>
+                            <td class="text-center"><small>{{ alarm.resolved_by }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

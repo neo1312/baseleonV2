@@ -1195,3 +1195,48 @@ class DespieceLog(models.Model):
         verbose_name_plural = 'Registros de Despiece'
         ordering = ['-date_created']
 
+
+class AlarmConfig(models.Model):
+    ALARM_TYPES = [
+        ('low_margin', 'Low Margin'),
+    ]
+    alarm_type = models.CharField(max_length=20, choices=ALARM_TYPES, unique=True, verbose_name='Tipo')
+    name = models.CharField(max_length=100, verbose_name='Nombre')
+    threshold = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Umbral (%)', help_text='Porcentaje mínimo antes de disparar alarma')
+    enabled = models.BooleanField(default=True, verbose_name='Activo')
+    last_checked = models.DateTimeField(null=True, blank=True, verbose_name='Última Comprobación')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Actualizado')
+
+    def __str__(self):
+        return f'{self.name} ({self.threshold}%)'
+
+    class Meta:
+        verbose_name = 'Configuración de Alarma'
+        verbose_name_plural = 'Configuraciones de Alarma'
+
+
+class Alarm(models.Model):
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('skipped', 'Skipped'),
+        ('resolved', 'Resolved'),
+    ]
+    config = models.ForeignKey(AlarmConfig, on_delete=models.CASCADE, related_name='alarms', verbose_name='Configuración')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='alarms', verbose_name='Producto')
+    current_value = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Valor Actual')
+    threshold = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Umbral')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active', verbose_name='Estado')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Creado')
+    resolved_at = models.DateTimeField(null=True, blank=True, verbose_name='Resuelto')
+    resolved_by = models.CharField(max_length=150, null=True, blank=True, verbose_name='Resuelto por')
+    notes = models.TextField(null=True, blank=True, verbose_name='Notas')
+
+    def __str__(self):
+        return f'{self.product.name} - {self.config.name}: {self.current_value}%'
+
+    class Meta:
+        verbose_name = 'Alarma'
+        verbose_name_plural = 'Alarmas'
+        ordering = ['-created_at']
+

@@ -1,5 +1,6 @@
 from django.contrib import admin
-from im.models import Product, Category, Cost, Margin, Brand, InventoryUnit, ABCConfiguration, ProductABCMetrics, ForecastConfiguration, DemandForecast, ProductProvider, ProductGroup, InventoryAudit, AuditItem, AdjustmentTransaction, DespieceConfig, DespieceLog
+from django.utils import timezone
+from im.models import Product, Category, Cost, Margin, Brand, InventoryUnit, ABCConfiguration, ProductABCMetrics, ForecastConfiguration, DemandForecast, ProductProvider, ProductGroup, InventoryAudit, AuditItem, AdjustmentTransaction, DespieceConfig, DespieceLog, AlarmConfig, Alarm
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 
@@ -104,13 +105,10 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
 
     fieldsets = (
         ('Basic Info', {
-            'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')
+            'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')
         }),
         ('Inventory Settings', {
             'fields': ('stockMax', 'stockMin', 'display_stock')
-        }),
-        ('Cost', {
-            'fields': ('costo',)
         }),
         ('Pricing - Regular', {
             'fields': ('pricing_mode', 'margen', 'precio_manual'),
@@ -127,15 +125,34 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     )
     readonly_fields = ('id', 'date_created', 'last_updated', 'display_stock')
 
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if obj is None:
+            form.base_fields['brand'].required = False
+            form.base_fields['barcode'].required = False
+        return form
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            if not obj.brand_id:
+                brand, _ = Brand.objects.get_or_create(name='Generico')
+                obj.brand = brand
+            if not obj.barcode:
+                obj.barcode = 'temp-' + str(timezone.now().timestamp())
+        super().save_model(request, obj, form, change)
+        if not change and obj.barcode and obj.barcode.startswith('temp-'):
+            obj.barcode = str(obj.id)
+            obj.save(update_fields=['barcode'])
+
     def get_fieldsets(self, request, obj=None):
         """Hide ID field when creating new product, show when editing"""
         fieldsets = super().get_fieldsets(request, obj)
         if obj is None:  # Creating new product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')})
         else:  # Editing existing product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'brand', 'barcode', 'sat', 'active', 'Granel_Item', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')})
         return fieldsets
 
     def display_stock(self, obj):
@@ -600,4 +617,8 @@ class DespieceConfigAdmin(admin.ModelAdmin):
     search_fields = ('source_product__name', 'destination_product__name')
     autocomplete_fields = ('source_product', 'destination_product')
     readonly_fields = ('date_created', 'last_updated')
+
+
+admin.site.register(AlarmConfig)
+admin.site.register(Alarm)
 

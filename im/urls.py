@@ -11,6 +11,7 @@ from im.views.audit_views import (
 )
 from im.views.import_products import import_products_csv_view
 from im.views.despiece_views import despiece_list, despiece_process
+from im.views.alarm_views import alarm_list, alarm_skip, alarm_skip_all, alarm_config
 
 
 app_name='im'
@@ -41,4 +42,10 @@ urlpatterns=[
         # Despiece URLs
         path('product/despiece/', despiece_list, name='despiece_list'),
         path('product/despiece/<int:pk>/process/', despiece_process, name='despiece_process'),
+
+        # Alarm URLs
+        path('alarms/', alarm_list, name='alarm_list'),
+        path('alarms/skip/<int:alarm_id>/', alarm_skip, name='alarm_skip'),
+        path('alarms/skip-all/', alarm_skip_all, name='alarm_skip_all'),
+        path('alarms/config/', alarm_config, name='alarm_config'),
         ]
