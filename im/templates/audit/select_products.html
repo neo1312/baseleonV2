@@ -7,15 +7,37 @@
 <div class="container-fluid mt-4 px-2 px-sm-4">
     <h1 class="h3 mb-4">{{ title }}</h1>
 
-    <div class="alert alert-info">
-        <strong>Auditoría #{{ audit.id }}</strong> | 
-        <span class="d-none d-sm-inline">{{ items.count }} productos seleccionados |</span>
-        <span class="d-sm-none">{{ items.count }} productos |</span>
-        Iniciada {{ audit.started_at|date:"d/m/y H:i"|default:"ahora" }}
+    <div class="alert alert-info d-flex flex-wrap align-items-center gap-2">
+        <strong>Auditoría #{{ audit.id }}</strong>
+        <span class="badge bg-info">{{ audit.get_audit_type_display }}</span>
+        <span class="ms-auto" id="total_count_badge">0 producto(s) seleccionado(s)</span>
     </div>
 
-    <form method="post">
+    <!-- Inline Search -->
+    <div class="card mb-3 border-primary">
+        <div class="card-header bg-primary text-white py-2">
+            <i class="fas fa-search"></i> Agregar productos a la auditoría
+        </div>
+        <div class="card-body">
+            <div class="mb-2">
+                <label class="form-label text-muted small mb-1">
+                    Buscar por <strong>clave</strong>, <strong>código de barras</strong> o <strong>descripción</strong>
+                </label>
+                <select id="product_search" class="form-control" style="width: 100%;"></select>
+            </div>
+
+            <!-- Inline Selected Products -->
+            <div id="inline_selected_container" class="mt-2" style="display: none;">
+                <hr class="my-2">
+                <label class="form-label text-muted small mb-1">Productos agregados:</label>
+                <div id="inline_selected_list" class="d-flex flex-wrap gap-1"></div>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" id="audit_form">
         {% csrf_token %}
+        <input type="hidden" name="product_ids" id="product_ids_input" value="">
 
         <!-- Desktop Table View -->
         <div class="d-none d-md-block table-responsive">
@@ -26,7 +48,8 @@
                             <input type="checkbox" id="select_all" class="form-check-input">
                         </th>
                         <th>Producto</th>
-                        <th>Código/SKU</th>
+                        <th>Clave</th>
+                        <th>Código/Barras</th>
                         <th>Categoría</th>
                         <th>Unidad</th>
                     </tr>
@@ -39,8 +62,12 @@
                         </td>
                         <td>
                             <strong>{{ product.name }}</strong>
-                            {% if product.descripcion %}
-                                <br><small class="text-muted">{{ product.descripcion|truncatewords:10 }}</small>
+                        </td>
+                        <td>
+                            {% if product.clave %}
+                                <code>{{ product.clave }}</code>
+                            {% else %}
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                         <td>
@@ -57,11 +84,11 @@
                                 <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td>{{ product.unit }}</td>
+                        <td>{{ product.unidad }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">
+                        <td colspan="6" class="text-center text-muted py-4">
                             No hay productos disponibles para la auditoría.
                         </td>
                     </tr>
@@ -79,13 +106,11 @@
                         <input type="checkbox" name="product_ids" value="{{ product.id }}" class="form-check-input product-checkbox mt-1" style="margin-top: 0.35rem;">
                         <div class="flex-grow-1 min-w-0">
                             <strong class="d-block text-break">{{ product.name }}</strong>
-                            {% if product.descripcion %}
-                                <small class="text-muted d-block text-break">{{ product.descripcion|truncatewords:8 }}</small>
-                            {% endif %}
                             <div class="small text-muted mt-1">
+                                {% if product.clave %}<span class="badge bg-light text-dark">Clave: {{ product.clave }}</span>{% endif %}
                                 {% if product.barcode %}<span class="badge bg-light text-dark">{{ product.barcode }}</span>{% endif %}
                                 {% if product.category %}<span class="badge bg-secondary">{{ product.category.name }}</span>{% endif %}
-                                <span class="badge bg-light text-dark">{{ product.unit }}</span>
+                                <span class="badge bg-light text-dark">{{ product.unidad }}</span>
                             </div>
                         </div>
                     </div>
@@ -98,10 +123,42 @@
             {% endfor %}
         </div>
 
-        {% if products %}
-        <div class="mt-3 mb-3">
+        {% if page_obj %}
+        <nav class="mt-3" aria-label="Product pagination">
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.sample_size %}&sample_size={{ request.GET.sample_size }}{% endif %}{% if request.GET.category_id %}&category_id={{ request.GET.category_id }}{% endif %}">&laquo;</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.sample_size %}&sample_size={{ request.GET.sample_size }}{% endif %}{% if request.GET.category_id %}&category_id={{ request.GET.category_id }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.sample_size %}&sample_size={{ request.GET.sample_size }}{% endif %}{% if request.GET.category_id %}&category_id={{ request.GET.category_id }}{% endif %}">&raquo;</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        <div class="mt-2 mb-3">
             <small class="text-muted">
-                <span id="selection_count">0</span> producto(s) seleccionado(s)
+                <span id="selection_count">0</span> producto(s) seleccionado(s) de lista |
+                <span id="inline_count">0</span> agregado(s) por búsqueda
             </small>
         </div>
 
@@ -113,37 +170,189 @@
                 <i class="fas fa-arrow-right"></i> <span class="d-none d-sm-inline">Continuar a</span> Conteo
             </button>
         </div>
-        {% endif %}
     </form>
 </div>
+{% endblock %}
+
+{% block javascrip %}
+{{ block.super }}
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2/css/select2.min.css' %}" rel="stylesheet" />
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css' %}" rel="stylesheet" />
+<script src="{% static 'lib/AdminLTE-3.1.0/plugins/select2/js/select2.min.js' %}"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // --- State ---
+    let inlineProducts = [];  // {id, name, clave, barcode}
+
+    // --- DOM refs ---
+    const $search = $('#product_search');
+    const inlineContainer = document.getElementById('inline_selected_container');
+    const inlineList = document.getElementById('inline_selected_list');
+    const productIdsInput = document.getElementById('product_ids_input');
     const selectAll = document.getElementById('select_all');
     const productCheckboxes = document.querySelectorAll('.product-checkbox');
     const selectionCount = document.getElementById('selection_count');
+    const inlineCount = document.getElementById('inline_count');
+    const totalBadge = document.getElementById('total_count_badge');
     const submitBtn = document.getElementById('submit_btn');
 
-    function updateCount() {
-        const checked = document.querySelectorAll('.product-checkbox:checked').length;
-        selectionCount.textContent = checked;
-        submitBtn.disabled = checked === 0;
+    // --- Init Select2 ---
+    $search.select2({
+        theme: 'bootstrap4',
+        placeholder: 'Escriba clave, código de barras o descripción...',
+        allowClear: true,
+        minimumInputLength: 1,
+        ajax: {
+            url: '{% url "im:audit_product_search" %}',
+            dataType: 'json',
+            delay: 300,
+            data: function(params) {
+                return {
+                    q: params.term,
+                    audit_id: {{ audit.id }}
+                };
+            },
+            processResults: function(data) {
+                return { results: data.results };
+            },
+            cache: true
+        },
+        templateResult: function(product) {
+            if (product.loading) return product.text;
+            const clave = product.clave ? ` <code>${product.clave}</code>` : '';
+            const barcode = product.barcode ? ` <span class="text-muted">${product.barcode}</span>` : '';
+            return $(`<span>${product.text}${clave}${barcode}</span>`);
+        },
+        templateSelection: function(product) {
+            return product.text || product.id;
+        }
+    });
+
+    // --- When a product is selected from search ---
+    $search.on('select2:select', function(e) {
+        const data = e.params.data;
+        if (!data || !data.id) return;
+
+        // Don't add duplicates
+        if (inlineProducts.some(p => p.id === data.id)) {
+            $search.val(null).trigger('change');
+            return;
+        }
+
+        // Also uncheck from table if present
+        const cb = document.querySelector(`.product-checkbox[value="${data.id}"]`);
+        if (cb) cb.checked = false;
+
+        inlineProducts.push({
+            id: data.id,
+            name: data.name || data.text,
+            clave: data.clave || '',
+            barcode: data.barcode || ''
+        });
+
+        renderInlineProducts();
+        updateCounts();
+        $search.val(null).trigger('change');
+    });
+
+    // --- Render inline selected products as tags ---
+    function renderInlineProducts() {
+        inlineList.innerHTML = '';
+        if (inlineProducts.length === 0) {
+            inlineContainer.style.display = 'none';
+            return;
+        }
+        inlineContainer.style.display = 'block';
+
+        inlineProducts.forEach(function(p) {
+            const tag = document.createElement('span');
+            tag.className = 'badge d-inline-flex align-items-center gap-1 py-2 px-3 mb-1';
+            tag.style.cssText = 'background: #e8f0fe; color: #1967d2; font-size: 0.85rem; border: 1px solid #c6dafc;';
+
+            const label = document.createElement('span');
+            label.textContent = p.name;
+            if (p.clave) label.textContent += ` (${p.clave})`;
+            else if (p.barcode) label.textContent += ` (${p.barcode})`;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn-close btn-close-sm ms-2';
+            removeBtn.style.cssText = 'font-size: 0.65rem; padding: 0; line-height: 1;';
+            removeBtn.setAttribute('aria-label', 'Remove');
+            removeBtn.addEventListener('click', function() {
+                inlineProducts = inlineProducts.filter(x => x.id !== p.id);
+                renderInlineProducts();
+                updateCounts();
+            });
+
+            tag.appendChild(label);
+            tag.appendChild(removeBtn);
+            inlineList.appendChild(tag);
+        });
     }
 
-    selectAll.addEventListener('change', function() {
-        productCheckboxes.forEach(cb => cb.checked = this.checked);
-        updateCount();
+    // --- Update all counters ---
+    function updateCounts() {
+        const checked = document.querySelectorAll('.product-checkbox:checked').length;
+        selectionCount.textContent = checked;
+        inlineCount.textContent = inlineProducts.length;
+        totalBadge.textContent = (checked + inlineProducts.length) + ' producto(s) seleccionado(s)';
+        submitBtn.disabled = (checked + inlineProducts.length) === 0;
+
+        // Update hidden input with all IDs
+        const allIds = [];
+        document.querySelectorAll('.product-checkbox:checked').forEach(function(cb) {
+            allIds.push(cb.value);
+        });
+        inlineProducts.forEach(function(p) {
+            allIds.push(p.id);
+        });
+        productIdsInput.value = allIds.join(',');
+    }
+
+    // --- Existing checkbox handlers ---
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            productCheckboxes.forEach(function(cb) {
+                // Don't check if product is already in inline list
+                cb.checked = this.checked && !inlineProducts.some(p => p.id == cb.value);
+            }, this);
+            updateCounts();
+        });
+    }
+
+    productCheckboxes.forEach(function(cb) {
+        cb.addEventListener('change', updateCounts);
     });
 
-    productCheckboxes.forEach(cb => {
-        cb.addEventListener('change', updateCount);
+    // --- Form submission: add hidden inputs for inline products ---
+    document.getElementById('audit_form').addEventListener('submit', function(e) {
+        document.querySelectorAll('.inline-hidden-input').forEach(function(el) {
+            el.remove();
+        });
+        inlineProducts.forEach(function(p) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'product_ids';
+            input.value = p.id;
+            input.className = 'inline-hidden-input';
+            e.target.appendChild(input);
+        });
     });
 
-    updateCount();
+    // Initial count
+    updateCounts();
 });
 </script>
 
 <style>
+    .select2-container--bootstrap4 .select2-selection--single {
+        height: calc(2.25rem + 2px) !important;
+    }
+    .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+        line-height: calc(2.25rem + 2px) !important;
+    }
     @media (max-width: 576px) {
         .container-fluid { padding-left: 8px; padding-right: 8px; }
         .card-body { padding: 0.75rem; }

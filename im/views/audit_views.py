@@ -8,13 +8,58 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
+from django.core.paginator import Paginator
 from decimal import Decimal
 import random
 
 from im.models import InventoryAudit, AuditItem, AdjustmentTransaction, Product, InventoryUnit
-from django.db.models import Count, Q, Sum, Avg, F
+from django.db.models import Count, Q, Sum, Avg, F, Value
 from django.db.models import DecimalField
 from crm.decorators import role_required
+
+
+@require_http_methods(["GET"])
+@role_required('Admin', 'Manager', 'Auditor')
+def audit_product_search(request):
+    """AJAX endpoint to search products by clave, barcode, or name"""
+    q = request.GET.get('q', '').strip()
+    audit_id = request.GET.get('audit_id')
+
+    if len(q) < 1:
+        return JsonResponse({'results': []})
+
+    products = Product.objects.filter(active=True).filter(
+        Q(clave__icontains=q) |
+        Q(barcode__icontains=q) |
+        Q(name__icontains=q)
+    )[:20]
+
+    # Exclude already selected products if audit_id provided
+    if audit_id:
+        audit = get_object_or_404(InventoryAudit, id=audit_id)
+        already_selected = audit.items.values_list('product_id', flat=True)
+        products = products.exclude(id__in=already_selected)
+
+    results = []
+    for p in products:
+        label = p.name
+        bits = []
+        if p.clave:
+            bits.append(f'Clave: {p.clave}')
+        if p.barcode:
+            bits.append(f'Código: {p.barcode}')
+        if bits:
+            label += f' ({"; ".join(bits)})'
+
+        results.append({
+            'id': p.id,
+            'text': label,
+            'name': p.name,
+            'clave': p.clave or '',
+            'barcode': p.barcode or '',
+        })
+
+    return JsonResponse({'results': results})
 
 
 @require_http_methods(["GET", "POST"])
@@ -111,10 +156,21 @@ def audit_select_products(request, audit_id):
     else:
         selected_products = []
     
+    # Paginate for large lists (random types are already sampled small)
+    if audit.audit_type in ('random', 'random_custom'):
+        page_obj = None
+        products_page = selected_products
+    else:
+        paginator = Paginator(selected_products, 50)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        products_page = page_obj.object_list
+
     context = {
         'title': 'Select Products for Audit',
         'audit': audit,
-        'products': selected_products,
+        'products': products_page,
+        'page_obj': page_obj,
         'audit_type': audit.get_audit_type_display(),
     }
     return render(request, 'audit/select_products.html', context)

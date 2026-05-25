@@ -7,9 +7,14 @@
             <div class="card">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h4>Placed Purchase Orders</h4>
-                    <a href="{% url 'scm:po_instant_create' %}" class="btn btn-success btn-sm">
-                        <i class="fas fa-plus"></i> New Order
-                    </a>
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'scm:po_create' %}" class="btn btn-success btn-sm">
+                            <i class="fas fa-plus"></i> New Manual Order
+                        </a>
+                        <a href="{% url 'scm:po_instant_create' %}" class="btn btn-info btn-sm">
+                            <i class="fas fa-bolt"></i> New Instant Order
+                        </a>
+                    </div>
                 </div>
                 <div class="card-body">
                     <!-- Date & Status Filter -->
@@ -111,7 +116,7 @@
                     {% else %}
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i> No active purchase orders.
-                        <a href="{% url 'scm:po_create' %}" class="alert-link">Create one now</a>
+                        <a href="{% url 'scm:po_instant_create' %}" class="alert-link">Create one now</a>
                     </div>
                     {% endif %}
                 </div>
