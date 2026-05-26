@@ -59,22 +59,25 @@ def pos_index(request):
 
 @csrf_exempt
 def search_products(request):
-    """Search products by name, SKU, or barcode"""
+    """Search products by name (word match regardless of order), SKU, or barcode"""
     if request.method == 'GET':
         query = request.GET.get('q', '').strip()
         
-        # Get all active products
         if not query:
             products = Product.objects.filter(active=True)[:50]
         else:
-            # Search by name, SKU, or barcode
-            products = Product.objects.filter(
-                active=True
-            ).filter(
-                models.Q(barcode__icontains=query) |
-                models.Q(name__icontains=query) |
-                models.Q(clave__icontains=query)
-            )[:50]
+            # Split query into words, match any word in barcode/clave,
+            # and require ALL words to appear in name (order-independent)
+            words = query.split()
+            
+            filters = models.Q()
+            for word in words:
+                filters &= models.Q(name__icontains=word)
+            
+            filters |= models.Q(barcode__icontains=query)
+            filters |= models.Q(clave__icontains=query)
+            
+            products = Product.objects.filter(active=True).filter(filters)[:50]
         
         # Filter to only products with available stock and sort by availability
         products_list = [
