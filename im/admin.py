@@ -110,6 +110,9 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         ('Inventory Settings', {
             'fields': ('stockMax', 'stockMin', 'display_stock')
         }),
+        ('Cost', {
+            'fields': ('costo',)
+        }),
         ('Pricing - Regular', {
             'fields': ('pricing_mode', 'margen', 'precio_manual'),
             'description': 'Select "Usar Margen" to set margin and calculate price, or "Usar Precio Manual" to set price and calculate margin'
