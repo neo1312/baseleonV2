@@ -54,7 +54,9 @@ def generate_po_pdf(po):
     content = []
     
     # Title
-    content.append(Paragraph(f"PURCHASE ORDER", title_style))
+    content.append(Paragraph("Ferreteria Leon Tulancingo", title_style))
+    content.append(Spacer(1, 0.1*inch))
+    content.append(Paragraph("PURCHASE ORDER", heading_style))
     content.append(Spacer(1, 0.2*inch))
     
     # Header information
