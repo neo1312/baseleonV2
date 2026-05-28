@@ -54,12 +54,19 @@
                         {% for alarm in active_alarms %}
                         <tr>
                             <td>
+                                {% if alarm.product %}
                                 <strong>{{ alarm.product.name }}</strong>
                                 {% if alarm.product.clave %}
                                 <br><small class="text-muted">Clave: {{ alarm.product.clave }}</small>
                                 {% endif %}
+                                {% else %}
+                                <strong class="text-muted">— System —</strong>
+                                {% if alarm.notes %}
+                                <br><small class="text-muted">{{ alarm.notes }}</small>
+                                {% endif %}
+                                {% endif %}
                             </td>
-                            <td><code>{{ alarm.product.barcode }}</code></td>
+                            <td>{% if alarm.product %}<code>{{ alarm.product.barcode }}</code>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                             <td><span class="badge bg-info">{{ alarm.config.name }}</span></td>
                             <td class="text-center">
                                 <span class="badge bg-danger">{{ alarm.current_value }}%</span>
@@ -67,6 +74,11 @@
                             <td class="text-center">{{ alarm.threshold }}%</td>
                             <td class="text-center"><small>{{ alarm.created_at|timesince }}</small></td>
                             <td class="text-center">
+                                {% if alarm.config.alarm_type == 'low_margin' and alarm.product %}
+                                <button type="button" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#adjustModal-{{ alarm.id }}" title="Adjust margin or price">
+                                    <i class="fas fa-sliders-h"></i> Adjust
+                                </button>
+                                {% endif %}
                                 <form method="post" action="{% url 'im:alarm_skip' alarm.id %}" class="d-inline">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-sm btn-outline-secondary" title="Skip — keep this margin intentionally">
@@ -75,6 +87,67 @@
                                 </form>
                             </td>
                         </tr>
+
+                        <!-- Adjust Modal -->
+                        {% if alarm.config.alarm_type == 'low_margin' and alarm.product %}
+                        <div class="modal fade" id="adjustModal-{{ alarm.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-primary text-white">
+                                        <h5 class="modal-title">Adjust: {{ alarm.product.name }}</h5>
+                                        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p class="text-muted small">
+                                            Current margin: <strong>{{ alarm.current_value }}%</strong> |
+                                            Min required: <strong>{{ alarm.threshold }}%</strong>
+                                        </p>
+                                        <ul class="nav nav-tabs mb-3" id="adjustTabs-{{ alarm.id }}">
+                                            <li class="nav-item">
+                                                <a class="nav-link active" data-toggle="tab" href="#marginTab-{{ alarm.id }}">Set Margin</a>
+                                            </li>
+                                            <li class="nav-item">
+                                                <a class="nav-link" data-toggle="tab" href="#priceTab-{{ alarm.id }}">Set Price</a>
+                                            </li>
+                                        </ul>
+                                        <div class="tab-content">
+                                            <!-- Set Margin -->
+                                            <div class="tab-pane fade show active" id="marginTab-{{ alarm.id }}">
+                                                <form method="post" action="{% url 'im:alarm_adjust' alarm.id %}">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="action" value="set_margin">
+                                                    <div class="form-group">
+                                                        <label>New margin (%)</label>
+                                                        <input type="number" name="new_margin" class="form-control" step="0.01" min="0" value="{{ alarm.threshold|add:'5' }}" required>
+                                                        <small class="text-muted">Enter percentage (e.g. 30 for 30%)</small>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-success btn-block">
+                                                        <i class="fas fa-check"></i> Apply Margin
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            <!-- Set Price -->
+                                            <div class="tab-pane fade" id="priceTab-{{ alarm.id }}">
+                                                <form method="post" action="{% url 'im:alarm_adjust' alarm.id %}">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="action" value="set_price">
+                                                    <div class="form-group">
+                                                        <label>New manual price ($)</label>
+                                                        <input type="number" name="new_price" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+                                                        <small class="text-muted">Set a fixed price instead of margin</small>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-success btn-block">
+                                                        <i class="fas fa-check"></i> Apply Price
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         {% endfor %}
                     </tbody>
                 </table>
@@ -110,9 +183,16 @@
                         {% for alarm in dismissed_alarms %}
                         <tr>
                             <td>
+                                {% if alarm.product %}
                                 <strong>{{ alarm.product.name }}</strong>
                                 {% if alarm.product.clave %}
                                 <br><small class="text-muted">Clave: {{ alarm.product.clave }}</small>
+                                {% endif %}
+                                {% else %}
+                                <strong class="text-muted">— System —</strong>
+                                {% if alarm.notes %}
+                                <br><small class="text-muted">{{ alarm.notes }}</small>
+                                {% endif %}
                                 {% endif %}
                             </td>
                             <td><span class="badge bg-info">{{ alarm.config.name }}</span></td>

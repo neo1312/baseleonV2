@@ -3,7 +3,10 @@ from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 
-from im.models import AlarmConfig, Alarm, Product
+from datetime import date, timedelta
+from decimal import Decimal, DecimalException
+
+from im.models import AlarmConfig, Alarm, Product, InventoryAudit
 from crm.decorators import role_required
 
 
@@ -51,6 +54,57 @@ def alarm_skip_all(request):
     return redirect('im:alarm_list')
 
 
+@require_http_methods(["POST"])
+@role_required('Admin', 'Manager')
+def alarm_adjust(request, alarm_id):
+    """Adjust margin or set manual price to resolve a low_margin alarm"""
+    alarm = get_object_or_404(Alarm, id=alarm_id, status='active')
+    if not alarm.product:
+        messages.error(request, 'Cannot adjust — no product linked to this alarm')
+        return redirect('im:alarm_list')
+
+    action = request.POST.get('action')
+    product = alarm.product
+
+    if action == 'set_margin':
+        try:
+            new_margin = float(request.POST.get('new_margin', 0))
+            if new_margin < 0:
+                raise ValueError
+            product.margen = str(new_margin / 100)
+            product.pricing_mode = 'margin'
+            product.precio_manual = None
+            product.save()
+            alarm.status = 'resolved'
+            alarm.resolved_at = timezone.now()
+            alarm.resolved_by = str(request.user)
+            alarm.save()
+            messages.success(request, f'{product.name} margin updated to {new_margin}%')
+        except (ValueError, TypeError):
+            messages.error(request, 'Invalid margin value')
+
+    elif action == 'set_price':
+        try:
+            new_price = Decimal(str(request.POST.get('new_price', 0)))
+            if new_price <= 0:
+                raise ValueError
+            product.precio_manual = new_price
+            product.pricing_mode = 'price'
+            product.save()
+            alarm.status = 'resolved'
+            alarm.resolved_at = timezone.now()
+            alarm.resolved_by = str(request.user)
+            alarm.save()
+            messages.success(request, f'{product.name} price set to ${new_price:.2f}')
+        except (ValueError, TypeError, DecimalException):
+            messages.error(request, 'Invalid price value')
+
+    else:
+        messages.error(request, 'Invalid action')
+
+    return redirect('im:alarm_list')
+
+
 @require_http_methods(["GET", "POST"])
 @role_required('Admin')
 def alarm_config(request):
@@ -89,6 +143,8 @@ def check_alarms():
     for config in configs:
         if config.alarm_type == 'low_margin':
             _check_low_margin(config)
+        elif config.alarm_type == 'missing_random_audit':
+            _check_missing_random_audit(config)
 
 
 def _check_low_margin(config):
@@ -118,6 +174,38 @@ def _check_low_margin(config):
         resolved_at=timezone.now(),
         resolved_by='system',
     )
+
+
+def _check_missing_random_audit(config):
+    """Check if a random audit was completed today. Create alarm if not."""
+    today = date.today()
+    audit_done = InventoryAudit.objects.filter(
+        audit_type__in=['random', 'random_custom'],
+        status='completed',
+        audit_date=today,
+    ).exists()
+
+    if audit_done:
+        # Resolve any active alarm for this config
+        Alarm.objects.filter(config=config, status='active').update(
+            status='resolved',
+            resolved_at=timezone.now(),
+            resolved_by='system',
+        )
+    else:
+        # Create or keep active alarm (no product for this type)
+        existing = Alarm.objects.filter(config=config, status='active').first()
+        if not existing:
+            skipped = Alarm.objects.filter(config=config, status='skipped').exists()
+            if not skipped:
+                Alarm.objects.create(
+                    config=config,
+                    product=None,
+                    current_value=0,
+                    threshold=config.threshold,
+                    status='active',
+                    notes='No random audit completed today',
+                )
 
 
 def _ensure_active_alarm(config, product, current_value):

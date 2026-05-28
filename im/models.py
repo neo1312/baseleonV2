@@ -1199,6 +1199,7 @@ class DespieceLog(models.Model):
 class AlarmConfig(models.Model):
     ALARM_TYPES = [
         ('low_margin', 'Low Margin'),
+        ('missing_random_audit', 'Missing Random Audit'),
     ]
     alarm_type = models.CharField(max_length=20, choices=ALARM_TYPES, unique=True, verbose_name='Tipo')
     name = models.CharField(max_length=100, verbose_name='Nombre')
@@ -1223,7 +1224,7 @@ class Alarm(models.Model):
         ('resolved', 'Resolved'),
     ]
     config = models.ForeignKey(AlarmConfig, on_delete=models.CASCADE, related_name='alarms', verbose_name='Configuración')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='alarms', verbose_name='Producto')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True, related_name='alarms', verbose_name='Producto')
     current_value = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Valor Actual')
     threshold = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Umbral')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active', verbose_name='Estado')
