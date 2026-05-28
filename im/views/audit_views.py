@@ -276,7 +276,7 @@ def audit_select_products(request, audit_id):
 def audit_enter_counts(request, audit_id):
     """Enter physical counts for audit items"""
     audit = get_object_or_404(InventoryAudit, id=audit_id, status='in_progress')
-    audit_items = audit.items.all()
+    audit_items = audit.items.order_by('-product__clave')
     
     if request.method == 'POST':
         # Process count submissions

@@ -60,7 +60,7 @@ def po_select_provider(request):
         # Get products that have a ProductProvider entry for this provider
         from im.models import ProductProvider
         product_ids = ProductProvider.objects.filter(provider=provider).values_list('product_id', flat=True)
-        products = Product.objects.filter(id__in=product_ids, active=True).order_by('barcode')
+        products = Product.objects.filter(id__in=product_ids, active=True)
         
         # Filter by stock needed (faltante1 != 0 and != 'no')
         items = []
@@ -92,7 +92,7 @@ def po_select_provider(request):
             'provider_id': provider.id,
             'provider_name': provider.name,
             'method': method,
-            'items': sorted(items, key=lambda x: _barcode_sort_key(x['barcode'])),
+            'items': sorted(items, key=lambda x: _barcode_sort_key(x.get('sku', ''))),
         })
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
@@ -106,7 +106,7 @@ def po_items_list(request, provider_id):
     # Get products that have a ProductProvider entry for this provider
     from im.models import ProductProvider
     product_ids = ProductProvider.objects.filter(provider=provider).values_list('product_id', flat=True)
-    products = Product.objects.filter(id__in=product_ids, active=True).order_by('barcode')
+    products = Product.objects.filter(id__in=product_ids, active=True)
     
     # Prepare items data
     items_data = []
@@ -160,7 +160,7 @@ def po_items_list(request, provider_id):
                     'group_max': p.group.stockMax if p.group else None,
                 })
     
-    items_data.sort(key=lambda x: _barcode_sort_key(x['product'].barcode))
+    items_data.sort(key=lambda x: _barcode_sort_key(x['pv1']))
 
     context = {
         'title': f'PO for {provider.name} ({method.upper()})',
