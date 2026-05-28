@@ -178,16 +178,67 @@ def audit_select_products(request, audit_id):
         messages.success(request, f'Audit started with {len(products)} products')
         return redirect('im:audit_enter_counts', audit_id=audit_id)
     
-    # Determine products to display based on audit type
-    if audit.audit_type == 'random':
-        sample_size = 20
+    # Auto-select products for random types and go straight to counting
+    if audit.audit_type in ('random', 'random_custom'):
+        if audit.audit_type == 'random':
+            sample_size = 20
+        else:
+            sample_size = int(request.GET.get('sample_size', 20))
+        
         all_products = list(Product.objects.filter(active=True))
-        selected_products = random.sample(all_products, min(sample_size, len(all_products)))
-    
-    elif audit.audit_type == 'random_custom':
-        sample_size = int(request.GET.get('sample_size', 20))
-        all_products = list(Product.objects.filter(active=True))
-        selected_products = random.sample(all_products, min(sample_size, len(all_products)))
+        
+        if len(all_products) <= sample_size:
+            selected_products = all_products
+        else:
+            audit_counts = (
+                AuditItem.objects
+                .filter(product__in=all_products)
+                .values('product_id')
+                .annotate(count=Count('id'))
+            )
+            count_map = {item['product_id']: item['count'] for item in audit_counts}
+            
+            pool = list(all_products)
+            weights = [1.0 / (1 + count_map.get(p.id, 0)) for p in pool]
+            
+            selected = []
+            for _ in range(sample_size):
+                total = sum(weights)
+                if total <= 0:
+                    idx = random.randrange(len(pool))
+                else:
+                    r = random.random() * total
+                    cumulative = 0.0
+                    idx = 0
+                    for i, w in enumerate(weights):
+                        cumulative += w
+                        if r <= cumulative:
+                            idx = i
+                            break
+                selected.append(pool.pop(idx))
+                weights.pop(idx)
+            
+            selected_products = selected
+        
+        # Create audit items and redirect to counting
+        for product in selected_products:
+            system_count = InventoryUnit.objects.filter(
+                product=product,
+                status='ready_to_sale'
+            ).count()
+            AuditItem.objects.create(
+                audit=audit,
+                product=product,
+                system_count=system_count,
+                physical_count=0,
+            )
+        
+        audit.status = 'in_progress'
+        audit.started_at = timezone.now()
+        audit.save()
+        
+        messages.success(request, f'Audit started with {len(selected_products)} products')
+        return redirect('im:audit_enter_counts', audit_id=audit_id)
     
     elif audit.audit_type == 'full':
         selected_products = Product.objects.filter(active=True).all()
@@ -205,15 +256,11 @@ def audit_select_products(request, audit_id):
     else:
         selected_products = []
     
-    # Paginate for large lists (random types are already sampled small)
-    if audit.audit_type in ('random', 'random_custom'):
-        page_obj = None
-        products_page = selected_products
-    else:
-        paginator = Paginator(selected_products, 50)
-        page_number = request.GET.get('page', 1)
-        page_obj = paginator.get_page(page_number)
-        products_page = page_obj.object_list
+    # Paginate for large lists
+    paginator = Paginator(selected_products, 50)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    products_page = page_obj.object_list
 
     context = {
         'title': 'Select Products for Audit',
