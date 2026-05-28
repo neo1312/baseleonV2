@@ -110,6 +110,16 @@ def alarm_adjust(request, alarm_id):
         except (ValueError, TypeError, DecimalException):
             messages.error(request, 'Invalid price value')
 
+    elif action == 'set_promotion':
+        product.on_promotion = True
+        product.save()
+        alarm.status = 'resolved'
+        alarm.resolved_at = timezone.now()
+        alarm.resolved_by = str(request.user)
+        alarm.notes = 'Marked as promotion'
+        alarm.save()
+        messages.success(request, f'{product.name} marked as on promotion — alarm suppressed')
+
     else:
         messages.error(request, 'Invalid action')
 
@@ -169,6 +179,8 @@ def _check_low_margin(config):
     violating_ids = set()
 
     for product in products:
+        if product.on_promotion:
+            continue
         try:
             margen_val = float(product.margen) * 100
             if margen_val < threshold:

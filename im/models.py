@@ -116,6 +116,9 @@ class Product(models.Model):
     precio_mayoreo_manual = models.DecimalField(max_digits=14, default=None, decimal_places=2, null=True, blank=True, verbose_name='Precio Mayoreo Manual')
     precio_granel_manual = models.DecimalField(max_digits=14, default=None, decimal_places=2, null=True, blank=True, verbose_name='Precio Granel Manual')
     
+    # Promotion flag — low margin alarm skips products on promotion
+    on_promotion = models.BooleanField(default=False, verbose_name='En Promoción/Oferta')
+    
     # Pricing mode selectors (margin vs manual price)
     pricing_mode = models.CharField(max_length=10, verbose_name='Modo Precio Regular', default='margin', choices=[('margin', 'Usar Margen'), ('price', 'Usar Precio Manual')])
     mayoreo_pricing_mode = models.CharField(max_length=10, verbose_name='Modo Precio Mayoreo', default='margin', choices=[('margin', 'Usar Margen'), ('price', 'Usar Precio Manual')])

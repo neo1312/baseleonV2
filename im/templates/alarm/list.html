@@ -103,6 +103,9 @@
                                             <li class="nav-item">
                                                 <a class="nav-link" data-toggle="tab" href="#priceTab-{{ alarm.id }}">Set Price</a>
                                             </li>
+                                            <li class="nav-item">
+                                                <a class="nav-link" data-toggle="tab" href="#promotionTab-{{ alarm.id }}">Promotion</a>
+                                            </li>
                                         </ul>
                                         <div class="tab-content">
                                             <!-- Set Margin -->
@@ -132,6 +135,18 @@
                                                     </div>
                                                     <button type="submit" class="btn btn-success btn-block">
                                                         <i class="fas fa-check"></i> Apply Price
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            <!-- Promotion -->
+                                            <div class="tab-pane fade" id="promotionTab-{{ alarm.id }}">
+                                                <form method="post" action="{% url 'im:alarm_adjust' alarm.id %}">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="action" value="set_promotion">
+                                                    <p>Mark this product as <strong>on promotion/discount</strong>. The low margin alarm will ignore it while this flag is active.</p>
+                                                    <p class="text-muted small">Remember to uncheck "On Promotion" on the product edit page when the promotion ends.</p>
+                                                    <button type="submit" class="btn btn-warning btn-block">
+                                                        <i class="fas fa-tag"></i> Mark as Promotion
                                                     </button>
                                                 </form>
                                             </div>
