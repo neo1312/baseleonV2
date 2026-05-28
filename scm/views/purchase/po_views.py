@@ -383,7 +383,8 @@ def po_receive(request, po_id):
         # Process received quantities and costs
         try:
             # Always update quantities and costs first
-            for po_item in po.items.all():
+            po_items_all = sorted(po.items.all(), key=lambda x: _barcode_sort_key(x.product.get_pv1(po.provider)))
+            for po_item in po_items_all:
                 qty_key = f'received_qty_{po_item.id}'
                 cost_key = f'received_cost_{po_item.id}'
                 
@@ -419,7 +420,7 @@ def po_receive(request, po_id):
             messages.error(request, f'Error: {str(e)}')
     
     po_items = list(po.items.select_related('product').all())
-    po_items.sort(key=lambda x: _barcode_sort_key(x.product.barcode))
+    po_items.sort(key=lambda x: _barcode_sort_key(x.product.get_pv1(po.provider)))
 
     context = {
         'title': f'Receive {po.po_number}',

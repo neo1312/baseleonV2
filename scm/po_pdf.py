@@ -89,6 +89,12 @@ def generate_po_pdf(po):
         ['SKU', 'Product Description', 'Qty to Order']
     ]
     
+    def _sort_key(pv1):
+        try:
+            return (0, int(str(pv1)))
+        except (ValueError, TypeError):
+            return (1, str(pv1 or ''))
+
     for po_item in po.items.all():
         pv1 = po_item.product.get_pv1(po.provider) if po_item.product else ''
         unidad_empaque = po_item.product.get_unidad_empaque(po.provider) if po_item.product else 1
@@ -98,6 +104,9 @@ def generate_po_pdf(po):
             str(po_item.product.name),
             qty
         ])
+    
+    # Sort by SKU/pv1
+    items_data[1:] = sorted(items_data[1:], key=lambda x: _sort_key(x[0]))
     
     items_table = Table(items_data, colWidths=[1.2*inch, 4.5*inch, 1.3*inch])
     items_table.setStyle(TableStyle([
