@@ -20,6 +20,8 @@
             <table class="table table-hover">
                 <thead class="table-light">
                     <tr>
+                        <th>ID</th>
+                        <th>Clave</th>
                         <th>Product</th>
                         <th>SKU/Barcode</th>
                         <th class="text-center" style="width: 150px;">System Count</th>
@@ -30,6 +32,14 @@
                 <tbody>
                     {% for item in items %}
                     <tr>
+                        <td><code>{{ item.product.id }}</code></td>
+                        <td>
+                            {% if item.product.clave %}
+                                <code>{{ item.product.clave }}</code>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <strong>{{ item.product.name }}</strong>
                             {% if item.product.descripcion %}
