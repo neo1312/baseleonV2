@@ -606,16 +606,16 @@ def audit_reports(request):
     devolutions = devolutionItem.objects.filter(devolution__date_created__date__gte=start_date, devolution__date_created__date__lte=today)
     devolution_loss = Decimal('0')
     for dev_item in devolutions:
-        if dev_item.producto:
+        if dev_item.product:
             # Calculate selling price from margin
-            if dev_item.producto.pricing_mode == 'price' and dev_item.producto.precio_manual:
-                price = dev_item.producto.precio_manual
+            if dev_item.product.pricing_mode == 'price' and dev_item.product.precio_manual:
+                price = dev_item.product.precio_manual
             else:
-                margin = Decimal(str(dev_item.producto.margen)) if dev_item.producto.margen else Decimal('1')
-                price = dev_item.producto.costo * (1 + margin)
+                margin = Decimal(str(dev_item.product.margen)) if dev_item.product.margen else Decimal('1')
+                price = dev_item.product.costo * (1 + margin)
             
-            profit_per_unit = price - dev_item.producto.costo
-            qty = Decimal(str(dev_item.cantidad)) if dev_item.cantidad else Decimal('0')
+            profit_per_unit = price - dev_item.product.costo
+            qty = Decimal(str(dev_item.quantity)) if dev_item.quantity else Decimal('0')
             # Devolutions are negative (loss of profit)
             devolution_loss -= qty * profit_per_unit
     
