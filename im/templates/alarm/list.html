@@ -9,12 +9,9 @@
         <h1 class="h3 mb-0"><i class="fas fa-bell text-warning"></i> {{ title }}</h1>
         <div>
             {% if active_alarms %}
-            <form method="post" action="{% url 'im:alarm_skip_all' %}" class="d-inline" onsubmit="return confirm('Skip all active alarms?')">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-success btn-sm">
-                    <i class="fas fa-check-double"></i> Skip All
-                </button>
-            </form>
+            <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#skipAllModal">
+                <i class="fas fa-check-double"></i> Skip All
+            </button>
             {% endif %}
             <a href="{% url 'im:alarm_config' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-cog"></i> Config
@@ -79,12 +76,9 @@
                                     <i class="fas fa-sliders-h"></i> Adjust
                                 </button>
                                 {% endif %}
-                                <form method="post" action="{% url 'im:alarm_skip' alarm.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Skip — keep this margin intentionally">
-                                        <i class="fas fa-eye-slash"></i> Skip
-                                    </button>
-                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-toggle="modal" data-target="#skipModal-{{ alarm.id }}" title="Skip with reason">
+                                    <i class="fas fa-eye-slash"></i> Skip
+                                </button>
                             </td>
                         </tr>
 
@@ -148,6 +142,37 @@
                         </div>
                         {% endif %}
 
+                        <!-- Skip Reason Modal -->
+                        <div class="modal fade" id="skipModal-{{ alarm.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-warning text-dark">
+                                        <h5 class="modal-title">Skip Alarm</h5>
+                                        <button type="button" class="close text-dark" data-dismiss="modal">&times;</button>
+                                    </div>
+                                    <form method="post" action="{% url 'im:alarm_skip' alarm.id %}">
+                                        {% csrf_token %}
+                                        <div class="modal-body">
+                                            <p>
+                                                <strong>{% if alarm.product %}{{ alarm.product.name }}{% else %}System Alarm{% endif %}</strong>
+                                                — {{ alarm.config.name }}
+                                            </p>
+                                            <div class="form-group">
+                                                <label for="reason-{{ alarm.id }}">Reason for skipping <span class="text-danger">*</span></label>
+                                                <textarea id="reason-{{ alarm.id }}" name="reason" class="form-control" rows="3" placeholder="Why are you skipping this alarm?" required></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-warning">
+                                                <i class="fas fa-eye-slash"></i> Skip
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
                         {% endfor %}
                     </tbody>
                 </table>
@@ -207,5 +232,33 @@
         </div>
     </div>
     {% endif %}
+</div>
+
+<!-- Skip All Modal -->
+<div class="modal fade" id="skipAllModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">Skip All Active Alarms</h5>
+                <button type="button" class="close text-dark" data-dismiss="modal">&times;</button>
+            </div>
+            <form method="post" action="{% url 'im:alarm_skip_all' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>You are about to skip <strong>{{ active_alarms|length }}</strong> active alarm(s).</p>
+                    <div class="form-group">
+                        <label for="skip-all-reason">Reason for skipping all <span class="text-danger">*</span></label>
+                        <textarea id="skip-all-reason" name="reason" class="form-control" rows="3" placeholder="Why are you skipping all alarms?" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-check-double"></i> Skip All
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}

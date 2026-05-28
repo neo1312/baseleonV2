@@ -31,22 +31,33 @@ def alarm_list(request):
 @require_http_methods(["POST"])
 @role_required('Admin', 'Manager')
 def alarm_skip(request, alarm_id):
-    """Skip this alarm permanently — user acknowledges this margin is intentional"""
+    """Skip this alarm permanently — user provides reason"""
     alarm = get_object_or_404(Alarm, id=alarm_id, status='active')
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        messages.error(request, 'Please provide a reason for skipping')
+        return redirect('im:alarm_list')
     alarm.status = 'skipped'
+    alarm.notes = reason
     alarm.resolved_at = timezone.now()
     alarm.resolved_by = str(request.user)
     alarm.save()
-    messages.success(request, f'Alarm skipped for {alarm.product.name}')
+    product_name = alarm.product.name if alarm.product else 'System'
+    messages.success(request, f'Alarm skipped for {product_name}')
     return redirect('im:alarm_list')
 
 
 @require_http_methods(["POST"])
 @role_required('Admin', 'Manager')
 def alarm_skip_all(request):
-    """Skip all active alarms"""
+    """Skip all active alarms with a reason"""
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        messages.error(request, 'Please provide a reason for skipping all alarms')
+        return redirect('im:alarm_list')
     Alarm.objects.filter(status='active').update(
         status='skipped',
+        notes=reason,
         resolved_at=timezone.now(),
         resolved_by=str(request.user),
     )
