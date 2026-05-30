@@ -2,12 +2,12 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Value, IntegerField
 
 from datetime import date, timedelta
 from decimal import Decimal, DecimalException
 
-from im.models import AlarmConfig, Alarm, Product, InventoryAudit
+from im.models import AlarmConfig, Alarm, Product, InventoryAudit, InventoryUnit
 from crm.decorators import role_required
 
 
@@ -221,9 +221,14 @@ def _check_low_margin(config):
     - Skipped → never touch again
     """
     threshold = float(config.threshold)
-    products = Product.objects.filter(active=True).annotate(
-        ready_count=Count('inventoryunit_set', filter=Q(status='ready_to_sale'))
-    ).filter(ready_count__gt=0)
+    has_stock = Exists(
+        InventoryUnit.objects.filter(product=OuterRef('pk'), status='ready_to_sale')
+    )
+    products = Product.objects.filter(
+        active=True, on_promotion=False
+    ).annotate(
+        has_ready_stock=has_stock
+    ).filter(has_ready_stock=True)
     violating_ids = set()
 
     for product in products:
