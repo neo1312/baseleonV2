@@ -7,9 +7,9 @@ COMMIT_MSG="${2:-deploy}"
 case $ENV in
 	local)
 		source env/bin/activate
-		python manage.py makemigrations
-		python manage.py migrate
-		python manage.py runserver 
+		python3 manage.py makemigrations
+		python3 manage.py migrate
+		python3 manage.py runserver 
 		;;
 	stage)
 		echo "Starting staging deployment ..."
