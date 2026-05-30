@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
+from django.db.models import Count, Q
 
 from datetime import date, timedelta
 from decimal import Decimal, DecimalException
@@ -214,13 +215,15 @@ def check_alarms():
 
 
 def _check_low_margin(config):
-    """Low margin check:
+    """Low margin check — only active products with available stock.
     - Violating → create or update active alarm
     - Fixed → resolve active alarm
     - Skipped → never touch again
     """
     threshold = float(config.threshold)
-    products = Product.objects.filter(active=True)
+    products = Product.objects.filter(active=True).annotate(
+        ready_count=Count('inventoryunit_set', filter=Q(status='ready_to_sale'))
+    ).filter(ready_count__gt=0)
     violating_ids = set()
 
     for product in products:
