@@ -26,6 +26,24 @@
     </div>
     {% endif %}
 
+    <!-- Filter by Type -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-body py-2">
+            <form method="get" class="form-inline">
+                <label class="mr-2"><i class="fas fa-filter"></i> Filter by type:</label>
+                <select name="type" class="form-control form-control-sm mr-2" onchange="this.form.submit()">
+                    <option value="">All types</option>
+                    {% for type_key, type_name in all_types %}
+                    <option value="{{ type_key }}" {% if current_type == type_key %}selected{% endif %}>{{ type_name }}</option>
+                    {% endfor %}
+                </select>
+                {% if current_type %}
+                <a href="{% url 'im:alarm_list' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
     <!-- Active Alarms -->
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">

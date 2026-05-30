@@ -16,14 +16,27 @@ def alarm_list(request):
     """List alarms — scans on every page load for fresh results"""
     check_alarms()
 
-    active_alarms = Alarm.objects.filter(status='active').select_related('product', 'config')
-    dismissed_alarms = Alarm.objects.filter(status='skipped').select_related('product', 'config')[:20]
+    alarm_type = request.GET.get('type', '')
+
+    active_qs = Alarm.objects.filter(status='active').select_related('product', 'config')
+    dismissed_qs = Alarm.objects.filter(status='skipped').select_related('product', 'config')
+
+    if alarm_type:
+        active_qs = active_qs.filter(config__alarm_type=alarm_type)
+        dismissed_qs = dismissed_qs.filter(config__alarm_type=alarm_type)
+
+    active_alarms = active_qs
+    dismissed_alarms = dismissed_qs[:20]
+
+    all_types = AlarmConfig.objects.filter(enabled=True).values_list('alarm_type', 'name')
 
     context = {
         'title': 'Alarms',
         'active_alarms': active_alarms,
         'dismissed_alarms': dismissed_alarms,
         'configs': AlarmConfig.objects.filter(enabled=True),
+        'all_types': all_types,
+        'current_type': alarm_type,
     }
     return render(request, 'alarm/list.html', context)
 
@@ -157,8 +170,30 @@ def alarm_config(request):
     return render(request, 'alarm/config.html', context)
 
 
+DEFAULT_ALARM_CONFIGS = {
+    'low_margin': {
+        'name': 'Low Margin',
+        'threshold': 15.0,
+    },
+    'missing_random_audit': {
+        'name': 'Missing Random Audit',
+        'threshold': 0.0,
+    },
+}
+
+
+def _ensure_default_configs():
+    """Create default AlarmConfig entries if they don't exist."""
+    for alarm_type, defaults in DEFAULT_ALARM_CONFIGS.items():
+        AlarmConfig.objects.get_or_create(
+            alarm_type=alarm_type,
+            defaults=defaults,
+        )
+
+
 def check_alarms():
     """Scan all products and update alarm state"""
+    _ensure_default_configs()
     configs = AlarmConfig.objects.filter(enabled=True)
 
     for config in configs:
