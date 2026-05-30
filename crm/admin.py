@@ -16,7 +16,7 @@ class clientAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     readonly_fields=('monedero', 'get_client_tier', 'get_client_status')
     fieldsets = (
         ('Basic Information', {
-            'fields': ('id', 'name', 'address', 'phoneNumber', 'tipo')
+            'fields': ('name', 'address', 'phoneNumber', 'tipo')
         }),
         ('Wallet & Tier Status', {
             'fields': ('monedero', 'get_client_tier', 'get_client_status'),
@@ -28,6 +28,18 @@ class clientAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         }),
     )
     
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if 'id' in form.base_fields:
+            del form.base_fields['id']
+        return form
+
+    def save_model(self, request, obj, form, change):
+        if not obj.id:
+            ids = [int(c.id) for c in Client.objects.only('id').all() if c.id.isdigit()]
+            obj.id = str(max(ids) + 1) if ids else '1'
+        super().save_model(request, obj, form, change)
+
     def get_client_tier(self, obj):
         try:
             tier_status = obj.tier_status

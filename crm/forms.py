@@ -4,7 +4,7 @@ from crm.models import Client,Sale,Devolution,Quote
 class clientForm(ModelForm):
     class Meta:
         model = Client 
-        fields = '__all__'
+        exclude = ['id']
 
 class saleForm(ModelForm):
     class Meta:

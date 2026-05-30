@@ -26,7 +26,11 @@ def clientCreate(request):
     if request.method == 'POST':
         form = clientForm(request.POST or None)
         if form.is_valid():
-            form.save()
+            client = form.save(commit=False)
+            if not client.id:
+                ids = [int(c.id) for c in Client.objects.only('id').all() if c.id.isdigit()]
+                client.id = str(max(ids) + 1) if ids else '1'
+            client.save()
             return redirect ( '/client/list',data)
         else:
             print(form)
