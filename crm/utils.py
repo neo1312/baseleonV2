@@ -11,6 +11,7 @@ ROLE_FEATURES = {
                 'category': 'Point of Sale',
                 'items': [
                     {'title': 'POS System', 'description': 'Fast checkout & sales', 'icon': '💳', 'url': '/pos/', 'color': '#DC143C'},
+                    {'title': 'Customer Display', 'description': 'Customer-facing ticket', 'icon': '🖥️', 'url': '/pos/customer-display/', 'color': '#FF8C00'},
                 ]
             },
             {
@@ -103,6 +104,7 @@ ROLE_FEATURES = {
                 'category': 'Point of Sale',
                 'items': [
                     {'title': 'POS System', 'description': 'Fast & easy checkout', 'icon': '💳', 'url': '/pos/', 'color': '#DC143C'},
+                    {'title': 'Customer Display', 'description': 'Customer-facing ticket', 'icon': '🖥️', 'url': '/pos/customer-display/', 'color': '#FF8C00'},
                 ]
             },
             {

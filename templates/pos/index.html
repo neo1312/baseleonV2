@@ -21,6 +21,7 @@
                 </div>
             </div>
             <button class="btn-config" onclick="openSettings()" title="Start New Sale">📝 NUEVA VENTA</button>
+            <button class="btn-config" onclick="openDisplayLink()" title="Customer Display Link" style="margin-left:8px;">🖥️ Pantalla</button>
         </div>
 
         <!-- SEARCH BAR -->
@@ -175,6 +176,20 @@
         </div>
     </div>
 
+    <!-- DISPLAY LINK MODAL -->
+    <div id="display-modal" class="modal">
+        <div class="modal-content" style="max-width:500px;">
+            <span class="close" onclick="closeDisplayLink()">&times;</span>
+            <h2>Pantalla para Cliente</h2>
+            <p style="margin:15px 0;color:#666;">Abre este enlace en el navegador de la pantalla del cliente:</p>
+            <div style="display:flex;gap:10px;">
+                <input type="text" id="display-url" readonly style="flex:1;padding:10px;font-size:1.1rem;border:1px solid #ccc;border-radius:4px;background:#f9f9f9;">
+                <button onclick="copyDisplayLink()" style="padding:10px 20px;background:#DC143C;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1rem;">Copiar</button>
+            </div>
+            <p style="margin-top:10px;font-size:0.9rem;color:#999;">Se abre automáticamente al hacer clic en 🖥️ Pantalla. Si no funciona, usa este enlace manualmente.</p>
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <!-- DEBUG: Log initial product data -->
@@ -191,6 +206,37 @@
     // Also available as window variable for browser console testing
     window.debugInitialProducts = initialProducts;
     console.log('Type "window.debugInitialProducts" in console to inspect');
+
+    const DISPLAY_SESSION_KEY = '{{ session_key|escapejs }}';
+
+    function openDisplayLink() {
+        var baseUrl = window.location.origin + '/pos/customer-display/?sk=' + encodeURIComponent(DISPLAY_SESSION_KEY);
+        var activateUrl = baseUrl + '&activate=1';
+        document.getElementById('display-url').value = activateUrl;
+
+        // Broadcast to wake up any existing display tab
+        try {
+            var ch = new BroadcastChannel('pos-display');
+            ch.postMessage('sale_started');
+        } catch(e) {}
+
+        // Try to open in a new window (will be blocked by popup blocker on first call)
+        window.open(activateUrl, 'customer-display', 'width=800,height=600');
+
+        document.getElementById('display-modal').classList.add('show');
+    }
+
+    function closeDisplayLink() {
+        document.getElementById('display-modal').classList.remove('show');
+    }
+
+    function copyDisplayLink() {
+        const input = document.getElementById('display-url');
+        input.select();
+        input.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(input.value).catch(() => {});
+        alert('✅ Link copiado');
+    }
     </script>
     
     <script src="{% static 'js/pos.js' %}"></script>

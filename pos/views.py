@@ -1,9 +1,11 @@
 import json
+import time
 from decimal import Decimal
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
+from django.contrib.sessions.models import Session
 from im.models import Product
 from crm.models import Sale, saleItem, Client
 from django.utils import timezone
@@ -54,6 +56,7 @@ def pos_index(request):
         'title': 'POS - Point of Sale',
         'products': products_data,
         'clients': clients,
+        'session_key': request.session.session_key,
     }
     return render(request, 'pos/index.html', context)
 
@@ -349,3 +352,208 @@ def complete_sale(request):
 
 # Import models.Q for search
 from django.db import models
+
+
+@csrf_exempt
+def cart_save(request):
+    """Save current cart to session"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            request.session['pos_cart'] = data.get('cart', {})
+            request.session['pos_sale_type'] = data.get('saleType')
+            request.session['pos_client_id'] = data.get('clientId')
+            request.session['pos_client_name'] = data.get('clientName')
+            request.session['pos_client_wallet'] = data.get('clientWallet')
+            request.session['pos_sale_started'] = data.get('saleStarted', False)
+            request.session['pos_sale_completed'] = data.get('saleCompleted')
+
+            # If sale completed flag is set, also clear checkout state atomically
+            if data.get('saleCompleted') and 'pos_checkout_state' in request.session:
+                del request.session['pos_checkout_state']
+
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+def clean_pos_session(session, data):
+    """Clean up stale/inconsistent POS session data and save if modified.
+    Returns the (possibly cleaned) checkoutState or None.
+    """
+    modified = False
+    checkout_state = data.get('pos_checkout_state')
+    sale_started = data.get('pos_sale_started', False)
+    sale_completed = data.get('pos_sale_completed')
+
+    # Auto-clear saleCompleted older than 6 seconds
+    if sale_completed:
+        elapsed = time.time() - sale_completed.get('timestamp', 0)
+        if elapsed >= 6:
+            data.pop('pos_sale_completed', None)
+            data.pop('pos_checkout_state', None)
+            sale_completed = None
+            checkout_state = None
+            modified = True
+        else:
+            # saleCompleted is fresh — always clear checkout state
+            if checkout_state:
+                data.pop('pos_checkout_state', None)
+                checkout_state = None
+                modified = True
+
+    # If checkout is active but sale is not started (no saleCompleted), it's stale
+    if checkout_state and checkout_state.get('active') and not sale_started:
+        checkout_state = None
+        data.pop('pos_checkout_state', None)
+        modified = True
+
+    if modified:
+        Store = Session.objects.get_session_store_class()
+        session.session_data = Store().encode(data)
+        session.save()
+
+    return checkout_state
+
+
+def get_session_data(session_key):
+    """Helper to read pos data from a session by session_key"""
+    try:
+        session = Session.objects.get(session_key=session_key)
+        data = session.get_decoded()
+        checkout_state = clean_pos_session(session, data)
+        sale_completed = data.get('pos_sale_completed')
+        result = {
+            'cart': data.get('pos_cart', {}),
+            'saleType': data.get('pos_sale_type'),
+            'clientId': data.get('pos_client_id'),
+            'clientName': data.get('pos_client_name'),
+            'clientWallet': data.get('pos_client_wallet'),
+            'saleStarted': data.get('pos_sale_started', False),
+            'checkoutState': checkout_state,
+        }
+        if sale_completed:
+            result['saleCompleted'] = sale_completed.get('message')
+        return result
+    except Session.DoesNotExist:
+        return None
+
+
+def cart_get(request):
+    """Retrieve current cart from session.
+    Supports ?sk=<session_key> to read another session's data (cross-browser).
+    """
+    if request.method == 'GET':
+        sk = request.GET.get('sk')
+        if sk:
+            data = get_session_data(sk)
+            if data is None:
+                return JsonResponse({'error': 'Session not found'}, status=404)
+            return JsonResponse(data)
+
+        sale_started = request.session.get('pos_sale_started', False)
+        checkout_state = request.session.get('pos_checkout_state')
+        sale_completed = request.session.get('pos_sale_completed')
+
+        # If saleCompleted is fresh, always suppress checkout state
+        if sale_completed:
+            elapsed = time.time() - sale_completed.get('timestamp', 0)
+            if elapsed >= 6:
+                del request.session['pos_sale_completed']
+                sale_completed = None
+                if 'pos_checkout_state' in request.session:
+                    del request.session['pos_checkout_state']
+                checkout_state = None
+            elif checkout_state:
+                del request.session['pos_checkout_state']
+                checkout_state = None
+
+        # Clear stale checkout state (active but no sale, no saleCompleted)
+        if checkout_state and checkout_state.get('active') and not sale_started:
+            del request.session['pos_checkout_state']
+            checkout_state = None
+
+        response_data = {
+            'cart': request.session.get('pos_cart', {}),
+            'saleType': request.session.get('pos_sale_type'),
+            'clientId': request.session.get('pos_client_id'),
+            'clientName': request.session.get('pos_client_name'),
+            'clientWallet': request.session.get('pos_client_wallet'),
+            'saleStarted': sale_started,
+            'checkoutState': checkout_state,
+        }
+        if sale_completed:
+            response_data['saleCompleted'] = sale_completed.get('message')
+        return JsonResponse(response_data)
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+@csrf_exempt
+def checkout_save(request):
+    """Save checkout state to session"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            request.session['pos_checkout_state'] = data
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+@csrf_exempt
+def checkout_clear(request):
+    """Clear checkout state from session"""
+    if request.method == 'POST':
+        try:
+            if 'pos_checkout_state' in request.session:
+                del request.session['pos_checkout_state']
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+@csrf_exempt
+def reset_display(request):
+    """Clear all POS session data to reset the customer display."""
+    if request.method == 'POST':
+        keys = ['pos_cart', 'pos_sale_type', 'pos_client_id', 'pos_client_name',
+                'pos_client_wallet', 'pos_sale_started', 'pos_checkout_state',
+                'pos_sale_completed']
+        for key in keys:
+            if key in request.session:
+                del request.session[key]
+        return JsonResponse({'success': True, 'message': 'Display reset'})
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+@login_required(login_url='/login/')
+def customer_display(request):
+    """Customer-facing ticket display page.
+    Accepts ?sk=<session_key> to display cart from another browser's session.
+    """
+    sk = request.GET.get('sk')
+    cart = {}
+    sale_type = None
+    client_name = None
+
+    if sk:
+        data = get_session_data(sk)
+        if data:
+            cart = data['cart']
+            sale_type = data['saleType']
+            client_name = data['clientName']
+    else:
+        cart = request.session.get('pos_cart', {})
+        sale_type = request.session.get('pos_sale_type')
+        client_name = request.session.get('pos_client_name')
+
+    return render(request, 'pos/customer_display.html', {
+        'title': 'Customer Display',
+        'cart': cart,
+        'sale_type': sale_type,
+        'client_name': client_name,
+        'sk': sk or '',
+    })

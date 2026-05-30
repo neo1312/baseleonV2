@@ -3,6 +3,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.contrib.sessions.models import Session
+from django.utils import timezone
 from crm.utils import get_dashboard_for_user, get_menu_for_user
 
 def home(request):
@@ -30,6 +32,15 @@ def user_login(request):
         password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
         if user is not None:
+            # Single-session enforcement: expire all other sessions for this user
+            for session in Session.objects.filter(expire_date__gte=timezone.now()):
+                try:
+                    data = session.get_decoded()
+                    if data.get('_auth_user_id') == str(user.id):
+                        session.expire_date = timezone.now()
+                        session.save()
+                except Exception:
+                    pass
             login(request, user)
             next_url = request.GET.get('next', '/')
             return redirect(next_url)

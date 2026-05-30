@@ -121,6 +121,10 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
             'fields': ('mayoreo_pricing_mode', 'margenMayoreo', 'precio_mayoreo_manual'),
             'description': 'Select "Usar Margen" to set margin and calculate price, or "Usar Precio Manual" to set price and calculate margin'
         }),
+        ('Promotion', {
+            'fields': ('on_promotion',),
+            'description': 'Mark as on promotion/discount. Low margin alarms will ignore this product.'
+        }),
         ('System', {
             'fields': ('date_created', 'last_updated'),
             'classes': ('collapse',)

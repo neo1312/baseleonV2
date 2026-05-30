@@ -6,6 +6,16 @@
 
 // Global state
 let cart = {}; // {product_id: {id, barcode, name, qty, price, tipo}}
+
+// Broadcast channel to notify customer display (if same browser)
+try {
+    var posChannel = new BroadcastChannel('pos-display');
+} catch(e) {
+    var posChannel = null;
+}
+function broadcastToDisplay(msg) {
+    if (posChannel) posChannel.postMessage(msg);
+}
 let saleType = null;
 let clientId = null;
 let clientName = null;
@@ -14,6 +24,44 @@ let saleStarted = false; // Flag to block adding products before sale setup
 const TAX_RATE = 0; // NO TAXES
 let cashInputDebounceTimer = null; // For debouncing cash input validation
 let searchDebounceTimer = null; // For debouncing live search input
+
+// Sync cart to server session (for customer display)
+function syncCartToSession(extra) {
+    const payload = {
+        cart: cart,
+        saleType: saleType,
+        clientId: clientId,
+        clientName: clientName,
+        clientWallet: clientWallet,
+        saleStarted: saleStarted,
+        ...(extra || {}),
+    };
+    fetch('/pos/cart/save/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+    }).then(r => {
+        if (!r.ok) console.error('Cart sync failed:', r.status, r.statusText);
+    }).catch(err => console.error('Cart sync error:', err));
+}
+
+// Sync checkout state to server session (for customer display)
+function syncCheckoutState(state) {
+    console.log('syncCheckoutState', state);
+    fetch('/pos/checkout/save/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(state),
+    }).then(r => {
+        if (!r.ok) console.error('checkout/save status:', r.status);
+    }).catch(err => console.error('Checkout state sync error:', err));
+}
+
+function clearCheckoutState() {
+    fetch('/pos/checkout/clear/', {
+        method: 'POST',
+    }).catch(err => console.error('Checkout state clear error:', err));
+}
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -166,6 +214,7 @@ function addToCart(btn) {
         cart[productId].addedAt = Date.now();
             
             updateCartDisplay();
+            syncCartToSession();
             qtyInput.value = 1;
         })
         .catch(err => {
@@ -242,6 +291,7 @@ function updateQty(productId, delta) {
             delete cart[productId];
         }
         updateCartDisplay();
+        syncCartToSession();
     }
 }
 
@@ -249,6 +299,7 @@ function updateQty(productId, delta) {
 function removeFromCart(productId) {
     delete cart[productId];
     updateCartDisplay();
+    syncCartToSession();
 }
 
 // CLEAR CART
@@ -257,6 +308,7 @@ function clearCart() {
     if (confirm('Clear entire cart?')) {
         cart = {};
         updateCartDisplay();
+        syncCartToSession();
     }
 }
 
@@ -299,6 +351,8 @@ function saveSettings() {
     document.getElementById('client-display').textContent = `Client: ${clientName}`;
     
     closeSettings();
+    syncCartToSession();
+    broadcastToDisplay('sale_started');
 }
 
 function updateSaleTypeDisplay() {
@@ -362,6 +416,7 @@ function proceedCheckout() {
 }
 
 function proceedCheckoutModal() {
+    console.log('proceedCheckoutModal called');
     // Open checkout modal
     document.getElementById('checkout-modal').classList.add('show');
     
@@ -384,6 +439,15 @@ function proceedCheckoutModal() {
     
     // Setup payment method listeners
     setupPaymentMethodListeners();
+    
+    // Sync checkout state for customer display
+    syncCheckoutState({
+        active: true,
+        payment_method: 'cash',
+        total: totalAmount,
+        cash_received: 0,
+        change: 0,
+    });
     
     // Reset cash amount input
     const cashAmountInput = document.getElementById('cash-amount-input');
@@ -450,6 +514,13 @@ function toggleCashInput(e) {
     } else {
         hideCashInput();
     }
+    syncCheckoutState({
+        active: true,
+        payment_method: e.target.value,
+        total: window.currentTotal || 0,
+        cash_received: parseFloat(document.getElementById('cash-amount-input')?.value) || 0,
+        change: 0,
+    });
 }
 
 function calculateChange() {
@@ -467,6 +538,14 @@ function calculateChange() {
         const changeAmount = document.getElementById('change-amount');
         
         const change = cashAmount - window.currentTotal;
+        
+        syncCheckoutState({
+            active: true,
+            payment_method: 'cash',
+            total: window.currentTotal || 0,
+            cash_received: cashAmount,
+            change: cashAmount > 0 && change >= 0 ? change : 0,
+        });
         
         if (cashAmount > 0) {
             changeDisplay.style.display = 'block';
@@ -487,9 +566,19 @@ function calculateChange() {
 
 function closeCheckout() {
     document.getElementById('checkout-modal').classList.remove('show');
+    clearCheckoutState();
+    if (cashInputDebounceTimer) {
+        clearTimeout(cashInputDebounceTimer);
+        cashInputDebounceTimer = null;
+    }
 }
 
 function confirmCheckout() {
+    // Cancel any pending debounced checkout sync before completing
+    if (cashInputDebounceTimer) {
+        clearTimeout(cashInputDebounceTimer);
+        cashInputDebounceTimer = null;
+    }
     const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
     const notes = document.getElementById('notes').value;
     
@@ -581,6 +670,10 @@ function confirmCheckout() {
             }
             alert(msg);
             
+            clearCheckoutState();
+
+            const saleMsg = 'Gracias por su compra, vuelva pronto';
+            
             // Reset sale
             cart = {};
             saleStarted = false;
@@ -590,6 +683,12 @@ function confirmCheckout() {
             clientWallet = 0;
             
             updateCartDisplay();
+            syncCartToSession({
+                saleCompleted: {
+                    message: saleMsg,
+                    timestamp: Date.now() / 1000,
+                }
+            });
             closeCheckout();
             document.getElementById('notes').value = '';
             document.getElementById('sale-type-display').textContent = 'Sale: -';
@@ -597,6 +696,7 @@ function confirmCheckout() {
             
             // Reload inventory from server to show updated stock
             reloadInventory();
+            broadcastToDisplay('sale_completed');
         } else {
             alert(`❌ Error: ${data.error}`);
         }
