@@ -84,9 +84,19 @@
                             <td>{% if alarm.product %}<code>{{ alarm.product.barcode }}</code>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                             <td><span class="badge bg-info">{{ alarm.config.name }}</span></td>
                             <td class="text-center">
+                                {% if alarm.config.alarm_type == 'missing_random_audit' %}
+                                <span class="badge bg-warning">{{ alarm.current_value }} / {{ alarm.threshold }}</span>
+                                {% else %}
                                 <span class="badge bg-danger">{{ alarm.current_value }}%</span>
+                                {% endif %}
                             </td>
-                            <td class="text-center">{{ alarm.threshold }}%</td>
+                            <td class="text-center">
+                                {% if alarm.config.alarm_type == 'missing_random_audit' %}
+                                Goal: {{ alarm.threshold }}
+                                {% else %}
+                                {{ alarm.threshold }}%
+                                {% endif %}
+                            </td>
                             <td class="text-center"><small>{{ alarm.created_at|timesince }}</small></td>
                             <td class="text-center">
                                 {% if alarm.config.alarm_type == 'low_margin' and alarm.product %}
@@ -213,7 +223,7 @@
             {% else %}
             <div class="text-center text-muted py-5">
                 <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                <p class="mb-0">No active alarms. All margins are above threshold.</p>
+                <p class="mb-0">No active alarms. Everything looks good.</p>
             </div>
             {% endif %}
         </div>
@@ -255,7 +265,13 @@
                                 {% endif %}
                             </td>
                             <td><span class="badge bg-info">{{ alarm.config.name }}</span></td>
-                            <td class="text-center"><span class="badge bg-warning">{{ alarm.current_value }}%</span></td>
+                            <td class="text-center">
+                                {% if alarm.config.alarm_type == 'missing_random_audit' %}
+                                <span class="badge bg-warning">{{ alarm.current_value }} / {{ alarm.threshold }}</span>
+                                {% else %}
+                                <span class="badge bg-warning">{{ alarm.current_value }}%</span>
+                                {% endif %}
+                            </td>
                             <td class="text-center"><small>{{ alarm.resolved_at|timesince }}</small></td>
                             <td class="text-center"><small>{{ alarm.resolved_by }}</small></td>
                             <td class="text-center">

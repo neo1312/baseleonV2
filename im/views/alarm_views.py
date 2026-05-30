@@ -187,8 +187,8 @@ DEFAULT_ALARM_CONFIGS = {
         'threshold': 15.0,
     },
     'missing_random_audit': {
-        'name': 'Missing Random Audit',
-        'threshold': 0.0,
+        'name': 'Weekly Random Audit',
+        'threshold': 5.0,
     },
 }
 
@@ -211,7 +211,73 @@ def check_alarms():
         if config.alarm_type == 'low_margin':
             _check_low_margin(config)
         elif config.alarm_type == 'missing_random_audit':
-            _check_missing_random_audit(config)
+            _check_weekly_random_audit(config)
+
+
+def _get_week_range():
+    """Return (monday, friday) of current week."""
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    friday = monday + timedelta(days=4)
+    return monday, friday
+
+
+def _check_weekly_random_audit(config):
+    """Check if 5 random audits were completed this week (Mon-Fri).
+    Show progress alarm; resolve when goal is met."""
+    monday, friday = _get_week_range()
+
+    # Clean up old-format daily alarms from previous system
+    Alarm.objects.filter(
+        config=config, status='active',
+        notes__startswith='No random audit completed today',
+    ).update(status='resolved', resolved_at=timezone.now(), resolved_by='system')
+    Alarm.objects.filter(
+        config=config, status='active',
+        notes__startswith='Missing audit for',
+    ).update(status='resolved', resolved_at=timezone.now(), resolved_by='system')
+
+    count = InventoryAudit.objects.filter(
+        audit_type__in=['random', 'random_custom'],
+        status='completed',
+        audit_date__gte=monday,
+        audit_date__lte=friday,
+    ).count()
+
+    week_label = f"{monday.strftime('%b %d')} - {friday.strftime('%b %d, %Y')}"
+    notes = f"Weekly random audit: {count}/5 completed ({week_label})"
+
+    if count >= 5:
+        Alarm.objects.filter(config=config, status='active').update(
+            status='resolved',
+            resolved_at=timezone.now(),
+            resolved_by='system',
+        )
+        return
+
+    # If skipped this week, don't bother
+    skipped_this_week = Alarm.objects.filter(
+        config=config, status='skipped',
+        created_at__date__gte=monday,
+    ).exists()
+    if skipped_this_week:
+        return
+
+    existing = Alarm.objects.filter(config=config, status='active').first()
+    if existing:
+        existing.current_value = count
+        existing.threshold = 5
+        existing.notes = notes
+        existing.save()
+    else:
+        Alarm.objects.create(
+            config=config,
+            product=None,
+            current_value=count,
+            threshold=5,
+            status='active',
+            notes=notes,
+        )
 
 
 def _check_low_margin(config):
@@ -250,38 +316,6 @@ def _check_low_margin(config):
         resolved_at=timezone.now(),
         resolved_by='system',
     )
-
-
-def _check_missing_random_audit(config):
-    """Check if a random audit was completed today. Create alarm if not."""
-    today = date.today()
-    audit_done = InventoryAudit.objects.filter(
-        audit_type__in=['random', 'random_custom'],
-        status='completed',
-        audit_date=today,
-    ).exists()
-
-    if audit_done:
-        # Resolve any active alarm for this config
-        Alarm.objects.filter(config=config, status='active').update(
-            status='resolved',
-            resolved_at=timezone.now(),
-            resolved_by='system',
-        )
-    else:
-        # Create or keep active alarm (no product for this type)
-        existing = Alarm.objects.filter(config=config, status='active').first()
-        if not existing:
-            skipped = Alarm.objects.filter(config=config, status='skipped').exists()
-            if not skipped:
-                Alarm.objects.create(
-                    config=config,
-                    product=None,
-                    current_value=0,
-                    threshold=config.threshold,
-                    status='active',
-                    notes='No random audit completed today',
-                )
 
 
 def _ensure_active_alarm(config, product, current_value):
