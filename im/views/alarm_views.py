@@ -80,6 +80,16 @@ def alarm_skip_all(request):
 
 @require_http_methods(["POST"])
 @role_required('Admin', 'Manager')
+def alarm_delete(request, alarm_id):
+    """Permanently delete a skipped alarm"""
+    alarm = get_object_or_404(Alarm, id=alarm_id, status='skipped')
+    alarm.delete()
+    messages.success(request, 'Alarm deleted permanently')
+    return redirect('im:alarm_list')
+
+
+@require_http_methods(["POST"])
+@role_required('Admin', 'Manager')
 def alarm_adjust(request, alarm_id):
     """Adjust margin or set manual price to resolve a low_margin alarm"""
     alarm = get_object_or_404(Alarm, id=alarm_id, status='active')

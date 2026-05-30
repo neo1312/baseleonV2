@@ -11,7 +11,7 @@ from im.views.audit_views import (
 )
 from im.views.import_products import import_products_csv_view
 from im.views.despiece_views import despiece_list, despiece_process
-from im.views.alarm_views import alarm_list, alarm_skip, alarm_skip_all, alarm_config, alarm_adjust
+from im.views.alarm_views import alarm_list, alarm_skip, alarm_skip_all, alarm_config, alarm_adjust, alarm_delete
 
 
 app_name='im'
@@ -49,4 +49,5 @@ urlpatterns=[
         path('alarms/skip-all/', alarm_skip_all, name='alarm_skip_all'),
         path('alarms/config/', alarm_config, name='alarm_config'),
         path('alarms/adjust/<int:alarm_id>/', alarm_adjust, name='alarm_adjust'),
+        path('alarms/delete/<int:alarm_id>/', alarm_delete, name='alarm_delete'),
         ]

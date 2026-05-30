@@ -235,6 +235,7 @@
                             <th class="text-center">Margin</th>
                             <th class="text-center">Skipped</th>
                             <th class="text-center">By</th>
+                            <th style="width: 60px;"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -257,6 +258,14 @@
                             <td class="text-center"><span class="badge bg-warning">{{ alarm.current_value }}%</span></td>
                             <td class="text-center"><small>{{ alarm.resolved_at|timesince }}</small></td>
                             <td class="text-center"><small>{{ alarm.resolved_by }}</small></td>
+                            <td class="text-center">
+                                <form method="post" action="{% url 'im:alarm_delete' alarm.id %}" style="display:inline;" onsubmit="return confirm('Delete this alarm permanently?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete permanently">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
