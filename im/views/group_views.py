@@ -8,6 +8,22 @@ from im.models import ProductGroup, Product
 from crm.decorators import role_required
 
 
+@require_http_methods(["GET", "POST"])
+@role_required('Admin', 'Manager', 'Buyer')
+def group_create(request):
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        if not name:
+            messages.error(request, 'Group name is required.')
+            return render(request, 'group/create.html', {'title': 'Create Group'})
+
+        group = ProductGroup.objects.create(name=name)
+        messages.success(request, f'Group "{group.name}" created. Add products now.')
+        return redirect('im:groupEdit', pk=group.id)
+
+    return render(request, 'group/create.html', {'title': 'Create Group'})
+
+
 @require_http_methods(["GET"])
 @role_required('Admin', 'Manager', 'Buyer')
 def group_list(request):

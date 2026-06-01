@@ -1,5 +1,13 @@
 {% extends 'list.html' %}
 
+{% block list_filter %}
+<div class="card-body pb-0">
+    <a href="{% url 'im:groupCreate' %}" class="btn btn-info btn-sm">
+        <i class="fas fa-plus"></i> New Group
+    </a>
+</div>
+{% endblock %}
+
 {% block columns %}
     <tr>
         <th scope="col">Name</th>
