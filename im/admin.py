@@ -94,7 +94,7 @@ class ProductProviderInline(admin.TabularInline):
 
 class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     search_fields=['name','category__name','brand__name','id','barcode','clave']
-    list_display=('id','clave','name','brand','display_group','get_stock_ready_to_sale','get_abc_classification','costo','priceLista','priceMayoreo','active','sat','Granel_Item')
+    list_display=('id','clave','barcode','name','brand','display_group','get_stock_ready_to_sale','get_abc_classification','costo','priceLista','priceMayoreo','active','sat','Granel_Item')
     list_filter=('active', ProviderFilter, 'brand', 'category', 'group', ABCClassificationFilter)
     resocurce_class = productResource
     ordering=('id','last_updated')
