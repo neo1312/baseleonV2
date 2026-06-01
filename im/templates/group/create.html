@@ -1,4 +1,11 @@
 {% extends 'body.html' %}
+{% load static %}
+
+{% block head %}
+{{ block.super }}
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2/css/select2.min.css' %}" rel="stylesheet" />
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css' %}" rel="stylesheet" />
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4 px-2 px-sm-4">
@@ -8,26 +15,245 @@
         </a>
     </div>
 
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card border-info">
-                <div class="card-header bg-info text-white py-2">
-                    <h4 class="mb-0"><i class="fas fa-plus-circle"></i> Create Group</h4>
-                </div>
-                <div class="card-body">
-                    <form method="post" action="{% url 'im:groupCreate' %}">
-                        {% csrf_token %}
+    <form method="post" action="{% url 'im:groupCreate' %}" id="create_form">
+        {% csrf_token %}
+        <input type="hidden" name="product_ids" id="product_ids_input" value="{{ preselected_ids|default:'' }}">
+
+        <div class="row">
+            <!-- Left: Group Name -->
+            <div class="col-md-4">
+                <div class="card border-info mb-4">
+                    <div class="card-header bg-info text-white py-2">
+                        <h4 class="mb-0"><i class="fas fa-plus-circle"></i> New Group</h4>
+                    </div>
+                    <div class="card-body">
                         <div class="form-group">
-                            <label>Group Name</label>
-                            <input type="text" name="name" class="form-control" placeholder="Enter group name..." required autofocus>
+                            <label>Group Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" placeholder="Enter group name..." value="{{ name|default:'' }}" required autofocus>
                         </div>
-                        <button type="submit" class="btn btn-info btn-block">
+                        <div class="form-group">
+                            <label>Max Stock <span class="text-danger">*</span></label>
+                            <input type="number" name="stockMax" class="form-control" value="{{ stockMax|default:'0' }}" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Min Stock <span class="text-danger">*</span></label>
+                            <input type="number" name="stockMin" class="form-control" value="{{ stockMin|default:'0' }}" min="0" required>
+                        </div>
+                        <div class="alert alert-info py-2 small">
+                            <i class="fas fa-info-circle"></i> A group must have at least <strong>2 products</strong>.
+                        </div>
+                        <div id="selection_summary" class="mb-3">
+                            <span class="badge badge-info" id="count_badge">0 product(s) selected</span>
+                        </div>
+                        <button type="submit" class="btn btn-info btn-block" id="submit_btn">
                             <i class="fas fa-check"></i> Create Group
                         </button>
-                    </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Product Search & Selection -->
+            <div class="col-md-8">
+                <div class="card mb-3 border-success">
+                    <div class="card-header bg-success text-white py-2">
+                        <i class="fas fa-search"></i> Search & Add Products
+                    </div>
+                    <div class="card-body">
+                        <label class="form-label text-muted small mb-1">
+                            Search by <strong>barcode</strong>, <strong>clave</strong>, or <strong>name</strong>
+                        </label>
+                        <select id="product_search" class="form-control" style="width: 100%;"></select>
+
+                        <div id="inline_selected_container" class="mt-2">
+                            <hr class="my-2">
+                            <label class="form-label text-muted small mb-1">Selected products:</label>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-0" id="selected_table">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Barcode</th>
+                                            <th>Clave</th>
+                                            <th>Name</th>
+                                            <th style="width: 50px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="selected_table_body"></tbody>
+                                </table>
+                            </div>
+                            <p class="text-muted small mb-0 mt-1" id="selected_count"></p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    </form>
 </div>
+{% endblock %}
+
+{% block javascrip %}
+{{ block.super }}
+<script src="{% static 'lib/AdminLTE-3.1.0/plugins/select2/js/select2.min.js' %}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var inlineProducts = [];
+
+    // Restore preselected products from validation failure
+    var preselected = '{{ preselected_ids|default:"" }}';
+    if (preselected) {
+        var ids = preselected.split(',');
+        // We'll look up product names via a batch endpoint isn't available,
+        // so just store IDs — they'll be kept on resubmit
+        for (var i = 0; i < ids.length; i++) {
+            if (ids[i]) {
+                inlineProducts.push({ id: ids[i], name: 'Product #' + ids[i], clave: '', barcode: '' });
+            }
+        }
+    }
+
+    var searchEl = document.getElementById('product_search');
+    if (!searchEl) return;
+
+    var $search = $('#product_search');
+    var productIdsInput = document.getElementById('product_ids_input');
+    var countBadge = document.getElementById('count_badge');
+
+    if (typeof $search.select2 !== 'function') {
+        console.error('Select2 not loaded');
+        return;
+    }
+
+    $search.select2({
+        theme: 'bootstrap4',
+        placeholder: 'Type barcode, clave, or name...',
+        allowClear: true,
+        minimumInputLength: 1,
+        ajax: {
+            url: '{% url "im:groupProductSearch" %}',
+            dataType: 'json',
+            delay: 300,
+            data: function(params) {
+                return { q: params.term };
+            },
+            processResults: function(data) {
+                return { results: data.results || [] };
+            },
+            cache: true
+        },
+        templateResult: function(product) {
+            if (product.loading) return product.text;
+            return $('<span>' + product.text + '</span>');
+        },
+        templateSelection: function(product) {
+            return product.text || product.id;
+        }
+    });
+
+    $search.on('select2:select', function(e) {
+        var data = e.params.data;
+        if (!data || !data.id) return;
+
+        for (var i = 0; i < inlineProducts.length; i++) {
+            if (inlineProducts[i].id == data.id) {
+                $search.val(null).trigger('change');
+                return;
+            }
+        }
+
+        inlineProducts.push({
+            id: data.id,
+            name: data.name || data.text,
+            clave: data.clave || '',
+            barcode: data.barcode || ''
+        });
+
+        renderInlineProducts();
+        $search.val(null).trigger('change');
+    });
+
+    function renderInlineProducts() {
+        var tbody = document.getElementById('selected_table_body');
+        tbody.innerHTML = '';
+
+        for (var i = 0; i < inlineProducts.length; i++) {
+            (function(p) {
+                var tr = document.createElement('tr');
+
+                var barcodeTd = document.createElement('td');
+                barcodeTd.innerHTML = '<code>' + (p.barcode || '—') + '</code>';
+
+                var claveTd = document.createElement('td');
+                claveTd.innerHTML = p.clave ? '<code>' + p.clave + '</code>' : '<span class="text-muted">—</span>';
+
+                var nameTd = document.createElement('td');
+                nameTd.textContent = p.name;
+
+                var actionTd = document.createElement('td');
+                var removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-danger btn-xs';
+                removeBtn.textContent = '✕';
+                removeBtn.addEventListener('click', function() {
+                    var idx = inlineProducts.indexOf(p);
+                    if (idx > -1) inlineProducts.splice(idx, 1);
+                    renderInlineProducts();
+                });
+                actionTd.appendChild(removeBtn);
+
+                tr.appendChild(barcodeTd);
+                tr.appendChild(claveTd);
+                tr.appendChild(nameTd);
+                tr.appendChild(actionTd);
+                tbody.appendChild(tr);
+            })(inlineProducts[i]);
+        }
+
+        updateCounts();
+    }
+
+    function updateCounts() {
+        var count = inlineProducts.length;
+        countBadge.textContent = count + ' product(s) selected';
+        var countText = document.getElementById('selected_count');
+        if (countText) countText.textContent = count + ' product(s) selected';
+    }
+
+    // Validate and update hidden input on form submit
+    document.getElementById('create_form').addEventListener('submit', function(e) {
+        var ids = [];
+        for (var i = 0; i < inlineProducts.length; i++) {
+            ids.push(inlineProducts[i].id);
+        }
+        productIdsInput.value = ids.join(',');
+
+        if (inlineProducts.length < 2) {
+            e.preventDefault();
+            alert('A group must have at least 2 products. Please search and add products before creating the group.');
+        }
+    });
+
+    renderInlineProducts();
+});
+</script>
+
+<style>
+    .select2-container--bootstrap4 .select2-selection--single {
+        height: calc(2.25rem + 2px) !important;
+    }
+    .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+        line-height: calc(2.25rem + 2px) !important;
+    }
+    @media (max-width: 576px) {
+        .container-fluid { padding-left: 8px; padding-right: 8px; }
+        code { font-size: 0.85rem; }
+    }
+    .gap-1 { gap: 0.25rem; }
+    .gap-2 { gap: 0.5rem; }
+    .btn-xs {
+        padding: 0.125rem 0.3rem;
+        font-size: 0.65rem;
+        line-height: 1.2;
+        border-radius: 0.2rem;
+    }
+</style>
 {% endblock %}

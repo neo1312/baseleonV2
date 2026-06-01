@@ -112,7 +112,7 @@
                                         <form method="post" action="{% url 'im:groupRemoveProduct' group.id p.id %}" style="display:inline;">
                                             {% csrf_token %}
                                             <button type="submit" class="btn btn-danger btn-xs" onclick="return confirm('Remove {{ p.name|escapejs }} from this group?')">
-                                                <i class="fas fa-times"></i>
+                                                <i class="fas fa-times"></i> Remove
                                             </button>
                                         </form>
                                     </td>
@@ -226,9 +226,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 var removeBtn = document.createElement('button');
                 removeBtn.type = 'button';
-                removeBtn.className = 'btn-close btn-close-sm ms-2';
-                removeBtn.style.cssText = 'font-size: 0.65rem; padding: 0; line-height: 1;';
-                removeBtn.setAttribute('aria-label', 'Remove');
+                removeBtn.className = 'btn btn-danger btn-xs ms-2';
+                removeBtn.textContent = '✕';
                 removeBtn.addEventListener('click', function() {
                     var idx = inlineProducts.indexOf(p);
                     if (idx > -1) inlineProducts.splice(idx, 1);
@@ -246,29 +245,30 @@ document.addEventListener('DOMContentLoaded', function() {
         var pending = inlineProducts.slice();
         if (pending.length === 0) return;
 
+        var ids = [];
         for (var i = 0; i < pending.length; i++) {
-            (function(pid) {
-                var form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '{% url "im:groupAddProduct" group.id %}';
-                form.style.display = 'none';
-
-                var csrf = document.createElement('input');
-                csrf.type = 'hidden';
-                csrf.name = 'csrfmiddlewaretoken';
-                csrf.value = csrftoken;
-                form.appendChild(csrf);
-
-                var input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'product_id';
-                input.value = pid;
-                form.appendChild(input);
-
-                document.body.appendChild(form);
-                form.submit();
-            })(pending[i].id);
+            ids.push(pending[i].id);
         }
+
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{% url "im:groupAddProduct" group.id %}';
+        form.style.display = 'none';
+
+        var csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = 'csrfmiddlewaretoken';
+        csrf.value = csrftoken;
+        form.appendChild(csrf);
+
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'product_ids';
+        input.value = ids.join(',');
+        form.appendChild(input);
+
+        document.body.appendChild(form);
+        form.submit();
     });
 });
 </script>

@@ -11,17 +11,76 @@ from crm.decorators import role_required
 @require_http_methods(["GET", "POST"])
 @role_required('Admin', 'Manager', 'Buyer')
 def group_create(request):
+    context = {'title': 'Create Group'}
+
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
-        if not name:
-            messages.error(request, 'Group name is required.')
-            return render(request, 'group/create.html', {'title': 'Create Group'})
+        stockMin = request.POST.get('stockMin', '').strip()
+        stockMax = request.POST.get('stockMax', '').strip()
+        product_ids_raw = request.POST.get('product_ids', '').strip()
 
-        group = ProductGroup.objects.create(name=name)
-        messages.success(request, f'Group "{group.name}" created. Add products now.')
+        context.update({
+            'name': name,
+            'stockMin': stockMin,
+            'stockMax': stockMax,
+            'preselected_ids': product_ids_raw,
+        })
+
+        errors = []
+
+        if not name:
+            errors.append('Group name is required.')
+
+        if not stockMin:
+            errors.append('Min stock is required.')
+        if not stockMax:
+            errors.append('Max stock is required.')
+
+        stockMinVal = 0
+        stockMaxVal = 0
+        try:
+            stockMinVal = int(stockMin) if stockMin else 0
+        except ValueError:
+            errors.append('Min stock must be a valid number.')
+
+        try:
+            stockMaxVal = int(stockMax) if stockMax else 0
+        except ValueError:
+            errors.append('Max stock must be a valid number.')
+
+        if stockMinVal < 0:
+            errors.append('Min stock cannot be negative.')
+        if stockMaxVal < 0:
+            errors.append('Max stock cannot be negative.')
+
+        if stockMinVal and stockMaxVal and stockMinVal > stockMaxVal:
+            errors.append('Min stock cannot be greater than max stock.')
+
+        product_ids = []
+        if product_ids_raw:
+            for pid in product_ids_raw.split(','):
+                pid = pid.strip()
+                if pid.isdigit():
+                    product_ids.append(int(pid))
+
+        if len(product_ids) < 2:
+            errors.append(f'A group must have at least 2 products (selected: {len(product_ids)}).')
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+            return render(request, 'group/create.html', context)
+
+        group = ProductGroup.objects.create(
+            name=name,
+            stockMin=stockMinVal,
+            stockMax=stockMaxVal,
+        )
+        Product.objects.filter(id__in=product_ids).update(group=group)
+        messages.success(request, f'Group "{group.name}" created with {len(product_ids)} products.')
         return redirect('im:groupEdit', pk=group.id)
 
-    return render(request, 'group/create.html', {'title': 'Create Group'})
+    return render(request, 'group/create.html', context)
 
 
 @require_http_methods(["GET"])
@@ -130,17 +189,24 @@ def group_product_search(request):
 @role_required('Admin', 'Manager', 'Buyer')
 def group_add_product(request, pk):
     group = get_object_or_404(ProductGroup, id=pk)
-    product_id = request.POST.get('product_id')
+    product_ids_raw = request.POST.get('product_ids', '').strip()
 
-    if not product_id:
+    if not product_ids_raw:
         messages.error(request, 'No product specified.')
         return redirect('im:groupEdit', pk=pk)
 
-    product = get_object_or_404(Product, id=product_id)
-    product.group = group
-    product.save()
+    product_ids = []
+    for pid in product_ids_raw.split(','):
+        pid = pid.strip()
+        if pid.isdigit():
+            product_ids.append(int(pid))
 
-    messages.success(request, f'"{product.name}" added to group "{group.name}".')
+    if not product_ids:
+        messages.error(request, 'No valid product IDs.')
+        return redirect('im:groupEdit', pk=pk)
+
+    count = Product.objects.filter(id__in=product_ids).update(group=group)
+    messages.success(request, f'{count} product(s) added to group "{group.name}".')
     return redirect('im:groupEdit', pk=pk)
 
 
@@ -152,6 +218,10 @@ def group_remove_product(request, pk, product_id):
 
     if product.group_id != group.id:
         messages.error(request, 'This product is not in this group.')
+        return redirect('im:groupEdit', pk=pk)
+
+    if group.products.count() <= 2:
+        messages.error(request, f'Cannot remove: a group must have at least 2 products (currently {group.products.count()}).')
         return redirect('im:groupEdit', pk=pk)
 
     product.group = None
