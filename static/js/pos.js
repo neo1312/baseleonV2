@@ -16,7 +16,7 @@ try {
 function broadcastToDisplay(msg) {
     if (posChannel) posChannel.postMessage(msg);
 }
-let saleType = null;
+let saleType = 'menudeo';
 let clientId = null;
 let clientName = null;
 let clientWallet = 0;
@@ -36,12 +36,13 @@ function syncCartToSession(extra) {
         saleStarted: saleStarted,
         ...(extra || {}),
     };
-    fetch('/pos/cart/save/', {
+    return fetch('/pos/cart/save/', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload),
     }).then(r => {
         if (!r.ok) console.error('Cart sync failed:', r.status, r.statusText);
+        return r;
     }).catch(err => console.error('Cart sync error:', err));
 }
 
@@ -315,6 +316,9 @@ function clearCart() {
 // SETTINGS
 function openSettings() {
     document.getElementById('settings-modal').classList.add('show');
+    
+    // Sync dropdowns with current state
+    document.getElementById('sale-type-select').value = saleType;
     
     // Default to "mostrador" client
     const clientSelect = document.getElementById('client-select');
@@ -674,29 +678,17 @@ function confirmCheckout() {
 
             const saleMsg = 'Gracias por su compra, vuelva pronto';
             
-            // Reset sale
-            cart = {};
-            saleStarted = false;
-            saleType = null;
-            clientId = null;
-            clientName = null;
-            clientWallet = 0;
-            
-            updateCartDisplay();
+            // Sync sale completion to server then reload for clean state
             syncCartToSession({
                 saleCompleted: {
                     message: saleMsg,
                     timestamp: Date.now() / 1000,
                 }
+            }).then(() => {
+                closeCheckout();
+                broadcastToDisplay('sale_completed');
+                setTimeout(() => location.reload(), 300);
             });
-            closeCheckout();
-            document.getElementById('notes').value = '';
-            document.getElementById('sale-type-display').textContent = 'Sale: -';
-            document.getElementById('client-display').textContent = 'Client: -';
-            
-            // Reload inventory from server to show updated stock
-            reloadInventory();
-            broadcastToDisplay('sale_completed');
         } else {
             alert(`❌ Error: ${data.error}`);
         }

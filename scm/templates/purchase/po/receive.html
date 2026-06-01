@@ -18,10 +18,20 @@
                             <strong>Status:</strong> <span class="badge badge-pill badge-info">{{ po.get_status_display|upper }}</span>
                         </div>
 
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <input type="text" id="searchInput" class="form-control" placeholder="🔍 Search by barcode, clave, or name..." oninput="filterTable()">
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <span class="text-muted" id="rowCount">Showing all items</span>
+                            </div>
+                        </div>
+
                         <div class="table-responsive mb-4">
                             <table class="table table-sm table-bordered">
                                 <thead class="table-dark">
                                     <tr>
+                                        <th class="text-center" style="width:50px;">Status</th>
                                         <th>Product</th>
                                         <th class="text-center">SKU</th>
                                         <th class="text-center">Ordered Qty</th>
@@ -34,7 +44,16 @@
                                 <tbody>
                                     {% for item in po_items %}
                                     {% with pp_unidad=item.product|get_unidad_empaque:po.provider %}
-                                    <tr data-item-id="{{ item.id }}"{% if pp_unidad > 1 %} class="table-warning"{% endif %}>
+                                    <tr data-item-id="{{ item.id }}" 
+                                        data-barcode="{{ item.product.barcode }}" 
+                                        data-clave="{{ item.product|get_provider_pv1:po.provider }}"
+                                        data-name="{{ item.product.name|lower }}"
+                                        data-ordered="{{ item.ordered_quantity }}">
+                                        <td class="text-center">
+                                            <input type="checkbox" class="received-checkbox" data-item-id="{{ item.id }}"
+                                                   {% if item.received_quantity and item.received_quantity >= item.ordered_quantity %}checked{% endif %}
+                                                   onchange="toggleReceived(this)">
+                                        </td>
                                         <td>
                                             <small><strong>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</strong></small>
                                         </td>
@@ -50,7 +69,8 @@
                                                    min="0" 
                                                    step="1"
                                                    data-item-id="{{ item.id }}"
-                                                   onchange="updateLineTotal(this)">
+                                                   onchange="updateLineTotal(this)"
+                                                   oninput="updateLineTotal(this)">
                                         </td>
                                         <td class="text-end">
                                             <strong>${{ item.ordered_cost_per_unit|floatformat:2 }}</strong>
@@ -63,7 +83,8 @@
                                                    min="0" 
                                                    step="0.01"
                                                    data-item-id="{{ item.id }}"
-                                                   onchange="updateLineTotal(this)">
+                                                   onchange="updateLineTotal(this)"
+                                                   oninput="updateLineTotal(this)">
                                         </td>
                                         <td class="text-end">
                                             <span class="line-total fw-bold" data-item-id="{{ item.id }}">
@@ -74,7 +95,7 @@
                                     {% endwith %}
                                     {% endfor %}
                                     <tr class="table-active">
-                                        <td colspan="6" class="text-end"><strong>ORDER TOTAL:</strong></td>
+                                        <td colspan="7" class="text-end"><strong>ORDER TOTAL:</strong></td>
                                         <td class="text-end">
                                             <strong class="h5" id="order-total">$0.00</strong>
                                         </td>
@@ -235,41 +256,97 @@
 </div>
 
 <script>
-// Populate modal data from form inputs when modal is shown
-document.addEventListener('DOMContentLoaded', function() {
-    const receiveModal = document.getElementById('confirmReceiveModal');
-    const completeModal = document.getElementById('confirmCompleteModal');
-    
-    if (receiveModal) {
-        $(receiveModal).on('show.bs.modal', function() {
-            populateModalFromForm('confirmReceiveTable');
-        });
-    }
-    
-    if (completeModal) {
-        $(completeModal).on('show.bs.modal', function() {
-            populateModalFromForm('confirmCompleteTable');
-        });
-    }
-});
-
-// Submit the main form with the specified action
-function submitForm(action) {
-    const actionField = document.getElementById('action-field');
-    if (actionField) {
-        actionField.value = action;
-    }
-    
-    // Submit the receive form by ID
-    const form = document.getElementById('receiveForm');
-    if (form) {
-        form.submit();
-    }
+// ==================== SEARCH / FILTER ====================
+function filterTable() {
+    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    let visible = 0;
+    document.querySelectorAll('#receiveForm tr[data-item-id]').forEach(row => {
+        const barcode = (row.dataset.barcode || '').toLowerCase();
+        const clave = (row.dataset.clave || '').toLowerCase();
+        const name = (row.dataset.name || '').toLowerCase();
+        const match = !query || barcode.includes(query) || clave.includes(query) || name.includes(query);
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    const total = document.querySelectorAll('#receiveForm tr[data-item-id]').length;
+    document.getElementById('rowCount').textContent = visible === total ? 'Showing all items' : visible + ' of ' + total + ' items';
 }
 
+// ==================== STATUS / COLOR ====================
+function getRowStatus(itemId) {
+    const row = document.querySelector(`#receiveForm tr[data-item-id="${itemId}"]`);
+    if (!row) return 'none';
+    const ordered = parseInt(row.dataset.ordered) || 0;
+    const qtyInput = row.querySelector('.received-qty-input');
+    const qty = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
+    if (qty >= ordered && ordered > 0) return 'full';
+    if (qty > 0) return 'partial';
+    return 'none';
+}
+
+function updateRowStatus(itemId) {
+    const row = document.querySelector(`#receiveForm tr[data-item-id="${itemId}"]`);
+    if (!row) return;
+    const status = getRowStatus(itemId);
+    const ordered = parseInt(row.dataset.ordered) || 0;
+    const qtyInput = row.querySelector('.received-qty-input');
+    const qty = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
+    
+    // Update row color
+    row.classList.remove('row-full', 'row-partial', 'row-none');
+    if (status === 'full') row.classList.add('row-full');
+    else if (status === 'partial') row.classList.add('row-partial');
+    else row.classList.add('row-none');
+    
+    // Update checkbox state
+    const checkbox = row.querySelector('.received-checkbox');
+    if (checkbox) {
+        if (status === 'full') {
+            checkbox.checked = true;
+            checkbox.indeterminate = false;
+        } else if (status === 'none') {
+            checkbox.checked = false;
+            checkbox.indeterminate = false;
+        } else {
+            checkbox.checked = false;
+            checkbox.indeterminate = true;
+        }
+    }
+    
+    // Update modal cells in open modals
+    document.querySelectorAll(`#confirmReceiveTable tr[data-item-id="${itemId}"], #confirmCompleteTable tr[data-item-id="${itemId}"]`).forEach(modalRow => {
+        const qtyCell = modalRow.querySelector('.modal-qty');
+        if (qtyCell) {
+            qtyCell.textContent = qty;
+            qtyCell.classList.remove('text-success', 'text-warning', 'text-danger');
+            if (status === 'full') qtyCell.classList.add('text-success', 'fw-bold');
+            else if (status === 'partial') qtyCell.classList.add('text-warning', 'fw-bold');
+            else qtyCell.classList.add('text-danger', 'fw-bold');
+        }
+        const lineTotalEl = modalRow.querySelector('.modal-line-total');
+        const costInput = document.querySelector(`input[name="received_cost_${itemId}"]`);
+        const cost = parseFloat(costInput ? costInput.value : 0) || 0;
+        if (lineTotalEl) lineTotalEl.textContent = '$' + (qty * cost).toFixed(2);
+    });
+}
+
+// ==================== CHECKBOX ====================
+function toggleReceived(checkbox) {
+    const itemId = checkbox.dataset.itemId;
+    const row = document.querySelector(`#receiveForm tr[data-item-id="${itemId}"]`);
+    if (!row) return;
+    const ordered = parseInt(row.dataset.ordered) || 0;
+    const qtyInput = row.querySelector('.received-qty-input');
+    if (!qtyInput) return;
+    
+    qtyInput.value = checkbox.checked ? ordered : 0;
+    updateLineTotal(qtyInput);
+}
+
+// ==================== LINE TOTALS ====================
 function updateLineTotal(input) {
     const itemId = input.dataset.itemId;
-    const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
+    const row = document.querySelector(`#receiveForm tr[data-item-id="${itemId}"]`);
     if (!row) return;
     
     const qtyInput = row.querySelector(`input[name="received_qty_${itemId}"]`);
@@ -280,20 +357,19 @@ function updateLineTotal(input) {
         const cost = parseFloat(costInput.value) || 0;
         const lineTotal = qty * cost;
         
-        // Update line total display
         const lineTotalElement = row.querySelector('.line-total');
         if (lineTotalElement) {
             lineTotalElement.textContent = '$' + lineTotal.toFixed(2);
         }
     }
     
-    // Recalculate order total
     updateOrderTotal();
+    updateRowStatus(itemId);
 }
 
 function updateOrderTotal() {
     let total = 0;
-    document.querySelectorAll('tr[data-item-id]').forEach(row => {
+    document.querySelectorAll('#receiveForm tr[data-item-id]').forEach(row => {
         const lineTotalElement = row.querySelector('.line-total');
         if (lineTotalElement) {
             const text = lineTotalElement.textContent.replace('$', '');
@@ -307,17 +383,17 @@ function updateOrderTotal() {
     }
 }
 
+// ==================== MODAL ====================
 function populateModalFromForm(tableId) {
     const table = document.getElementById(tableId);
     if (!table) return;
     
     let total = 0;
-    const rows = table.querySelectorAll('tbody tr[data-item-id]');
+    const rows = table.querySelectorAll('tr[data-item-id]');
     
     rows.forEach(row => {
         const itemId = row.dataset.itemId;
         
-        // Get values from form inputs
         const qtyInput = document.querySelector(`input[name="received_qty_${itemId}"]`);
         const costInput = document.querySelector(`input[name="received_cost_${itemId}"]`);
         
@@ -326,8 +402,18 @@ function populateModalFromForm(tableId) {
             const cost = parseFloat(costInput.value) || 0;
             const lineTotal = qty * cost;
             
-            // Update modal row
-            row.querySelector('.modal-qty').textContent = qty;
+            const qtyCell = row.querySelector('.modal-qty');
+            if (qtyCell) {
+                qtyCell.textContent = qty;
+                // Color from main row status
+                const mainRow = document.querySelector(`#receiveForm tr[data-item-id="${itemId}"]`);
+                if (mainRow) {
+                    qtyCell.classList.remove('text-success', 'text-warning', 'text-danger', 'fw-bold');
+                    if (mainRow.classList.contains('row-full')) qtyCell.classList.add('text-success', 'fw-bold');
+                    else if (mainRow.classList.contains('row-partial')) qtyCell.classList.add('text-warning', 'fw-bold');
+                    else qtyCell.classList.add('text-danger', 'fw-bold');
+                }
+            }
             row.querySelector('.modal-cost').textContent = '$' + cost.toFixed(2);
             row.querySelector('.modal-line-total').textContent = '$' + lineTotal.toFixed(2);
             
@@ -335,7 +421,6 @@ function populateModalFromForm(tableId) {
         }
     });
     
-    // Update total
     const totalId = tableId === 'confirmReceiveTable' ? 'modal-order-total' : 'complete-order-total';
     const totalElement = document.getElementById(totalId);
     if (totalElement) {
@@ -343,11 +428,48 @@ function populateModalFromForm(tableId) {
     }
 }
 
-// Initialize line totals on page load
+// ==================== SUBMIT ====================
+function submitForm(action) {
+    const actionField = document.getElementById('action-field');
+    if (actionField) {
+        actionField.value = action;
+    }
+    const form = document.getElementById('receiveForm');
+    if (form) {
+        form.submit();
+    }
+}
+
+// ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('tr[data-item-id]').forEach(row => {
-        updateLineTotal(row.querySelector('.received-qty-input'));
+    // Initialize line totals only (NO row colors — white until user acts)
+    document.querySelectorAll('#receiveForm tr[data-item-id]').forEach(row => {
+        const qtyInput = row.querySelector('.received-qty-input');
+        const costInput = row.querySelector('.received-cost-input');
+        if (qtyInput && costInput) {
+            const qty = parseFloat(qtyInput.value) || 0;
+            const cost = parseFloat(costInput.value) || 0;
+            const lineTotal = qty * cost;
+            const lineTotalEl = row.querySelector('.line-total');
+            if (lineTotalEl) lineTotalEl.textContent = '$' + lineTotal.toFixed(2);
+        }
     });
+    updateOrderTotal();
+
+    // Bind modal events
+    const receiveModal = document.getElementById('confirmReceiveModal');
+    const completeModal = document.getElementById('confirmCompleteModal');
+    
+    if (receiveModal) {
+        $(receiveModal).on('show.bs.modal', function() {
+            populateModalFromForm('confirmReceiveTable');
+        });
+    }
+    if (completeModal) {
+        $(completeModal).on('show.bs.modal', function() {
+            populateModalFromForm('confirmCompleteTable');
+        });
+    }
 });
 </script>
 
@@ -360,6 +482,24 @@ document.addEventListener('DOMContentLoaded', function() {
 .received-qty-input,
 .received-cost-input {
     text-align: right;
+}
+
+/* Row color classes */
+tr.row-full {
+    background-color: #d4edda !important;
+}
+tr.row-partial {
+    background-color: #fff3cd !important;
+}
+tr.row-none {
+    background-color: #f8d7da !important;
+}
+
+/* Checkbox styling */
+.received-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
 }
 </style>
 {% endblock %}

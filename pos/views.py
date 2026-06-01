@@ -368,9 +368,11 @@ def cart_save(request):
             request.session['pos_sale_started'] = data.get('saleStarted', False)
             request.session['pos_sale_completed'] = data.get('saleCompleted')
 
-            # If sale completed flag is set, also clear checkout state atomically
-            if data.get('saleCompleted') and 'pos_checkout_state' in request.session:
-                del request.session['pos_checkout_state']
+            # If sale completed flag is set, also clear checkout state and reset sale type
+            if data.get('saleCompleted'):
+                if 'pos_checkout_state' in request.session:
+                    del request.session['pos_checkout_state']
+                request.session['pos_sale_type'] = 'menudeo'
 
             return JsonResponse({'success': True})
         except Exception as e:
@@ -476,7 +478,7 @@ def cart_get(request):
 
         response_data = {
             'cart': request.session.get('pos_cart', {}),
-            'saleType': request.session.get('pos_sale_type'),
+            'saleType': request.session.get('pos_sale_type', 'menudeo'),
             'clientId': request.session.get('pos_client_id'),
             'clientName': request.session.get('pos_client_name'),
             'clientWallet': request.session.get('pos_client_wallet'),
@@ -519,12 +521,13 @@ def checkout_clear(request):
 def reset_display(request):
     """Clear all POS session data to reset the customer display."""
     if request.method == 'POST':
-        keys = ['pos_cart', 'pos_sale_type', 'pos_client_id', 'pos_client_name',
+        keys = ['pos_cart', 'pos_client_id', 'pos_client_name',
                 'pos_client_wallet', 'pos_sale_started', 'pos_checkout_state',
                 'pos_sale_completed']
         for key in keys:
             if key in request.session:
                 del request.session[key]
+        request.session['pos_sale_type'] = 'menudeo'
         return JsonResponse({'success': True, 'message': 'Display reset'})
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
