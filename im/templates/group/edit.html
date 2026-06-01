@@ -1,0 +1,296 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}
+{{ block.super }}
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2/css/select2.min.css' %}" rel="stylesheet" />
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-2 px-sm-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <a href="{% url 'im:groupList' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Groups
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Group Settings -->
+        <div class="col-md-4">
+            <div class="card border-info mb-4">
+                <div class="card-header bg-info text-white py-2">
+                    <h4 class="mb-0"><i class="fas fa-cog"></i> Group Settings</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'im:groupEdit' group.id %}">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" name="name" class="form-control" value="{{ group.name }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Min Stock</label>
+                            <input type="number" name="stockMin" class="form-control" value="{{ group.stockMin }}" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Max Stock</label>
+                            <input type="number" name="stockMax" class="form-control" value="{{ group.stockMax }}" min="0">
+                        </div>
+                        <button type="submit" class="btn btn-info btn-block">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white py-2">
+                    <i class="fas fa-info-circle"></i> Summary
+                </div>
+                <div class="card-body">
+                    <p><strong>Products:</strong> {{ products.count }}</p>
+                    <p><strong>Created:</strong> {{ group.date_created|date:"Y-m-d H:i" }}</p>
+                    <p><strong>Updated:</strong> {{ group.last_updated|date:"Y-m-d H:i" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Management -->
+        <div class="col-md-8">
+            <!-- Add Product via Search -->
+            <div class="card mb-3 border-success">
+                <div class="card-header bg-success text-white py-2">
+                    <i class="fas fa-plus-circle"></i> Add Product to Group
+                </div>
+                <div class="card-body">
+                    <label class="form-label text-muted small mb-1">
+                        Search by <strong>barcode</strong>, <strong>clave</strong>, or <strong>name</strong>
+                    </label>
+                    <select id="product_search" class="form-control" style="width: 100%;"></select>
+
+                    <div id="inline_selected_container" class="mt-2" style="display: none;">
+                        <hr class="my-2">
+                        <label class="form-label text-muted small mb-1">Products to add:</label>
+                        <div id="inline_selected_list" class="d-flex flex-wrap gap-1"></div>
+                        <button id="add_selected_btn" class="btn btn-success btn-sm mt-2" disabled>
+                            <i class="fas fa-check"></i> Add Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Products -->
+            <div class="card border-secondary">
+                <div class="card-header bg-secondary text-white py-2">
+                    <i class="fas fa-boxes"></i> Products in this Group
+                    <span class="badge badge-light float-right">{{ products.count }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if products %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Barcode</th>
+                                    <th>Clave</th>
+                                    <th>Name</th>
+                                    <th>Stock</th>
+                                    <th style="width: 80px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in products %}
+                                <tr>
+                                    <td><code>{{ p.barcode }}</code></td>
+                                    <td>{% if p.clave %}<code>{{ p.clave }}</code>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                                    <td>{{ p.name }}</td>
+                                    <td>{{ p.stock_ready_to_sale }}</td>
+                                    <td>
+                                        <form method="post" action="{% url 'im:groupRemoveProduct' group.id p.id %}" style="display:inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-danger btn-xs" onclick="return confirm('Remove {{ p.name|escapejs }} from this group?')">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-box-open fa-3x mb-3 d-block"></i>
+                        <p>No products in this group yet.</p>
+                        <p class="small">Use the search above to find and add products.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascrip %}
+{{ block.super }}
+<script src="{% static 'lib/AdminLTE-3.1.0/plugins/select2/js/select2.min.js' %}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var inlineProducts = [];
+    var searchEl = document.getElementById('product_search');
+    if (!searchEl) return;
+
+    var $search = $('#product_search');
+    var inlineContainer = document.getElementById('inline_selected_container');
+    var inlineList = document.getElementById('inline_selected_list');
+    var addBtn = document.getElementById('add_selected_btn');
+
+    if (typeof $search.select2 !== 'function') {
+        console.error('Select2 not loaded');
+        return;
+    }
+
+    $search.select2({
+        theme: 'bootstrap4',
+        placeholder: 'Type barcode, clave, or name...',
+        allowClear: true,
+        minimumInputLength: 1,
+        ajax: {
+            url: '{% url "im:groupProductSearch" %}',
+            dataType: 'json',
+            delay: 300,
+            data: function(params) {
+                return { q: params.term, group_id: {{ group.id }} };
+            },
+            processResults: function(data) {
+                return { results: data.results || [] };
+            },
+            cache: true
+        },
+        templateResult: function(product) {
+            if (product.loading) return product.text;
+            return $('<span>' + product.text + '</span>');
+        },
+        templateSelection: function(product) {
+            return product.text || product.id;
+        }
+    });
+
+    $search.on('select2:select', function(e) {
+        var data = e.params.data;
+        if (!data || !data.id) return;
+
+        for (var i = 0; i < inlineProducts.length; i++) {
+            if (inlineProducts[i].id == data.id) {
+                $search.val(null).trigger('change');
+                return;
+            }
+        }
+
+        inlineProducts.push({
+            id: data.id,
+            name: data.name || data.text,
+            clave: data.clave || '',
+            barcode: data.barcode || ''
+        });
+
+        renderInlineProducts();
+        $search.val(null).trigger('change');
+    });
+
+    function renderInlineProducts() {
+        inlineList.innerHTML = '';
+        if (inlineProducts.length === 0) {
+            inlineContainer.style.display = 'none';
+            addBtn.disabled = true;
+            return;
+        }
+        inlineContainer.style.display = 'block';
+        addBtn.disabled = false;
+
+        for (var i = 0; i < inlineProducts.length; i++) {
+            (function(p) {
+                var tag = document.createElement('span');
+                tag.className = 'badge d-inline-flex align-items-center gap-1 py-2 px-3 mb-1';
+                tag.style.cssText = 'background: #e8f0fe; color: #1967d2; font-size: 0.85rem; border: 1px solid #c6dafc;';
+
+                var label = document.createElement('span');
+                label.textContent = p.name;
+                if (p.clave) label.textContent += ' (' + p.clave + ')';
+                else if (p.barcode) label.textContent += ' (' + p.barcode + ')';
+
+                var removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn-close btn-close-sm ms-2';
+                removeBtn.style.cssText = 'font-size: 0.65rem; padding: 0; line-height: 1;';
+                removeBtn.setAttribute('aria-label', 'Remove');
+                removeBtn.addEventListener('click', function() {
+                    var idx = inlineProducts.indexOf(p);
+                    if (idx > -1) inlineProducts.splice(idx, 1);
+                    renderInlineProducts();
+                });
+
+                tag.appendChild(label);
+                tag.appendChild(removeBtn);
+                inlineList.appendChild(tag);
+            })(inlineProducts[i]);
+        }
+    }
+
+    addBtn.addEventListener('click', function() {
+        var pending = inlineProducts.slice();
+        if (pending.length === 0) return;
+
+        for (var i = 0; i < pending.length; i++) {
+            (function(pid) {
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{% url "im:groupAddProduct" group.id %}';
+                form.style.display = 'none';
+
+                var csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = 'csrfmiddlewaretoken';
+                csrf.value = csrftoken;
+                form.appendChild(csrf);
+
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'product_id';
+                input.value = pid;
+                form.appendChild(input);
+
+                document.body.appendChild(form);
+                form.submit();
+            })(pending[i].id);
+        }
+    });
+});
+</script>
+
+<style>
+    .select2-container--bootstrap4 .select2-selection--single {
+        height: calc(2.25rem + 2px) !important;
+    }
+    .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+        line-height: calc(2.25rem + 2px) !important;
+    }
+    .btn-xs {
+        padding: 0.125rem 0.4rem;
+        font-size: 0.75rem;
+        line-height: 1.5;
+        border-radius: 0.2rem;
+    }
+    @media (max-width: 576px) {
+        .container-fluid { padding-left: 8px; padding-right: 8px; }
+        code { font-size: 0.85rem; }
+    }
+    .gap-1 { gap: 0.25rem; }
+    .gap-2 { gap: 0.5rem; }
+</style>
+{% endblock %}

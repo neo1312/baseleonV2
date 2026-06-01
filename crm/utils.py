@@ -31,7 +31,8 @@ ROLE_FEATURES = {
                     {'title': 'Clientes', 'description': 'Gestionar clientes', 'icon': '👥', 'url': '/client/list', 'color': '#C41C38'},
                     {'title': 'Proveedores', 'description': 'Gestionar proveedores', 'icon': '🚚', 'url': '/provider/list', 'color': '#8B0000'},
                     {'title': 'Despiece', 'description': 'Convertir producto unitario a partes', 'icon': '🔄', 'url': '/im/product/despiece/', 'color': '#28A745'},
-                ]
+                    {'title': 'Grupos', 'description': 'Gestionar grupos de productos equivalentes', 'icon': '📁', 'url': '/im/group/list', 'color': '#6F42C1'},
+                ],
             },
             {
                 'category': 'Purchasing',
