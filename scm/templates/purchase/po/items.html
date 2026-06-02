@@ -46,6 +46,7 @@
                                         <th>SKU</th>
                                         <th>Quantity to Order</th>
                                         <th>Description</th>
+                                        <th>Unidad Empaque</th>
                                         <th>Cost per Unit</th>
                                         <th>IVA</th>
                                         <th>Total</th>
@@ -66,6 +67,13 @@
                                                    oninput="window.calculateRowTotal(this)">
                                         </td>
                                         <td>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</td>
+                                        <td class="text-center">
+                                            {% if pp_unidad > 1 %}
+                                                <span class="badge badge-warning">{{ pp_unidad }}</span>
+                                            {% else %}
+                                                1
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             <input type="number" name="cost" class="form-control form-control-sm cost-input" 
                                                    value="{{ item.cost_per_unit }}" min="0" step="0.01"
@@ -90,7 +98,7 @@
                                     {% endwith %}
                                     {% endfor %}
                                     <tr class="table-active">
-                                        <td colspan="4" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
+                                        <td colspan="5" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
                                         <td></td>
                                         <td class="text-end font-weight-bold">
                                             <span id="cart_total">{{ cart_total|floatformat:2 }}</span>
@@ -233,6 +241,7 @@ window.addProductRow = function(p) {
             <input type="number" name="quantity" class="form-control form-control-sm quantity-input" value="1" min="0" step="1" data-row-id="${p.id}">
         </td>
         <td>${p.name}${pp_unidad > 1 ? ' <span class="badge badge-warning">EMPAQUE: ' + pp_unidad + '</span>' : ''}</td>
+        <td class="text-center">${pp_unidad > 1 ? '<span class="badge badge-warning">' + pp_unidad + '</span>' : '1'}</td>
         <td>
             <input type="number" name="cost" class="form-control form-control-sm cost-input" value="${p.cost.toFixed(2)}" min="0" step="0.01" data-row-id="${p.id}">
         </td>
