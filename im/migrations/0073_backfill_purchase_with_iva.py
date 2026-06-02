@@ -24,6 +24,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('im', '0072_inventoryunit_purchase_with_iva'),
+        ('scm', '0015_purchaseorder_has_iva'),
     ]
 
     operations = [
