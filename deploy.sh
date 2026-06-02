@@ -28,13 +28,11 @@ case $ENV in
 		echo "Building and starting containers..."
 		$COMPOSE down
 
-		# Build fresh image first, then run migration with it
-		$COMPOSE build web
-		# Start db, then run migrations before starting full stack
+		# Start db first so healthcheck passes before web starts
 		$COMPOSE up -d db
-		$COMPOSE run --rm web python manage.py migrate --noinput
 
-		$COMPOSE up -d --remove-orphans
+		# Build and start all services (migration runs inside web entrypoint)
+		$COMPOSE up --build -d --remove-orphans
 		echo "Waiting for containers to come up..."
 		echo "Current container status:"
 		$COMPOSE ps
@@ -59,13 +57,11 @@ case $ENV in
 
 		docker compose -f docker-compose.prod.yml --env-file .env.prod down
 
-		# Build fresh image first, then run migration with it
-		docker compose -f docker-compose.prod.yml --env-file .env.prod build web
-		# Start db, then run migrations before starting full stack
+		# Start db first so healthcheck passes before web starts
 		docker compose -f docker-compose.prod.yml --env-file .env.prod up -d db
-		docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm web python manage.py migrate --noinput
 
-		docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+		# Build and start all services (migration runs inside web entrypoint)
+		docker compose -f docker-compose.prod.yml --env-file .env.prod up --build -d --remove-orphans
 		EOF
 		echo "production deployment completed"
 		;;
