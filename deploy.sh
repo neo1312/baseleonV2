@@ -14,13 +14,31 @@ case $ENV in
 	stage)
 		echo "Starting staging deployment ..."
 		COMPOSE="docker compose -f docker-compose.stage.yml --env-file .env.stage"
+
+		# Pre-flight checks
+		if [ ! -f docker-compose.stage.yml ]; then
+			echo "ERROR: docker-compose.stage.yml not found"
+			exit 1
+		fi
+		if [ ! -f .env.stage ]; then
+			echo "ERROR: .env.stage not found"
+			exit 1
+		fi
+
 		echo "Building and starting containers..."
 		$COMPOSE down
-		$COMPOSE up --build -d --remove-orphans
+
+		# Build fresh image first, then run migration with it
+		$COMPOSE build web
+		# Start db, then run migrations before starting full stack
+		$COMPOSE up -d db
+		$COMPOSE run --rm web python manage.py migrate --noinput
+
+		$COMPOSE up -d --remove-orphans
 		echo "Waiting for containers to come up..."
 		echo "Current container status:"
 		$COMPOSE ps
-		echo "Stage deploment completed"
+		echo "Staging deployment completed"
 		;;
 
 	prod)
