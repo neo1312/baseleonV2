@@ -29,12 +29,24 @@ case $ENV in
 		git commit -m "$COMMIT_MSG" --allow-empty
 		git push
 		ssh root@5.75.162.179 <<-EOF
+		set -e
+		cd /app
+		if [ ! -d /app/baseleonV2/.git ]; then
+			echo "No .git found — cloning fresh copy..."
+			rm -rf baseleonV2
+			git clone git@github.com:neo1312/baseleonV2.git baseleonV2
+		fi
 		cd /app/baseleonV2
 		git pull
+
 		docker compose -f docker-compose.prod.yml --env-file .env.prod down
+
+		# Run migrations BEFORE starting containers to catch errors early
+		docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm --no-deps web python manage.py migrate --noinput
+
 		docker compose -f docker-compose.prod.yml --env-file .env.prod up --build -d --remove-orphans
 		EOF
-		echo "production deploment completed"
+		echo "production deployment completed"
 		;;
 	       *)
 		echo "no valido adios"

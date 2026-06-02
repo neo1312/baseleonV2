@@ -44,15 +44,10 @@
                                 <thead class="table-dark" style="position: sticky; top: 0; z-index: 1;">
                                     <tr>
                                         <th>SKU</th>
-                                        <th>Barcode</th>
-                                        <th>Product Description</th>
-                                        <th>Available Stock</th>
-                                        <th>Stock Needed</th>
-                                        <th>Unidad Empaque</th>
                                         <th>Quantity to Order</th>
+                                        <th>Description</th>
                                         <th>Cost per Unit</th>
-                                        <th class="iva-col" style="display:none">Unit Value (sin IVA)</th>
-                                        <th class="iva-col" style="display:none">IVA</th>
+                                        <th>IVA</th>
                                         <th>Total</th>
                                         <th>Action</th>
                                     </tr>
@@ -62,23 +57,6 @@
                                     {% with pp_unidad=item.product|get_unidad_empaque:provider %}
                                     <tr data-product-id="{{ item.product.id }}"{% if pp_unidad > 1 %} class="table-warning"{% endif %}>
                                         <td>{{ item.pv1 }}</td>
-                                        <td><small>{{ item.product.barcode }}</small></td>
-                                        <td>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</td>
-                                        <td class="text-success font-weight-bold">
-                                            {% if item.group_stock is not None %}
-                                                <span title="Group total ({{ item.group_min }}/{{ item.group_max }})">{{ item.group_stock }}</span>
-                                            {% else %}
-                                                {{ item.product.stock_ready_to_sale }}
-                                            {% endif %}
-                                        </td>
-                                        <td class="text-info">{{ item.quantity_needed }}</td>
-                                        <td class="text-center">
-                                            {% if pp_unidad > 1 %}
-                                                <span class="badge badge-warning">{{ pp_unidad }}</span>
-                                            {% else %}
-                                                1
-                                            {% endif %}
-                                        </td>
                                         <td>
                                             <input type="hidden" name="product_id" value="{{ item.product.id }}">
                                             <input type="number" name="quantity" class="form-control form-control-sm quantity-input" 
@@ -87,6 +65,7 @@
                                                    onchange="window.calculateRowTotal(this)"
                                                    oninput="window.calculateRowTotal(this)">
                                         </td>
+                                        <td>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</td>
                                         <td>
                                             <input type="number" name="cost" class="form-control form-control-sm cost-input" 
                                                    value="{{ item.cost_per_unit }}" min="0" step="0.01"
@@ -94,10 +73,7 @@
                                                    onchange="window.calculateRowTotal(this)"
                                                    oninput="window.calculateRowTotal(this)">
                                         </td>
-                                        <td class="iva-col" style="display:none">
-                                            <span class="unit-value-cell" data-row-id="{{ item.product.id }}">{{ item.unit_sin_iva|floatformat:2 }}</span>
-                                        </td>
-                                        <td class="iva-col" style="display:none">
+                                        <td>
                                             <span class="iva-amount-cell" data-row-id="{{ item.product.id }}">{{ item.iva_amount|floatformat:2 }}</span>
                                         </td>
                                         <td class="text-end font-weight-bold">
@@ -114,23 +90,18 @@
                                     {% endwith %}
                                     {% endfor %}
                                     <tr class="table-active">
-                                        <td colspan="9" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
+                                        <td colspan="4" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
+                                        <td></td>
                                         <td class="text-end font-weight-bold">
                                             <span id="cart_total">{{ cart_total|floatformat:2 }}</span>
                                         </td>
+                                        <td></td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
 
                         <div class="mt-4">
-                            <div class="form-check mb-3">
-                                <input type="checkbox" class="form-check-input" id="hasIva" name="has_iva" value="1" onchange="window.toggleIvaColumns()">
-                                <label class="form-check-label" for="hasIva">
-                                    <strong>Factura con IVA</strong>
-                                    <small class="text-muted">— Marca si este proveedor te facturó con IVA (los productos se marcarán como "con IVA" automáticamente)</small>
-                                </label>
-                            </div>
                             <button type="submit" class="btn btn-success btn-lg">
                                 <i class="fas fa-check"></i> Create & Approve Order
                             </button>
@@ -154,44 +125,18 @@
 <script>
 // Define functions IMMEDIATELY in global scope (before any other scripts run)
 window.calculateRowTotal = function(input) {
-    console.log('calculateRowTotal called');
     if (!input) return;
-    
     const row = input.closest('tr');
     if (!row) return;
-    
     const qty = parseFloat(row.querySelector('input[name="quantity"]').value) || 0;
     const cost = parseFloat(row.querySelector('input[name="cost"]').value) || 0;
     const total = qty * cost;
-    
     const totalCell = row.querySelector('.total-cell');
-    if (totalCell) {
-        totalCell.textContent = total.toFixed(2);
-    }
-    
-    // Update IVA breakdown
-    const hasIva = document.getElementById('hasIva').checked;
-    if (hasIva) {
-        const unitValue = cost / 1.16;
-        const ivaAmount = cost - unitValue;
-        const unitValueCell = row.querySelector('.unit-value-cell');
-        const ivaAmountCell = row.querySelector('.iva-amount-cell');
-        if (unitValueCell) unitValueCell.textContent = unitValue.toFixed(2);
-        if (ivaAmountCell) ivaAmountCell.textContent = ivaAmount.toFixed(2);
-    }
-    
+    if (totalCell) totalCell.textContent = total.toFixed(2);
+    const ivaAmount = cost - (cost / 1.16);
+    const ivaAmountCell = row.querySelector('.iva-amount-cell');
+    if (ivaAmountCell) ivaAmountCell.textContent = ivaAmount.toFixed(2);
     window.updateCartTotal();
-};
-
-window.toggleIvaColumns = function() {
-    const show = document.getElementById('hasIva').checked;
-    document.querySelectorAll('.iva-col').forEach(col => col.style.display = show ? '' : 'none');
-    if (show) {
-        // Recalculate all rows with IVA breakdown
-        document.querySelectorAll('#itemsTable tbody tr:not(.table-active) input[name="cost"]').forEach(inp => {
-            window.calculateRowTotal(inp);
-        });
-    }
 };
 
 window.updateCartTotal = function() {
@@ -283,22 +228,15 @@ window.addProductRow = function(p) {
     
     tr.innerHTML = `
         <td>${p.pv1}</td>
-        <td><small>${p.barcode}</small></td>
-        <td>${p.name}${pp_unidad > 1 ? ' <span class="badge badge-warning">EMPAQUE: ' + pp_unidad + '</span>' : ''}</td>
-        <td class="text-success font-weight-bold">0</td>
-        <td class="text-info">0</td>
-        <td class="text-center">${pp_unidad > 1 ? '<span class="badge badge-warning">' + pp_unidad + '</span>' : '1'}</td>
         <td>
             <input type="hidden" name="product_id" value="${p.id}">
             <input type="number" name="quantity" class="form-control form-control-sm quantity-input" value="1" min="0" step="1" data-row-id="${p.id}">
         </td>
+        <td>${p.name}${pp_unidad > 1 ? ' <span class="badge badge-warning">EMPAQUE: ' + pp_unidad + '</span>' : ''}</td>
         <td>
             <input type="number" name="cost" class="form-control form-control-sm cost-input" value="${p.cost.toFixed(2)}" min="0" step="0.01" data-row-id="${p.id}">
         </td>
-        <td class="iva-col" style="display:none">
-            <span class="unit-value-cell" data-row-id="${p.id}">${(p.cost / 1.16).toFixed(2)}</span>
-        </td>
-        <td class="iva-col" style="display:none">
+        <td>
             <span class="iva-amount-cell" data-row-id="${p.id}">${(p.cost - p.cost / 1.16).toFixed(2)}</span>
         </td>
         <td class="text-end font-weight-bold">

@@ -60,12 +60,11 @@
                             <table class="table table-striped table-hover" id="items_table">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>PV1</th>
-                                        <th>Product</th>
-                                        <th>Unit Cost</th>
-                                        <th class="iva-col" style="display:none">Unit Value (sin IVA)</th>
-                                        <th class="iva-col" style="display:none">IVA</th>
+                                        <th>SKU</th>
                                         <th>Quantity</th>
+                                        <th>Description</th>
+                                        <th>Cost per Unit</th>
+                                        <th>IVA</th>
                                         <th>Total</th>
                                         <th>Action</th>
                                     </tr>
@@ -94,14 +93,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="form-check mb-3">
-                        <input type="checkbox" class="form-check-input" id="hasIva" onchange="document.querySelectorAll('.iva-col').forEach(c => c.style.display = this.checked ? '' : 'none')">
-                        <label class="form-check-label" for="hasIva">
-                            <strong>Factura con IVA</strong>
-                            <small class="text-muted">— Marca si este proveedor te facturó con IVA</small>
-                        </label>
                     </div>
 
                     <!-- Action Buttons -->
@@ -244,10 +235,6 @@ function renderItems() {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${item.pv1}</td>
-            <td>${item.product_name}</td>
-            <td>$${cost.toFixed(2)}</td>
-            <td class="iva-col" style="display:none">$${unitSinIva.toFixed(2)}</td>
-            <td class="iva-col" style="display:none">$${ivaAmount.toFixed(2)}</td>
             <td>
                 <div style="display: flex; gap: 5px; align-items: center; width: fit-content;">
                     <button type="button" class="btn btn-sm btn-danger" onclick="decrementItem(${index})" title="Decrease">−</button>
@@ -257,6 +244,9 @@ function renderItems() {
                     <button type="button" class="btn btn-sm btn-success" onclick="incrementItem(${index})" title="Increase">+</button>
                 </div>
             </td>
+            <td>${item.product_name}</td>
+            <td>$${cost.toFixed(2)}</td>
+            <td>$${ivaAmount.toFixed(2)}</td>
             <td>$${item_total.toFixed(2)}</td>
             <td>
                 <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${index})">
