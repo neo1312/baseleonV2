@@ -59,10 +59,13 @@ case $ENV in
 
 		docker compose -f docker-compose.prod.yml --env-file .env.prod down
 
-		# Run migrations BEFORE starting containers to catch errors early
-		docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm --no-deps web python manage.py migrate --noinput
+		# Build fresh image first, then run migration with it
+		docker compose -f docker-compose.prod.yml --env-file .env.prod build web
+		# Start db, then run migrations before starting full stack
+		docker compose -f docker-compose.prod.yml --env-file .env.prod up -d db
+		docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm web python manage.py migrate --noinput
 
-		docker compose -f docker-compose.prod.yml --env-file .env.prod up --build -d --remove-orphans
+		docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
 		EOF
 		echo "production deployment completed"
 		;;
