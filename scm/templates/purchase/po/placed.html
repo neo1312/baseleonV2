@@ -61,9 +61,8 @@
                                      <th style="width: 110px;">Order Date</th>
                                      <th style="width: 110px;">Original</th>
                                      <th style="width: 110px;">Received</th>
-                                     <th style="width: 110px;">Subtotal</th>
                                      <th style="width: 90px;">IVA</th>
-                                     <th style="width: 120px;">Invoice Total</th>
+                                     <th style="width: 130px;">Invoice Total</th>
                                      <th style="min-width: 200px;">Action</th>
                                  </tr>
                              </thead>
@@ -90,8 +89,7 @@
                                     <td>{{ po.created_date|date:"M d, Y" }}</td>
                                     <td class="text-end">${{ po.total_ordered_cost|floatformat:2 }}</td>
                                     <td class="text-end">${{ po.total_received_cost|floatformat:2 }}</td>
-                                    <td class="text-end">${{ po.subtotal|floatformat:2 }}</td>
-                                    <td class="text-end">${{ po.iva_amount|floatformat:2 }}</td>
+                                    <td class="text-end">${{ po.iva_received|floatformat:2 }}</td>
                                     <td class="text-end"><strong>${{ po.invoice_total|floatformat:2 }}</strong></td>
                                     <td>
                                         {% if po.status == 'approved' %}

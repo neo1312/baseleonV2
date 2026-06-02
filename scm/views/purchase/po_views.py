@@ -308,9 +308,8 @@ def po_placed_orders(request):
     # Annotate IVA breakdown for each PO
     from decimal import Decimal
     for po in pos:
-        po.subtotal = po.total_ordered_cost
-        po.iva_amount = (po.total_ordered_cost * Decimal('0.16')).quantize(Decimal('0.01'))
-        po.invoice_total = (po.total_ordered_cost + po.iva_amount).quantize(Decimal('0.01'))
+        po.iva_received = (po.total_received_cost * Decimal('0.16')).quantize(Decimal('0.01'))
+        po.invoice_total = (po.total_received_cost + po.iva_received).quantize(Decimal('0.01'))
 
     context = {
         'title': 'Placed Orders',
