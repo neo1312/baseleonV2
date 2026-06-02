@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django import template
 
 register = template.Library()
@@ -5,7 +6,6 @@ register = template.Library()
 
 @register.filter
 def get_provider_pv1(product, provider):
-    """Get the provider-specific PV1 for a product"""
     if not product or not provider:
         return ''
     return product.get_pv1(provider) or ''
@@ -13,7 +13,22 @@ def get_provider_pv1(product, provider):
 
 @register.filter
 def get_unidad_empaque(product, provider):
-    """Get the provider-specific unidad_empaque for a product"""
     if not product or not provider:
         return 1
     return product.get_unidad_empaque(provider)
+
+
+@register.filter
+def div(value, divisor):
+    try:
+        return Decimal(str(value)) / Decimal(str(divisor))
+    except (ValueError, TypeError, ZeroDivisionError):
+        return Decimal('0')
+
+
+@register.filter
+def sub(value, subtractor):
+    try:
+        return Decimal(str(value)) - Decimal(str(subtractor))
+    except (ValueError, TypeError):
+        return Decimal('0')

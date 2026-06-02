@@ -173,6 +173,9 @@ class PurchaseOrder(models.Model):
     received_date = models.DateTimeField(null=True, blank=True, verbose_name='Received Date')
     completed_date = models.DateTimeField(null=True, blank=True, verbose_name='Completed Date')
     
+    # IVA flag — marks if this PO/factura includes IVA
+    has_iva = models.BooleanField(default=False, verbose_name='Factura con IVA')
+
     # Totals (calculated)
     total_items = models.IntegerField(default=0, verbose_name='Total Items')
     total_ordered_cost = models.DecimalField(
@@ -198,7 +201,7 @@ class PurchaseOrderItem(models.Model):
     
     # Quantities
     ordered_quantity = models.IntegerField(verbose_name='Ordered Quantity')
-    received_quantity = models.IntegerField(default=0, verbose_name='Received Quantity')
+    received_quantity = models.IntegerField(null=True, blank=True, default=None, verbose_name='Received Quantity')
     
     # Costs
     ordered_cost_per_unit = models.DecimalField(
@@ -231,7 +234,7 @@ class PurchaseOrderItem(models.Model):
     def save(self, *args, **kwargs):
         # Calculate totals
         self.ordered_total = self.ordered_quantity * self.ordered_cost_per_unit
-        if self.received_cost_per_unit and self.received_quantity > 0:
+        if self.received_cost_per_unit and self.received_quantity is not None and self.received_quantity > 0:
             self.received_total = self.received_quantity * self.received_cost_per_unit
         else:
             self.received_total = Decimal('0')
@@ -290,7 +293,7 @@ def update_po_totals_on_item_change(sender, instance, created, **kwargs):
     for item in po.items.all():
         total_items += item.ordered_quantity
         total_ordered_cost += item.ordered_total
-        if item.received_quantity > 0:
+        if item.received_quantity is not None and item.received_quantity > 0:
             total_received_cost += item.received_total
     
     with transaction.atomic():
@@ -304,7 +307,7 @@ def update_po_totals_on_item_change(sender, instance, created, **kwargs):
 def update_provider_cost_on_po_item_received(sender, instance, created, **kwargs):
     """Update ProductProvider cost when PO item is received with actual cost"""
     # Only update when received_cost_per_unit is set (indicating actual receipt)
-    if instance.product and instance.purchase_order.provider and instance.received_cost_per_unit and instance.received_quantity > 0:
+    if instance.product and instance.purchase_order.provider and instance.received_cost_per_unit and instance.received_quantity is not None and instance.received_quantity > 0:
         from im.models import ProductProvider
         
         # Get or create ProductProvider pair

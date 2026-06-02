@@ -124,6 +124,94 @@
         </div>
     </div>
 
+    <!-- IVA Breakdown Section -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> Desglose de IVA</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-success h-100">
+                                <div class="card-header bg-success text-white py-2">
+                                    <small class="fw-bold">Ventas con IVA</small>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small class="text-muted">Total (precio final)</small>
+                                            <h5 class="mb-0">${{ totals.combined.sales_iva_total|floatformat:2 }}</h5>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Base gravable</small>
+                                            <h5 class="mb-0">${{ totals.combined.sales_iva_base|floatformat:2 }}</h5>
+                                        </div>
+                                        <div class="col-6 mt-2">
+                                            <small class="text-muted">IVA cobrado</small>
+                                            <h5 class="mb-0 text-warning">${{ totals.combined.iva_collected|floatformat:2 }}</h5>
+                                        </div>
+                                        <div class="col-6 mt-2">
+                                            <small class="text-muted">Utilidad real</small>
+                                            <h5 class="mb-0 text-success">${{ totals.combined.real_profit_iva|floatformat:2 }}</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-secondary h-100">
+                                <div class="card-header bg-secondary text-white py-2">
+                                    <small class="fw-bold">Ventas sin IVA</small>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small class="text-muted">Total</small>
+                                            <h5 class="mb-0">${{ totals.combined.sales_no_iva_total|floatformat:2 }}</h5>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Utilidad</small>
+                                            <h5 class="mb-0 text-success">${{ totals.combined.real_profit_no_iva|floatformat:2 }}</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card border-dark">
+                                <div class="card-header bg-dark text-white py-2">
+                                    <small class="fw-bold"><i class="fas fa-balance-scale"></i> Balance de IVA</small>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <small class="text-muted">IVA cobrado (ventas)</small>
+                                            <h5 class="mb-0 text-warning">${{ totals.combined.iva_collected|floatformat:2 }}</h5>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <small class="text-muted">IVA acreditable (compras)</small>
+                                            <h5 class="mb-0 text-info">${{ totals.combined.iva_creditable|floatformat:2 }}</h5>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <small class="text-muted">A pagar al SAT</small>
+                                            <h5 class="mb-0 {% if totals.combined.iva_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                                ${{ totals.combined.iva_balance|floatformat:2 }}
+                                            </h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {% endwith %}
     
     <!-- SAT Products Count -->

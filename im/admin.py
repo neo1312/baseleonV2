@@ -94,8 +94,8 @@ class ProductProviderInline(admin.TabularInline):
 
 class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     search_fields=['name','category__name','brand__name','id','barcode','clave']
-    list_display=('id','clave','barcode','name','brand','display_group','get_stock_ready_to_sale','get_abc_classification','costo','priceLista','priceMayoreo','active','sat','Granel_Item')
-    list_filter=('active', ProviderFilter, 'brand', 'category', 'group', ABCClassificationFilter)
+    list_display=('id','clave','barcode','name','brand','tiene_iva','display_group','get_stock_ready_to_sale','get_abc_classification','costo','priceLista','priceMayoreo','active','sat','Granel_Item')
+    list_filter=('active', 'tiene_iva', ProviderFilter, 'brand', 'category', 'group', ABCClassificationFilter)
     resocurce_class = productResource
     ordering=('id','last_updated')
     raw_id_fields=('brand','category')
@@ -105,7 +105,7 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
 
     fieldsets = (
         ('Basic Info', {
-            'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')
+            'fields': ('name', 'clave', 'brand', 'barcode', 'tiene_iva', 'sat', 'active', 'group')
         }),
         ('Inventory Settings', {
             'fields': ('stockMax', 'stockMin', 'display_stock')
@@ -156,10 +156,10 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         fieldsets = super().get_fieldsets(request, obj)
         if obj is None:  # Creating new product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'brand', 'barcode', 'tiene_iva', 'sat', 'active', 'group')})
         else:  # Editing existing product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'brand', 'barcode', 'tiene_iva', 'sat', 'active', 'group')})
         return fieldsets
 
     def display_stock(self, obj):
@@ -293,8 +293,8 @@ admin.site.register(ProductProvider, ProductProviderAdmin)
 
 class InventoryUnitAdmin(admin.ModelAdmin):
     search_fields=['tracking_id', 'product__name', 'product__barcode', 'purchase_order__po_number', 'purchase_order__provider__name']
-    list_display=('tracking_id', 'product', 'get_po_number', 'get_provider_name', 'status', 'get_purchase_cost', 'get_received_cost', 'abc_classification', 'received_date')
-    list_filter=('status', 'abc_classification', 'product')
+    list_display=('tracking_id', 'product', 'get_po_number', 'get_provider_name', 'status', 'get_purchase_cost', 'get_received_cost', 'purchase_with_iva', 'abc_classification', 'received_date')
+    list_filter=('status', 'purchase_with_iva', 'abc_classification', 'product')
     date_hierarchy = 'date_created'
     readonly_fields=('tracking_id', 'date_created', 'last_updated', 'purchase_item', 'sale_item', 'purchase_order')
     ordering=('-date_created',)
@@ -332,9 +332,9 @@ class InventoryUnitAdmin(admin.ModelAdmin):
         ('Status & Classification', {
             'fields': ('status', 'abc_classification')
         }),
-        ('Costs', {
-            'fields': ('purchase_cost', 'received_cost'),
-            'description': 'Purchase cost is set when order is placed. Received cost is updated when order arrives (may differ if price changed).'
+        ('Costs & IVA', {
+            'fields': ('purchase_cost', 'received_cost', 'purchase_with_iva'),
+            'description': 'Purchase cost is set when order is placed. Received cost is updated when order arrives. IVA flag indicates this unit was purchased with invoice including IVA.'
         }),
         ('Timeline', {
             'fields': ('ordered_date', 'received_date', 'ready_date', 'sold_date', 'retired_date')

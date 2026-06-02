@@ -22,6 +22,8 @@
                                     <th>Product</th>
                                     <th>Quantity</th>
                                     <th>Cost per Unit</th>
+                                    <th class="iva-col" style="display:none">Unit Value (sin IVA)</th>
+                                    <th class="iva-col" style="display:none">IVA</th>
                                     <th>Total</th>
                                 </tr>
                             </thead>
@@ -32,11 +34,13 @@
                                     <td>{{ row.product.name }}</td>
                                     <td>{{ row.quantity }}</td>
                                     <td>${{ row.cost|floatformat:2 }}</td>
+                                    <td class="iva-col unit-value-cell" style="display:none">${{ row.cost|div:1.16|floatformat:2 }}</td>
+                                    <td class="iva-col iva-amount-cell" style="display:none">${{ row.iva_amount|floatformat:2 }}</td>
                                     <td class="text-end">${{ row.total|floatformat:2 }}</td>
                                 </tr>
                                 {% endfor %}
                                 <tr class="table-active">
-                                    <td colspan="4" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
+                                    <td colspan="6" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
                                     <td class="text-end font-weight-bold">${{ total|floatformat:2 }}</td>
                                 </tr>
                             </tbody>
@@ -46,6 +50,13 @@
                     <div class="mt-4">
                         <form method="post" action="{% url 'scm:po_upload_csv_confirm' %}">
                             {% csrf_token %}
+                            <div class="form-check mb-3">
+                                <input type="checkbox" class="form-check-input" id="hasIva" name="has_iva" value="1" onchange="document.querySelectorAll('.iva-col').forEach(c => c.style.display = this.checked ? '' : 'none')">
+                                <label class="form-check-label" for="hasIva">
+                                    <strong>Factura con IVA</strong>
+                                    <small class="text-muted">— Marca si este proveedor te facturó con IVA</small>
+                                </label>
+                            </div>
                             <button type="submit" class="btn btn-success btn-lg">
                                 <i class="fas fa-check"></i> Confirm & Create Order
                             </button>

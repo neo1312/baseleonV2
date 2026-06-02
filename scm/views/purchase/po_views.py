@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.utils import timezone
 from decimal import Decimal
 from django.db.models import Q
+from django.db import transaction
 from scm.models import Provider, PurchaseOrder, PurchaseOrderItem
 from im.models import Product, DemandForecast, ProductProvider, InventoryUnit
 from scm.po_operations import (
@@ -119,12 +120,15 @@ def po_items_list(request, provider_id):
                 quantity = int(forecast.eoq or 10)  # Default to 10 if EOQ not set
                 cost_per_unit = p.get_provider_cost(provider)
                 
+                unit_sin_iva = cost_per_unit / Decimal('1.16')
                 items_data.append({
                     'product': p,
                     'pv1': p.get_pv1(provider),
                     'quantity_needed': quantity,
                     'quantity': quantity,
                     'cost_per_unit': cost_per_unit,
+                    'unit_sin_iva': unit_sin_iva,
+                    'iva_amount': cost_per_unit - unit_sin_iva,
                     'total': quantity * cost_per_unit,
                 })
             except DemandForecast.DoesNotExist:
@@ -147,12 +151,15 @@ def po_items_list(request, provider_id):
                 cost_per_piece = p.get_provider_cost(provider)
                 cost_per_package = cost_per_piece * pp_unidad
 
+                unit_sin_iva = cost_per_package / Decimal('1.16')
                 items_data.append({
                     'product': p,
                     'pv1': p.get_pv1(provider),
                     'quantity_needed': pieces_needed,
                     'quantity': package_qty,
                     'cost_per_unit': cost_per_package,
+                    'unit_sin_iva': unit_sin_iva,
+                    'iva_amount': cost_per_package - unit_sin_iva,
                     'unidad_empaque': pp_unidad,
                     'total': package_qty * cost_per_package,
                     'group_stock': sum(m.stock_ready_to_sale for m in p.group.products.all()) if p.group else None,
@@ -243,6 +250,10 @@ def po_submit(request):
                 return redirect(f'scm:po_items_list', provider_id=provider_id)
             
             po = create_po_from_manual(provider, items_data, created_by=str(request.user))
+        
+        # Set IVA flag from form
+        po.has_iva = request.POST.get('has_iva') == '1'
+        po.save(update_fields=['has_iva'])
         
         # Approve the PO immediately
         approve_purchase_order(po, approved_by=str(request.user))
@@ -380,47 +391,77 @@ def po_receive(request, po_id):
     
     if request.method == 'POST':
         action = request.POST.get('action', 'receive')
-        # Process received quantities and costs
         try:
-            # Always update quantities and costs first
-            po_items_all = sorted(po.items.all(), key=lambda x: _barcode_sort_key(x.product.get_pv1(po.provider)))
-            for po_item in po_items_all:
-                qty_key = f'received_qty_{po_item.id}'
-                cost_key = f'received_cost_{po_item.id}'
-                
-                if qty_key in request.POST:
-                    received_qty = int(request.POST.get(qty_key, 0))
-                    if received_qty > 0:
+            with transaction.atomic():
+                # Update quantities and costs from POST data
+                po_items_all = sorted(po.items.all(), key=lambda x: _barcode_sort_key(x.product.get_pv1(po.provider)))
+                for po_item in po_items_all:
+                    qty_key = f'received_qty_{po_item.id}'
+                    cost_key = f'received_cost_{po_item.id}'
+                    
+                    if qty_key in request.POST:
+                        received_qty_str = request.POST.get(qty_key, '')
+                        received_qty = int(received_qty_str) if received_qty_str else 0
                         update_received_quantity(po_item, received_qty, updated_by=str(request.user))
+                    
+                    if cost_key in request.POST:
+                        received_cost_str = request.POST.get(cost_key, '')
+                        if received_cost_str:
+                            try:
+                                received_cost = Decimal(str(received_cost_str))
+                                if received_cost > 0:
+                                    update_received_cost(po_item, received_cost, updated_by=str(request.user))
+                            except:
+                                pass
                 
-                if cost_key in request.POST:
-                    received_cost_str = request.POST.get(cost_key, '')
-                    if received_cost_str:
-                        try:
-                            received_cost = Decimal(str(received_cost_str))
-                            if received_cost > 0:
-                                update_received_cost(po_item, received_cost, updated_by=str(request.user))
-                        except:
-                            pass
+                # Handle action within same transaction
+                if action == 'receive' and po.status == 'sent':
+                    receive_purchase_order(po, received_by=str(request.user))
+                    tx_message = 'success'
+                    tx_success = f'PO {po.po_number} marked as received. Edit quantities/costs if needed.'
+                    tx_redirect = 'scm:po_receive'
+                    tx_redirect_id = po_id
+                    
+                elif action == 'complete' and po.status == 'received':
+                    purchase = complete_purchase_order(po, completed_by=str(request.user))
+                    tx_message = 'success'
+                    tx_success = f'PO {po.po_number} completed. Purchase #{purchase.id} created with inventory items ready for sale.'
+                    tx_redirect = 'scm:po_placed_orders'
+                    tx_redirect_id = None
+                    
+                elif action == 'receive' and po.status == 'received':
+                    # Edit mode: quantities already saved above, just refresh
+                    tx_message = 'success'
+                    tx_success = f'PO {po.po_number} quantities updated.'
+                    tx_redirect = 'scm:po_receive'
+                    tx_redirect_id = po_id
+                    
+                else:
+                    tx_message = 'error'
+                    tx_success = f'Invalid action "{action}" for PO status "{po.get_status_display()}".'
+                    tx_redirect = 'scm:po_placed_orders'
+                    tx_redirect_id = None
             
-            # Handle action
-            if action == 'receive' and po.status == 'sent':
-                receive_purchase_order(po, received_by=str(request.user))
-                messages.success(request, f'PO {po.po_number} marked as received. Edit quantities/costs if needed.')
-                return redirect('scm:po_receive', po_id=po_id)
-                
-            elif action == 'complete' and po.status == 'received':
-                purchase = complete_purchase_order(po, completed_by=str(request.user))
-                messages.success(request, f'PO {po.po_number} completed. Purchase #{purchase.id} created with inventory items ready for sale.')
-                return redirect('scm:po_placed_orders')
+            # Handle redirect/message after transaction commits
+            if tx_message == 'success':
+                messages.success(request, tx_success)
             else:
-                messages.error(request, 'Invalid action for current PO status')
+                messages.error(request, tx_success)
+            
+            if tx_redirect_id:
+                return redirect(tx_redirect, po_id=tx_redirect_id)
+            return redirect(tx_redirect)
             
         except Exception as e:
             messages.error(request, f'Error: {str(e)}')
     
     po_items = list(po.items.select_related('product').all())
     po_items.sort(key=lambda x: _barcode_sort_key(x.product.get_pv1(po.provider)))
+
+    # Add IVA breakdown for each item
+    for item in po_items:
+        item.unit_sin_iva = item.ordered_cost_per_unit / Decimal('1.16')
+        item.iva_amount = item.ordered_cost_per_unit - item.unit_sin_iva
 
     context = {
         'title': f'Receive {po.po_number}',
@@ -437,8 +478,8 @@ def po_delete(request, po_id):
     po = get_object_or_404(PurchaseOrder, id=po_id)
     
     if request.method == 'POST':
-        # Allow deletion of approved, sent, or received orders
-        if po.status not in ['approved', 'sent', 'received']:
+        # Allow deletion of approved, sent, received, or completed orders
+        if po.status not in ['approved', 'sent', 'received', 'completed']:
             messages.error(request, f'Cannot delete PO with status "{po.get_status_display()}". Only approved, sent, or received orders can be deleted.')
             return redirect('scm:po_placed_orders')
         
@@ -506,6 +547,12 @@ def po_upload_csv(request):
             }
             for r in rows
         ]
+
+        # Add IVA breakdown to rows for template display
+        for r in rows:
+            cost_dec = r['cost']
+            unit_sin_iva = cost_dec / Decimal('1.16')
+            r['iva_amount'] = cost_dec - unit_sin_iva
         request.session['po_csv_data'] = {
             'provider_id': provider.id,
             'provider_name': provider.name,
@@ -603,6 +650,8 @@ def po_upload_csv_confirm(request):
 
     try:
         po = create_po_from_manual(provider, items_data, created_by=str(request.user))
+        po.has_iva = request.POST.get('has_iva') == '1'
+        po.save(update_fields=['has_iva'])
         approve_purchase_order(po, approved_by=str(request.user))
 
         units_count = InventoryUnit.objects.filter(purchase_order=po).count()
@@ -747,6 +796,8 @@ def po_instant_submit(request):
             ]
 
             po = create_po_from_manual(provider, items_data, created_by=str(request.user))
+            po.has_iva = request.POST.get('has_iva') == '1'
+            po.save(update_fields=['has_iva'])
             approve_purchase_order(po, approved_by=str(request.user))
 
             return JsonResponse({
@@ -796,6 +847,8 @@ def po_instant_full_submit(request):
             ]
 
             po = create_po_from_manual(provider, items_data, created_by=str(request.user))
+            po.has_iva = request.POST.get('has_iva') == '1'
+            po.save(update_fields=['has_iva'])
             approve_purchase_order(po, approved_by=str(request.user))
             send_purchase_order(po, sent_by=str(request.user))
             receive_purchase_order(po, received_by=str(request.user))

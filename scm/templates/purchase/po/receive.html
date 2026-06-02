@@ -38,6 +38,8 @@
                                         <th class="text-center">Received Qty</th>
                                         <th class="text-center">Ordered Cost/Unit</th>
                                         <th class="text-center">Received Cost/Unit</th>
+                                        {% if po.has_iva %}<th class="text-center">Unit Value (sin IVA)</th>{% endif %}
+                                        {% if po.has_iva %}<th class="text-center">IVA</th>{% endif %}
                                         <th class="text-end">Line Total</th>
                                     </tr>
                                 </thead>
@@ -51,7 +53,7 @@
                                         data-ordered="{{ item.ordered_quantity }}">
                                         <td class="text-center">
                                             <input type="checkbox" class="received-checkbox" data-item-id="{{ item.id }}"
-                                                   {% if item.received_quantity and item.received_quantity >= item.ordered_quantity %}checked{% endif %}
+                                                   {% if item.received_quantity is not None and item.received_quantity >= item.ordered_quantity %}checked{% endif %}
                                                    onchange="toggleReceived(this)">
                                         </td>
                                         <td>
@@ -65,10 +67,11 @@
                                             <input type="number" 
                                                    name="received_qty_{{ item.id }}" 
                                                    class="form-control form-control-sm received-qty-input" 
-                                                   value="{% if item.received_quantity %}{{ item.received_quantity }}{% else %}{{ item.ordered_quantity }}{% endif %}" 
+                                                   value="{% if item.received_quantity is not None %}{{ item.received_quantity }}{% endif %}" 
                                                    min="0" 
                                                    step="1"
                                                    data-item-id="{{ item.id }}"
+                                                   data-skip-init="{% if item.received_quantity is None %}true{% else %}false{% endif %}"
                                                    onchange="updateLineTotal(this)"
                                                    oninput="updateLineTotal(this)">
                                         </td>
@@ -86,6 +89,14 @@
                                                    onchange="updateLineTotal(this)"
                                                    oninput="updateLineTotal(this)">
                                         </td>
+                                        {% if po.has_iva %}
+                                        <td class="text-end">
+                                            ${{ item.unit_sin_iva|floatformat:2 }}
+                                        </td>
+                                        <td class="text-end">
+                                            ${{ item.iva_amount|floatformat:2 }}
+                                        </td>
+                                        {% endif %}
                                         <td class="text-end">
                                             <span class="line-total fw-bold" data-item-id="{{ item.id }}">
                                                 $0.00
@@ -278,7 +289,9 @@ function getRowStatus(itemId) {
     if (!row) return 'none';
     const ordered = parseInt(row.dataset.ordered) || 0;
     const qtyInput = row.querySelector('.received-qty-input');
-    const qty = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
+    const rawValue = qtyInput ? qtyInput.value : '';
+    if (rawValue === '') return 'none';
+    const qty = parseFloat(rawValue) || 0;
     if (qty >= ordered && ordered > 0) return 'full';
     if (qty > 0) return 'partial';
     return 'none';
@@ -290,13 +303,17 @@ function updateRowStatus(itemId) {
     const status = getRowStatus(itemId);
     const ordered = parseInt(row.dataset.ordered) || 0;
     const qtyInput = row.querySelector('.received-qty-input');
-    const qty = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
+    const rawValue = qtyInput ? qtyInput.value : '';
+    const qty = parseFloat(rawValue) || 0;
     
-    // Update row color
+    // Remove all color classes first
     row.classList.remove('row-full', 'row-partial', 'row-none');
-    if (status === 'full') row.classList.add('row-full');
-    else if (status === 'partial') row.classList.add('row-partial');
-    else row.classList.add('row-none');
+    // Only apply color when input is non-empty
+    if (rawValue !== '') {
+        if (status === 'full') row.classList.add('row-full');
+        else if (status === 'partial') row.classList.add('row-partial');
+        else row.classList.add('row-none');
+    }
     
     // Update checkbox state
     const checkbox = row.querySelector('.received-checkbox');
@@ -442,7 +459,7 @@ function submitForm(action) {
 
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize line totals only (NO row colors — white until user acts)
+    // Initialize line totals AND row statuses/colors from saved values
     document.querySelectorAll('#receiveForm tr[data-item-id]').forEach(row => {
         const qtyInput = row.querySelector('.received-qty-input');
         const costInput = row.querySelector('.received-cost-input');
@@ -452,6 +469,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const lineTotal = qty * cost;
             const lineTotalEl = row.querySelector('.line-total');
             if (lineTotalEl) lineTotalEl.textContent = '$' + lineTotal.toFixed(2);
+        }
+        // Restore row color from saved values (skip if no saved value = blank init)
+        const itemId = row.dataset.itemId;
+        if (itemId) {
+            const qtyInput = row.querySelector('.received-qty-input');
+            if (qtyInput && qtyInput.dataset.skipInit === 'true') {
+                // Leave blank/white — no saved value yet
+            } else {
+                updateRowStatus(itemId);
+            }
         }
     });
     updateOrderTotal();

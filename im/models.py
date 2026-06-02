@@ -116,6 +116,9 @@ class Product(models.Model):
     precio_mayoreo_manual = models.DecimalField(max_digits=14, default=None, decimal_places=2, null=True, blank=True, verbose_name='Precio Mayoreo Manual')
     precio_granel_manual = models.DecimalField(max_digits=14, default=None, decimal_places=2, null=True, blank=True, verbose_name='Precio Granel Manual')
     
+    # IVA flag — marks products sold with IVA (16% added to price)
+    tiene_iva = models.BooleanField(default=False, verbose_name='Producto con IVA')
+
     # Promotion flag — low margin alarm skips products on promotion
     on_promotion = models.BooleanField(default=False, verbose_name='En Promoción/Oferta')
     
@@ -295,6 +298,8 @@ class Product(models.Model):
     def priceLista(self):
         # Use manual price if set
         if self.precio_manual is not None and self.precio_manual > 0:
+            if self.tiene_iva:
+                return math.ceil(float(self.precio_manual) * 1.16)
             return float(self.precio_manual)
         
         if self.costo is None or self.margen is None:
@@ -311,23 +316,31 @@ class Product(models.Model):
                 precio=math.ceil((costo*(1+margen))*1000)
             else:
                 precio=math.ceil((costo*(1+margen))*float(minimo))
+        if self.tiene_iva:
+            precio = math.ceil(precio * Decimal('1.16'))
         return precio
     
     @property
     def priceMayoreo(self):
         # Use manual mayoreo price if set
         if self.precio_mayoreo_manual is not None and self.precio_mayoreo_manual > 0:
+            if self.tiene_iva:
+                return math.ceil(float(self.precio_mayoreo_manual) * Decimal('1.16'))
             return float(self.precio_mayoreo_manual)
         
         costo=float(self.costo)
         margen=float(self.margenMayoreo)
         precio=math.ceil((costo*(1+margen)))
+        if self.tiene_iva:
+            precio = math.ceil(precio * Decimal('1.16'))
         return precio
 
     @property
     def priceListaGranel(self):
         # Use manual granel price if set and granel is enabled
         if self.granel and self.precio_granel_manual is not None and self.precio_granel_manual > 0:
+            if self.tiene_iva:
+                return math.ceil(float(self.precio_granel_manual) * Decimal('1.16'))
             return float(self.precio_granel_manual)
         
         costo=float(self.costo)
@@ -341,6 +354,8 @@ class Product(models.Model):
         else:
             precio1=costo*(1+margen)
             precio=round(precio1*2.0)/2.0
+        if precio != 'N/A' and self.tiene_iva:
+            precio = math.ceil(float(precio) * 1.16)
         return precio
 
 
@@ -510,6 +525,12 @@ class InventoryUnit(models.Model):
         blank=True,
         verbose_name='Received Cost',
         help_text='Actual cost per unit when received (may differ from purchase cost)'
+    )
+
+    purchase_with_iva = models.BooleanField(
+        default=False,
+        verbose_name='Comprado con IVA',
+        help_text='Esta unidad fue comprada con factura que incluye IVA'
     )
     
     purchase_order = models.ForeignKey(

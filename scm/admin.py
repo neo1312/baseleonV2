@@ -146,15 +146,15 @@ class PurchaseOrderItemInline(admin.TabularInline):
 
 
 class PurchaseOrderAdmin(admin.ModelAdmin):
-    list_display = ('po_number', 'provider', 'status', 'total_items', 'total_ordered_cost', 'created_date')
-    list_filter = ('status', 'provider', 'created_date', 'creation_method')
+    list_display = ('po_number', 'provider', 'status', 'has_iva', 'total_items', 'total_ordered_cost', 'created_date')
+    list_filter = ('status', 'has_iva', 'provider', 'created_date', 'creation_method')
     search_fields = ('po_number', 'provider__name')
     readonly_fields = ('po_number', 'creation_method', 'created_date', 'approved_date', 'sent_date', 
                        'received_date', 'completed_date', 'total_items', 'total_ordered_cost', 'total_received_cost')
     
     fieldsets = (
         ('Order Info', {
-            'fields': ('po_number', 'provider', 'status', 'creation_method')
+            'fields': ('po_number', 'provider', 'status', 'has_iva', 'creation_method')
         }),
         ('Dates', {
             'fields': ('created_date', 'approved_date', 'sent_date', 'received_date', 'completed_date')

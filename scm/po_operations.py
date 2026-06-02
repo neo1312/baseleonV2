@@ -228,6 +228,7 @@ def create_inventory_units_for_po(po, created_by='system'):
                     purchase_order=po,
                     status='ordered',
                     purchase_cost=po_item.ordered_cost_per_unit,
+                    purchase_with_iva=po.has_iva,
                     ordered_date=timezone.now()
                 )
                 units_created += 1
@@ -320,7 +321,7 @@ def complete_purchase_order(po, completed_by='system'):
         try:
             # Create purchaseItems for each PO item, linked to existing inventory units
             for po_item in po.items.all():
-                quantity = po_item.received_quantity or po_item.ordered_quantity
+                quantity = po_item.received_quantity if po_item.received_quantity is not None else po_item.ordered_quantity
                 cost_per_unit = po_item.received_cost_per_unit or po_item.ordered_cost_per_unit
                 
                 # Create purchaseItem - signal is disabled, so no new units created
@@ -380,6 +381,18 @@ def complete_purchase_order(po, completed_by='system'):
         
         # Automatically mark all inventory units as ready_to_sale
         update_inventory_units_status(po, 'ready_to_sale', completed_by)
+
+        # Update purchase_with_iva on all units from this PO
+        InventoryUnit.objects.filter(purchase_order=po).update(
+            purchase_with_iva=po.has_iva
+        )
+
+        # Propagate has_iva to product level for pricing
+        if po.has_iva:
+            for po_item in po.items.all():
+                if po_item.product and not po_item.product.tiene_iva:
+                    po_item.product.tiene_iva = True
+                    po_item.product.save(update_fields=['tiene_iva', 'last_updated'])
         
         OrderLog.objects.create(
             purchase_order=po,
@@ -497,7 +510,7 @@ def update_po_totals(po):
         for item in po.items.all():
             total_items += item.ordered_quantity
             total_ordered_cost += item.ordered_total
-            if item.received_quantity > 0:
+            if item.received_quantity is not None and item.received_quantity > 0:
                 total_received_cost += item.received_total
         
         po.total_items = total_items

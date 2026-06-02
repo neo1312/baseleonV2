@@ -8,6 +8,7 @@ from django.db.models.functions import Cast
 from django.db.models import DecimalField
 from crm.models import Sale, saleItem, Devolution, devolutionItem
 from im.models import InventoryUnit
+from scm.models import PurchaseOrder
 from crm.decorators import role_required
 
 
@@ -57,7 +58,7 @@ def daily_report(request):
         date_range_data = {
             'date_from': from_datetime.date(),
             'date_to': to_datetime.date() - timedelta(days=1),
-            'totals': calculate_report_totals(sales, devolutions),
+            'totals': calculate_report_totals(sales, devolutions, from_datetime, to_datetime),
             'sat_count': sat_count,
             'sat_total': sat_total,
         }
@@ -75,8 +76,9 @@ def daily_report(request):
     return render(request, 'crm/reports/daily_report.html', context)
 
 
-def calculate_report_totals(sales, devolutions):
-    """Calculate sales, devolutions, and profit totals by tipo with retail KPIs"""
+def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=None):
+    """Calculate sales, devolutions, and profit totals by tipo with retail KPIs
+    Optionally accepts from_datetime/to_datetime for IVA creditable calculation."""
     
     totals = {
         'menudeo': {
@@ -104,6 +106,13 @@ def calculate_report_totals(sales, devolutions):
             'financial_gross_profit_margin': Decimal('0'),
             'avg_transaction_value': Decimal('0'),
             'return_rate': Decimal('0'),
+            # IVA fields
+            'sales_iva_total': Decimal('0'),
+            'sales_iva_base': Decimal('0'),
+            'sales_no_iva_total': Decimal('0'),
+            'iva_collected': Decimal('0'),
+            'real_profit_iva': Decimal('0'),
+            'real_profit_no_iva': Decimal('0'),
         },
         'mayoreo': {
             'sales_count': 0,
@@ -130,6 +139,13 @@ def calculate_report_totals(sales, devolutions):
             'financial_gross_profit_margin': Decimal('0'),
             'avg_transaction_value': Decimal('0'),
             'return_rate': Decimal('0'),
+            # IVA fields
+            'sales_iva_total': Decimal('0'),
+            'sales_iva_base': Decimal('0'),
+            'sales_no_iva_total': Decimal('0'),
+            'iva_collected': Decimal('0'),
+            'real_profit_iva': Decimal('0'),
+            'real_profit_no_iva': Decimal('0'),
         },
         'combined': {
             'sales_count': 0,
@@ -156,6 +172,15 @@ def calculate_report_totals(sales, devolutions):
             'financial_gross_profit_margin': Decimal('0'),
             'avg_transaction_value': Decimal('0'),
             'return_rate': Decimal('0'),
+            # IVA fields
+            'sales_iva_total': Decimal('0'),
+            'sales_iva_base': Decimal('0'),
+            'sales_no_iva_total': Decimal('0'),
+            'iva_collected': Decimal('0'),
+            'iva_creditable': Decimal('0'),
+            'iva_balance': Decimal('0'),
+            'real_profit_iva': Decimal('0'),
+            'real_profit_no_iva': Decimal('0'),
         }
     }
     
@@ -243,6 +268,50 @@ def calculate_report_totals(sales, devolutions):
         totals[sale_tipo]['sales_cost_fifo'] += sale_cost_fifo
         totals[sale_tipo]['sales_cost_financial'] += sale_cost_financial
         totals[sale_tipo]['items_sold'] += items_count
+
+        # Pre-fetch InventoryUnit IVA status for this sale's items
+        item_ids = [item.id for item in items]
+        unit_iva_ids = set(
+            InventoryUnit.objects.filter(
+                sale_item_id__in=item_ids,
+                purchase_with_iva=True
+            ).values_list('sale_item_id', flat=True)
+        )
+        unit_no_iva_ids = set(
+            InventoryUnit.objects.filter(
+                sale_item_id__in=item_ids,
+                purchase_with_iva=False
+            ).values_list('sale_item_id', flat=True)
+        )
+
+        # Calculate IVA breakdown per sale item
+        for item in items:
+            try:
+                qty = int(item.quantity)
+                if item.id in unit_iva_ids:
+                    has_iva = True
+                elif item.id in unit_no_iva_ids:
+                    has_iva = False
+                else:
+                    # No InventoryUnit data → fall back to product.tiene_iva
+                    has_iva = item.product and item.product.tiene_iva
+                if has_iva:
+                    iva_rate = Decimal('0.16')
+                    item_price = Decimal(str(item.price)) * qty
+                    base = item_price / (1 + iva_rate)
+                    iva = item_price - base
+                    cost = Decimal(str(item.cost)) * qty if item.cost else Decimal('0')
+                    totals[sale_tipo]['sales_iva_total'] += item_price
+                    totals[sale_tipo]['sales_iva_base'] += base
+                    totals[sale_tipo]['iva_collected'] += iva
+                    totals[sale_tipo]['real_profit_iva'] += base - cost
+                else:
+                    item_price = Decimal(str(item.price)) * qty
+                    cost = Decimal(str(item.cost)) * qty if item.cost else Decimal('0')
+                    totals[sale_tipo]['sales_no_iva_total'] += item_price
+                    totals[sale_tipo]['real_profit_no_iva'] += item_price - cost
+            except (ValueError, TypeError):
+                pass
     
     # Process devolutions
     for devolution in devolutions.prefetch_related('devolutionitem_set'):
@@ -291,6 +360,16 @@ def calculate_report_totals(sales, devolutions):
         totals[dev_tipo]['devolution_cost_financial'] += dev_cost_financial
         totals[dev_tipo]['devolution_items'] += items_count
     
+    # Calculate IVA creditable from PurchaseOrders received in period
+    if from_datetime and to_datetime:
+        iva_pos = PurchaseOrder.objects.filter(
+            has_iva=True,
+            received_date__gte=from_datetime,
+            received_date__lt=to_datetime
+        )
+        totals['combined']['iva_creditable'] = sum(
+            po.total_received_cost * Decimal('0.16') for po in iva_pos
+        )
     # Calculate KPIs for each tipo
     for tipo in ['menudeo', 'mayoreo']:
         net_sales = totals[tipo]['sales_total'] - totals[tipo]['devolutions_total']
@@ -331,7 +410,9 @@ def calculate_report_totals(sales, devolutions):
     # Calculate combined totals and KPIs
     for field in ['sales_count', 'sales_total', 'sales_cost', 'sales_cost_fifo', 'sales_cost_financial',
                   'items_sold', 'devolutions_count', 'devolutions_total', 'devolutions_cost',
-                  'devolution_cost_fifo', 'devolution_cost_financial', 'devolution_items']:
+                  'devolution_cost_fifo', 'devolution_cost_financial', 'devolution_items',
+                  'sales_iva_total', 'sales_iva_base', 'sales_no_iva_total', 'iva_collected',
+                  'real_profit_iva', 'real_profit_no_iva']:
         totals['combined'][field] = totals['menudeo'][field] + totals['mayoreo'][field]
     
     net_sales = totals['combined']['sales_total'] - totals['combined']['devolutions_total']
@@ -365,6 +446,9 @@ def calculate_report_totals(sales, devolutions):
     if totals['combined']['items_sold'] > 0:
         return_rate = (totals['combined']['devolution_items'] / totals['combined']['items_sold']) * 100
         totals['combined']['return_rate'] = round(return_rate, 2)
+    
+    # Recalculate IVA balance after combined accumulation
+    totals['combined']['iva_balance'] = totals['combined']['iva_collected'] - totals['combined']['iva_creditable']
     
     return totals
 
