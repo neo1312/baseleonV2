@@ -33,6 +33,7 @@
                                     <tr>
                                         <th class="text-center" style="width:50px;">Status</th>
                                         <th class="text-center">SKU</th>
+                                        <th class="text-center">Quantity</th>
                                         <th>Description</th>
                                         <th class="text-center">Unidad Empaque</th>
                                         <th class="text-center">Ordered Qty</th>
@@ -56,6 +57,18 @@
                                                    onchange="toggleReceived(this)">
                                         </td>
                                         <td class="text-center"><small>{{ item.product|get_provider_pv1:po.provider }}</small></td>
+                                        <td class="text-center">
+                                            <input type="number" 
+                                                   name="received_qty_{{ item.id }}" 
+                                                   class="form-control form-control-sm received-qty-input" 
+                                                   value="{% if item.received_quantity is not None %}{{ item.received_quantity }}{% endif %}" 
+                                                   min="0" 
+                                                   step="1"
+                                                   data-item-id="{{ item.id }}"
+                                                   data-skip-init="{% if item.received_quantity is None %}true{% else %}false{% endif %}"
+                                                   onchange="updateLineTotal(this)"
+                                                   oninput="updateLineTotal(this)">
+                                        </td>
                                         <td>
                                             <small><strong>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</strong></small>
                                         </td>
@@ -70,16 +83,9 @@
                                             <strong>{{ item.ordered_quantity }}</strong>
                                         </td>
                                         <td class="text-center">
-                                            <input type="number" 
-                                                   name="received_qty_{{ item.id }}" 
-                                                   class="form-control form-control-sm received-qty-input" 
-                                                   value="{% if item.received_quantity is not None %}{{ item.received_quantity }}{% endif %}" 
-                                                   min="0" 
-                                                   step="1"
-                                                   data-item-id="{{ item.id }}"
-                                                   data-skip-init="{% if item.received_quantity is None %}true{% else %}false{% endif %}"
-                                                   onchange="updateLineTotal(this)"
-                                                   oninput="updateLineTotal(this)">
+                                            <span class="received-qty-display" data-item-id="{{ item.id }}">
+                                                {% if item.received_quantity is not None %}{{ item.received_quantity }}{% else %}0{% endif %}
+                                            </span>
                                         </td>
                                         <td class="text-end">
                                             <input type="number" 
@@ -104,7 +110,7 @@
                                     {% endwith %}
                                     {% endfor %}
                                     <tr class="table-active">
-                                        <td colspan="7" class="text-end"><strong>ORDER TOTAL:</strong></td>
+                                        <td colspan="8" class="text-end"><strong>ORDER TOTAL:</strong></td>
                                         <td></td>
                                         <td class="text-end">
                                             <strong class="h5" id="order-total">$0.00</strong>
@@ -377,6 +383,9 @@ function updateLineTotal(input) {
         if (lineTotalElement) {
             lineTotalElement.textContent = '$' + lineTotal.toFixed(2);
         }
+        // Sync Received Qty display column
+        const displaySpan = row.querySelector('.received-qty-display');
+        if (displaySpan) displaySpan.textContent = qty;
     }
     
     updateOrderTotal();
@@ -468,6 +477,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const lineTotal = qty * cost;
             const lineTotalEl = row.querySelector('.line-total');
             if (lineTotalEl) lineTotalEl.textContent = '$' + lineTotal.toFixed(2);
+            const displaySpan = row.querySelector('.received-qty-display');
+            if (displaySpan) displaySpan.textContent = qty;
         }
         // Restore row color from saved values (skip if no saved value = blank init)
         const itemId = row.dataset.itemId;
