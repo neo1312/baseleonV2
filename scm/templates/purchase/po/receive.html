@@ -102,7 +102,9 @@
                                                    oninput="updateLineTotal(this)">
                                         </td>
                                         <td class="text-end">
-                                            ${{ item.iva_amount|floatformat:2 }}
+                                            <span class="iva-amount fw-bold" data-item-id="{{ item.id }}">
+                                                ${{ item.iva_amount|floatformat:2 }}
+                                            </span>
                                         </td>
                                         <td class="text-end">
                                             <span class="line-total fw-bold" data-item-id="{{ item.id }}">
@@ -121,6 +123,25 @@
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+
+                        <div class="card bg-light mb-3">
+                            <div class="card-body py-2">
+                                <div class="row text-end">
+                                    <div class="col-md-4">
+                                        <small class="text-muted">Subtotal</small><br>
+                                        <strong id="summary-subtotal">$0.00</strong>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <small class="text-muted">IVA (16%)</small><br>
+                                        <strong id="summary-iva">$0.00</strong>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <small class="text-muted">Invoice to Pay</small><br>
+                                        <strong class="h5 text-primary" id="summary-invoice">$0.00</strong>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group mb-3">
@@ -397,6 +418,13 @@ function updateLineTotal(input) {
         // Sync Received Qty display column
         const displaySpan = row.querySelector('.received-qty-display');
         if (displaySpan) displaySpan.textContent = qty;
+        
+        // Update unitary IVA (16% of cost per unit)
+        const ivaElement = row.querySelector('.iva-amount');
+        if (ivaElement) {
+            const iva = cost * 0.16;
+            ivaElement.textContent = '$' + iva.toFixed(2);
+        }
     }
     
     updateOrderTotal();
@@ -417,6 +445,24 @@ function updateOrderTotal() {
     if (totalElement) {
         totalElement.textContent = '$' + total.toFixed(2);
     }
+    
+    updateSummary(total);
+}
+
+function updateSummary(total) {
+    const subtotal = total;
+    const iva = subtotal * 0.16;
+    const invoiceToPay = subtotal + iva;
+    
+    document.getElementById('summary-subtotal').textContent = '$' + subtotal.toFixed(2);
+    document.getElementById('summary-iva').textContent = '$' + iva.toFixed(2);
+    document.getElementById('summary-invoice').textContent = '$' + invoiceToPay.toFixed(2);
+    
+    // Also update modal totals
+    const modalTotal = document.getElementById('modal-order-total');
+    if (modalTotal) modalTotal.textContent = '$' + total.toFixed(2);
+    const completeTotal = document.getElementById('complete-order-total');
+    if (completeTotal) completeTotal.textContent = '$' + total.toFixed(2);
 }
 
 // ==================== MODAL ====================
@@ -490,6 +536,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (lineTotalEl) lineTotalEl.textContent = '$' + lineTotal.toFixed(2);
             const displaySpan = row.querySelector('.received-qty-display');
             if (displaySpan) displaySpan.textContent = qty;
+            const ivaEl = row.querySelector('.iva-amount');
+            if (ivaEl) {
+                const iva = cost * 0.16;
+                ivaEl.textContent = '$' + iva.toFixed(2);
+            }
         }
         // Restore row color from saved values (skip if no saved value = blank init)
         const itemId = row.dataset.itemId;

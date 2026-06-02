@@ -305,6 +305,19 @@ def po_placed_orders(request):
         except ValueError:
             pass
     
+    # Annotate IVA breakdown for each PO
+    from decimal import Decimal
+    iva_rate = Decimal('1.16')
+    for po in pos:
+        if po.has_iva and po.total_ordered_cost:
+            po.subtotal = (po.total_ordered_cost / iva_rate).quantize(Decimal('0.01'))
+            po.iva_amount = (po.total_ordered_cost - po.subtotal).quantize(Decimal('0.01'))
+            po.invoice_total = po.total_ordered_cost
+        else:
+            po.subtotal = po.total_ordered_cost
+            po.iva_amount = Decimal('0')
+            po.invoice_total = po.total_ordered_cost
+
     context = {
         'title': 'Placed Orders',
         'purchase_orders': pos,
