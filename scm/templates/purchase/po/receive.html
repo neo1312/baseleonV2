@@ -32,14 +32,13 @@
                                 <thead class="table-dark">
                                     <tr>
                                         <th class="text-center" style="width:50px;">Status</th>
-                                        <th>Product</th>
                                         <th class="text-center">SKU</th>
+                                        <th>Description</th>
+                                        <th class="text-center">Unidad Empaque</th>
                                         <th class="text-center">Ordered Qty</th>
                                         <th class="text-center">Received Qty</th>
-                                        <th class="text-center">Ordered Cost/Unit</th>
-                                        <th class="text-center">Received Cost/Unit</th>
-                                        {% if po.has_iva %}<th class="text-center">Unit Value (sin IVA)</th>{% endif %}
-                                        {% if po.has_iva %}<th class="text-center">IVA</th>{% endif %}
+                                        <th class="text-center">Cost per Unit</th>
+                                        <th class="text-center">IVA</th>
                                         <th class="text-end">Line Total</th>
                                     </tr>
                                 </thead>
@@ -56,10 +55,17 @@
                                                    {% if item.received_quantity is not None and item.received_quantity >= item.ordered_quantity %}checked{% endif %}
                                                    onchange="toggleReceived(this)">
                                         </td>
+                                        <td class="text-center"><small>{{ item.product|get_provider_pv1:po.provider }}</small></td>
                                         <td>
                                             <small><strong>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</strong></small>
                                         </td>
-                                        <td class="text-center"><small>{{ item.product|get_provider_pv1:po.provider }}</small></td>
+                                        <td class="text-center">
+                                            {% if pp_unidad > 1 %}
+                                                <span class="badge badge-warning">{{ pp_unidad }}</span>
+                                            {% else %}
+                                                1
+                                            {% endif %}
+                                        </td>
                                         <td class="text-center">
                                             <strong>{{ item.ordered_quantity }}</strong>
                                         </td>
@@ -76,9 +82,6 @@
                                                    oninput="updateLineTotal(this)">
                                         </td>
                                         <td class="text-end">
-                                            <strong>${{ item.ordered_cost_per_unit|floatformat:2 }}</strong>
-                                        </td>
-                                        <td class="text-end">
                                             <input type="number" 
                                                    name="received_cost_{{ item.id }}" 
                                                    class="form-control form-control-sm received-cost-input" 
@@ -89,14 +92,9 @@
                                                    onchange="updateLineTotal(this)"
                                                    oninput="updateLineTotal(this)">
                                         </td>
-                                        {% if po.has_iva %}
-                                        <td class="text-end">
-                                            ${{ item.unit_sin_iva|floatformat:2 }}
-                                        </td>
                                         <td class="text-end">
                                             ${{ item.iva_amount|floatformat:2 }}
                                         </td>
-                                        {% endif %}
                                         <td class="text-end">
                                             <span class="line-total fw-bold" data-item-id="{{ item.id }}">
                                                 $0.00
@@ -107,6 +105,7 @@
                                     {% endfor %}
                                     <tr class="table-active">
                                         <td colspan="7" class="text-end"><strong>ORDER TOTAL:</strong></td>
+                                        <td></td>
                                         <td class="text-end">
                                             <strong class="h5" id="order-total">$0.00</strong>
                                         </td>
