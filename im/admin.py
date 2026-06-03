@@ -106,7 +106,7 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
 
     fieldsets = (
         ('Basic Info', {
-            'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')
+            'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group', 'Granel_Item')
         }),
         ('Inventory Settings', {
             'fields': ('stockMax', 'stockMin', 'display_stock')
@@ -157,10 +157,10 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         fieldsets = super().get_fieldsets(request, obj)
         if obj is None:  # Creating new product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group', 'Granel_Item')})
         else:  # Editing existing product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group', 'Granel_Item')})
         return fieldsets
 
     def display_stock(self, obj):

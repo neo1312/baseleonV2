@@ -19,7 +19,7 @@
                 <div class="card-body">
                     <!-- Date & Status Filter -->
                     <div class="mb-3">
-                        <form method="GET" action="{% url 'scm:po_placed_orders' %}" class="row g-3 align-items-end">
+                        <form method="GET" action="{% url 'scm:po_placed_orders' %}" class="row g-3 align-items-end" id="filterForm">
                             <div class="col-md-2">
                                 <label for="date_from" class="form-label">From Date</label>
                                 <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
@@ -45,6 +45,15 @@
                                 <a href="{% url 'scm:po_placed_orders' %}" class="btn btn-secondary">
                                     <i class="fas fa-times"></i> Clear
                                 </a>
+                            </div>
+                            <div class="col-md-auto">
+                                <span class="text-muted mr-2" style="line-height: 2.5;">Quick:</span>
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="setDateRange(7)">
+                                    <i class="fas fa-calendar-week"></i> 7 days
+                                </button>
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="setDateRange(30)">
+                                    <i class="fas fa-calendar-alt"></i> 1 month
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -136,88 +145,16 @@
     </div>
 </div>
 
-
-<!-- Send Options Modal -->
-<div class="modal fade" id="sendModal" tabindex="-1" role="dialog" aria-labelledby="sendModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-warning text-white">
-                <h5 class="modal-title" id="sendModalLabel">Send Purchase Order</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p>How would you like to send PO <strong id="sendPoNumberDisplay"></strong>?</p>
-                <p><small class="text-muted">Provider: <span id="sendProviderPhoneDisplay"></span></small></p>
-                <div class="form-group">
-                    <div class="custom-control custom-radio mb-3">
-                        <input type="radio" id="pdf_only" name="send_method" class="custom-control-input" value="pdf" checked>
-                        <label class="custom-control-label" for="pdf_only">
-                            <i class="fas fa-file-pdf"></i> <strong>PDF Only</strong>
-                            <br><small class="text-muted">Generate and download PDF</small>
-                        </label>
-                    </div>
-                    <div class="custom-control custom-radio mb-3">
-                        <input type="radio" id="whatsapp_only" name="send_method" class="custom-control-input" value="whatsapp">
-                        <label class="custom-control-label" for="whatsapp_only">
-                            <i class="fab fa-whatsapp"></i> <strong>WhatsApp Only</strong>
-                            <br><small class="text-muted">Send via WhatsApp to provider</small>
-                        </label>
-                    </div>
-                    <div class="custom-control custom-radio mb-3">
-                        <input type="radio" id="both" name="send_method" class="custom-control-input" value="both">
-                        <label class="custom-control-label" for="both">
-                            <i class="fas fa-clone"></i> <strong>Both PDF & WhatsApp</strong>
-                            <br><small class="text-muted">Generate PDF and send via WhatsApp</small>
-                        </label>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                <form id="sendForm" method="POST" style="display:inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="send_method" id="sendMethodInput" value="pdf">
-                    <button type="submit" class="btn btn-warning">
-                        <i class="fas fa-paper-plane"></i> Send
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="deleteModalLabel">Delete Purchase Order</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> This action cannot be undone!
-                </div>
-                <p>Are you sure you want to delete PO <strong id="poNumberDisplay"></strong>?</p>
-                <p>This will also delete all associated inventory tracking units.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                <form id="deleteForm" method="POST" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-trash"></i> Delete PO
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
+<script>
+function setDateRange(days) {
+    var today = new Date();
+    var from = new Date();
+    from.setDate(today.getDate() - days);
+    document.getElementById('date_from').value = from.toISOString().split('T')[0];
+    document.getElementById('date_to').value = today.toISOString().split('T')[0];
+    document.getElementById('filterForm').submit();
+}
+</script>
 <script>
 // Handle send modal
 $(document).ready(function() {
