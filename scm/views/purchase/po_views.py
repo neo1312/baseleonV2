@@ -233,6 +233,7 @@ def po_submit(request):
             quantities = request.POST.getlist('quantity')
             costs = request.POST.getlist('cost')
             
+            has_iva = request.POST.get('has_iva') == '1'
             for product_id, qty, cost in zip(product_ids, quantities, costs):
                 if qty and int(qty) > 0:
                     product = Product.objects.get(id=product_id)
@@ -250,10 +251,8 @@ def po_submit(request):
                 return redirect(f'scm:po_items_list', provider_id=provider_id)
             
             po = create_po_from_manual(provider, items_data, created_by=str(request.user))
-        
-        # Set IVA flag from form
-        po.has_iva = request.POST.get('has_iva') == '1'
-        po.save(update_fields=['has_iva'])
+            po.has_iva = has_iva
+            po.save(update_fields=['has_iva'])
         
         # Approve the PO immediately
         approve_purchase_order(po, approved_by=str(request.user))
@@ -308,8 +307,12 @@ def po_placed_orders(request):
     # Annotate IVA breakdown for each PO
     from decimal import Decimal
     for po in pos:
-        po.iva_received = (po.total_received_cost * Decimal('0.16')).quantize(Decimal('0.01'))
-        po.invoice_total = (po.total_received_cost + po.iva_received).quantize(Decimal('0.01'))
+        if po.has_iva:
+            po.iva_received = (po.total_received_cost * Decimal('0.16')).quantize(Decimal('0.01'))
+            po.invoice_total = (po.total_received_cost + po.iva_received).quantize(Decimal('0.01'))
+        else:
+            po.iva_received = Decimal('0')
+            po.invoice_total = po.total_received_cost
 
     context = {
         'title': 'Placed Orders',
@@ -466,14 +469,21 @@ def po_receive(request, po_id):
 
     # Add IVA breakdown for each item
     for item in po_items:
-        item.unit_sin_iva = item.ordered_cost_per_unit / Decimal('1.16')
-        item.iva_amount = item.ordered_cost_per_unit - item.unit_sin_iva
+        if item.purchase_order.has_iva:
+            # ordered_cost_per_unit is already base price without IVA
+            item.unit_sin_iva = item.ordered_cost_per_unit
+            item.iva_amount = (item.ordered_cost_per_unit * Decimal('0.16')).quantize(Decimal('0.01'))
+        else:
+            # ordered_cost_per_unit is the full price, no IVA
+            item.unit_sin_iva = item.ordered_cost_per_unit
+            item.iva_amount = Decimal('0')
 
     context = {
         'title': f'Receive {po.po_number}',
         'po': po,
         'po_items': po_items,
         'can_complete': po.status == 'received',
+        'url_js': '/static/lib/java/purchase/create.js',
     }
     
     return render(request, 'purchase/po/receive.html', context)

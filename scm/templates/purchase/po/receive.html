@@ -10,7 +10,7 @@
                     <h4>Receive Purchase Order #{{ po.id }}</h4>
                 </div>
                 <div class="card-body">
-                    <form method="post" id="receiveForm">
+                    <form method="post" id="receiveForm" data-has-iva="{{ po.has_iva|yesno:'true,false' }}">
                         {% csrf_token %}
                         
                         <div class="alert alert-info">
@@ -419,10 +419,11 @@ function updateLineTotal(input) {
         const displaySpan = row.querySelector('.received-qty-display');
         if (displaySpan) displaySpan.textContent = qty;
         
-        // Update unitary IVA (16% of cost per unit)
+        // Update unitary IVA (16% of cost per unit, only when PO has IVA)
         const ivaElement = row.querySelector('.iva-amount');
         if (ivaElement) {
-            const iva = cost * 0.16;
+            const hasIva = document.getElementById('receiveForm').dataset.hasIva === 'true';
+            const iva = hasIva ? cost * 0.16 : 0;
             ivaElement.textContent = '$' + iva.toFixed(2);
         }
     }
@@ -451,8 +452,9 @@ function updateOrderTotal() {
 
 function updateSummary(total) {
     const subtotal = total;
-    const iva = subtotal * 0.16;
-    const invoiceToPay = subtotal + iva;
+    const hasIva = document.getElementById('receiveForm').dataset.hasIva === 'true';
+    const iva = hasIva ? subtotal * 0.16 : 0;
+    const invoiceToPay = hasIva ? subtotal + iva : subtotal;
     
     document.getElementById('summary-subtotal').textContent = '$' + subtotal.toFixed(2);
     document.getElementById('summary-iva').textContent = '$' + iva.toFixed(2);
@@ -523,53 +525,58 @@ function submitForm(action) {
 }
 
 // ==================== INIT ====================
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize line totals AND row statuses/colors from saved values
-    document.querySelectorAll('#receiveForm tr[data-item-id]').forEach(row => {
-        const qtyInput = row.querySelector('.received-qty-input');
-        const costInput = row.querySelector('.received-cost-input');
-        if (qtyInput && costInput) {
-            const qty = parseFloat(qtyInput.value) || 0;
-            const cost = parseFloat(costInput.value) || 0;
-            const lineTotal = qty * cost;
-            const lineTotalEl = row.querySelector('.line-total');
-            if (lineTotalEl) lineTotalEl.textContent = '$' + lineTotal.toFixed(2);
-            const displaySpan = row.querySelector('.received-qty-display');
-            if (displaySpan) displaySpan.textContent = qty;
-            const ivaEl = row.querySelector('.iva-amount');
-            if (ivaEl) {
-                const iva = cost * 0.16;
-                ivaEl.textContent = '$' + iva.toFixed(2);
-            }
-        }
-        // Restore row color from saved values (skip if no saved value = blank init)
-        const itemId = row.dataset.itemId;
-        if (itemId) {
+(function() {
+    function initReceiveForm() {
+        document.querySelectorAll('#receiveForm tr[data-item-id]').forEach(row => {
             const qtyInput = row.querySelector('.received-qty-input');
-            if (qtyInput && qtyInput.dataset.skipInit === 'true') {
-                // Leave blank/white — no saved value yet
-            } else {
-                updateRowStatus(itemId);
+            const costInput = row.querySelector('.received-cost-input');
+            if (qtyInput && costInput) {
+                const qty = parseFloat(qtyInput.value) || 0;
+                const cost = parseFloat(costInput.value) || 0;
+                const lineTotal = qty * cost;
+                const lineTotalEl = row.querySelector('.line-total');
+                if (lineTotalEl) lineTotalEl.textContent = '$' + lineTotal.toFixed(2);
+                const displaySpan = row.querySelector('.received-qty-display');
+                if (displaySpan) displaySpan.textContent = qty;
+                const ivaEl = row.querySelector('.iva-amount');
+                if (ivaEl) {
+                    const hasIva = document.getElementById('receiveForm').dataset.hasIva === 'true';
+                    const iva = hasIva ? cost * 0.16 : 0;
+                    ivaEl.textContent = '$' + iva.toFixed(2);
+                }
             }
-        }
-    });
-    updateOrderTotal();
+            const itemId = row.dataset.itemId;
+            if (itemId) {
+                const qtyInput = row.querySelector('.received-qty-input');
+                if (qtyInput && qtyInput.dataset.skipInit === 'true') {
+                    // Leave blank/white — no saved value yet
+                } else {
+                    updateRowStatus(itemId);
+                }
+            }
+        });
+        updateOrderTotal();
 
-    // Bind modal events
-    const receiveModal = document.getElementById('confirmReceiveModal');
-    const completeModal = document.getElementById('confirmCompleteModal');
+        const receiveModal = document.getElementById('confirmReceiveModal');
+        const completeModal = document.getElementById('confirmCompleteModal');
+        if (receiveModal) {
+            $(receiveModal).on('show.bs.modal', function() {
+                populateModalFromForm('confirmReceiveTable');
+            });
+        }
+        if (completeModal) {
+            $(completeModal).on('show.bs.modal', function() {
+                populateModalFromForm('confirmCompleteTable');
+            });
+        }
+    }
     
-    if (receiveModal) {
-        $(receiveModal).on('show.bs.modal', function() {
-            populateModalFromForm('confirmReceiveTable');
-        });
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initReceiveForm);
+    } else {
+        initReceiveForm();
     }
-    if (completeModal) {
-        $(completeModal).on('show.bs.modal', function() {
-            populateModalFromForm('confirmCompleteTable');
-        });
-    }
-});
+})();
 </script>
 
 <style>

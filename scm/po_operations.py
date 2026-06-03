@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 from django.db.models.signals import post_save
-from .models import PurchaseOrder, PurchaseOrderItem, OrderLog, Purchase, purchaseItem
+from .models import PurchaseOrder, PurchaseOrderItem, OrderLog, Purchase, purchaseItem, purchase_item_post_save as scm_purchase_item_post_save
 from im.models import Product, InventoryUnit, DemandForecast
 
 
@@ -315,8 +315,9 @@ def complete_purchase_order(po, completed_by='system'):
             providerid=po.provider_id
         )
         
-        # Disable signal to prevent duplicate unit creation
+        # Disable signals to prevent duplicate unit creation and bundle_price overwrite
         post_save.disconnect(purchase_item_post_save, sender=purchaseItem)
+        post_save.disconnect(scm_purchase_item_post_save, sender=purchaseItem)
         
         try:
             # Create purchaseItems for each PO item, linked to existing inventory units
@@ -345,21 +346,31 @@ def complete_purchase_order(po, completed_by='system'):
                     unit.received_cost = cost_per_unit
                     unit.save(update_fields=['purchase_item', 'received_cost'])
                 
-                # Update product cost if received_cost differs from ordered_cost
+                # Update product.costo to the received cost (reconstruct full price if has_iva)
                 ordered_cost = po_item.ordered_cost_per_unit
-                received_cost = po_item.received_cost_per_unit
-                if received_cost and ordered_cost and Decimal(str(received_cost)) != Decimal(str(ordered_cost)):
-                    # Update product cost to the new received cost
-                    po_item.product.costo = Decimal(str(received_cost))
+                received_cost = po_item.received_cost_per_unit or po_item.ordered_cost_per_unit
+                full_cost = Decimal(str(received_cost))
+                if po.has_iva:
+                    full_cost = (full_cost * Decimal('1.16')).quantize(Decimal('0.01'))
+                if full_cost != po_item.product.costo:
+                    po_item.product.costo = full_cost
                     po_item.product.save(update_fields=['costo', 'last_updated'])
-                    
-                    OrderLog.objects.create(
-                        purchase_order=po,
-                        po_item=po_item,
-                        action='cost_updated',
-                        performed_by=completed_by,
-                        notes=f'Product cost updated from {ordered_cost} to {received_cost}'
-                    )
+                
+                # Update ProductProvider bundle_price if the full price changed
+                from im.models import ProductProvider
+                pp, _ = ProductProvider.objects.get_or_create(
+                    product=po_item.product,
+                    provider=po.provider
+                )
+                cost_per_piece = Decimal(str(po_item.received_cost_per_unit or po_item.ordered_cost_per_unit))
+                if po.has_iva:
+                    full_per_piece = (cost_per_piece * Decimal('1.16')).quantize(Decimal('0.01'))
+                else:
+                    full_per_piece = cost_per_piece
+                new_bundle = full_per_piece * int(pp.unidad_empaque or 1)
+                if new_bundle != pp.bundle_price:
+                    pp.bundle_price = new_bundle
+                    pp.save()
                 
                 # Log completion
                 OrderLog.objects.create(
@@ -370,8 +381,9 @@ def complete_purchase_order(po, completed_by='system'):
                     notes=f'Created purchaseItem with {quantity} units @ {cost_per_unit} each'
                 )
         finally:
-            # Re-enable signal
+            # Re-enable signals
             post_save.connect(purchase_item_post_save, sender=purchaseItem)
+            post_save.connect(scm_purchase_item_post_save, sender=purchaseItem)
         
         # Mark PO as completed
         po.status = 'completed'

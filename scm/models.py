@@ -316,6 +316,16 @@ def update_provider_cost_on_po_item_received(sender, instance, created, **kwargs
             provider=instance.purchase_order.provider
         )
         
-        # Update the bundle price with the received cost (convert per-piece to bundle)
-        pp.bundle_price = instance.received_cost_per_unit * int(pp.unidad_empaque or 1)
-        pp.save()  # This will call update_average_cost() in ProductProvider.save()
+        from decimal import Decimal
+        cost_per_piece = Decimal(str(instance.received_cost_per_unit))
+        # Reconstruct full comparable per-piece price
+        if instance.purchase_order.has_iva:
+            full_per_piece = (cost_per_piece * Decimal('1.16')).quantize(Decimal('0.01'))
+        else:
+            full_per_piece = cost_per_piece
+        
+        new_bundle = full_per_piece * int(pp.unidad_empaque or 1)
+        # Only update if the price actually changed
+        if new_bundle != pp.bundle_price:
+            pp.bundle_price = new_bundle
+            pp.save()
