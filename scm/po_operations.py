@@ -399,12 +399,8 @@ def complete_purchase_order(po, completed_by='system'):
             purchase_with_iva=po.has_iva
         )
 
-        # Propagate has_iva to product level for pricing
-        if po.has_iva:
-            for po_item in po.items.all():
-                if po_item.product and not po_item.product.tiene_iva:
-                    po_item.product.tiene_iva = True
-                    po_item.product.save(update_fields=['tiene_iva', 'last_updated'])
+
+
         
         OrderLog.objects.create(
             purchase_order=po,

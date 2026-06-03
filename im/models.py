@@ -298,8 +298,6 @@ class Product(models.Model):
     def priceLista(self):
         # Use manual price if set
         if self.precio_manual is not None and self.precio_manual > 0:
-            if self.tiene_iva:
-                return math.ceil(float(self.precio_manual) * 1.16)
             return float(self.precio_manual)
         
         if self.costo is None or self.margen is None:
@@ -316,31 +314,23 @@ class Product(models.Model):
                 precio=math.ceil((costo*(1+margen))*1000)
             else:
                 precio=math.ceil((costo*(1+margen))*float(minimo))
-        if self.tiene_iva:
-            precio = math.ceil(precio * Decimal('1.16'))
         return precio
     
     @property
     def priceMayoreo(self):
         # Use manual mayoreo price if set
         if self.precio_mayoreo_manual is not None and self.precio_mayoreo_manual > 0:
-            if self.tiene_iva:
-                return math.ceil(float(self.precio_mayoreo_manual) * Decimal('1.16'))
             return float(self.precio_mayoreo_manual)
         
         costo=float(self.costo)
         margen=float(self.margenMayoreo)
         precio=math.ceil((costo*(1+margen)))
-        if self.tiene_iva:
-            precio = math.ceil(precio * Decimal('1.16'))
         return precio
 
     @property
     def priceListaGranel(self):
         # Use manual granel price if set and granel is enabled
         if self.granel and self.precio_granel_manual is not None and self.precio_granel_manual > 0:
-            if self.tiene_iva:
-                return math.ceil(float(self.precio_granel_manual) * Decimal('1.16'))
             return float(self.precio_granel_manual)
         
         costo=float(self.costo)
@@ -354,8 +344,6 @@ class Product(models.Model):
         else:
             precio1=costo*(1+margen)
             precio=round(precio1*2.0)/2.0
-        if precio != 'N/A' and self.tiene_iva:
-            precio = math.ceil(float(precio) * 1.16)
         return precio
 
 

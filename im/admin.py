@@ -94,8 +94,8 @@ class ProductProviderInline(admin.TabularInline):
 
 class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     search_fields=['name','category__name','brand__name','id','barcode','clave']
-    list_display=('id','clave','barcode','name','brand','tiene_iva','display_group','get_stock_ready_to_sale','get_abc_classification','costo','priceLista','priceMayoreo','active','sat','Granel_Item')
-    list_filter=('active', 'tiene_iva', ProviderFilter, 'brand', 'category', 'group', ABCClassificationFilter)
+    list_display=('id','clave','barcode','name','brand','display_group','get_stock_ready_to_sale','get_abc_classification','costo','priceLista','priceMayoreo','active','sat','Granel_Item')
+    list_filter=('active', ProviderFilter, 'brand', 'category', 'group', ABCClassificationFilter)
     resocurce_class = productResource
     ordering=('id','last_updated')
     raw_id_fields=('brand','category')
@@ -105,7 +105,7 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
 
     fieldsets = (
         ('Basic Info', {
-            'fields': ('name', 'clave', 'brand', 'barcode', 'tiene_iva', 'sat', 'active', 'group')
+            'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')
         }),
         ('Inventory Settings', {
             'fields': ('stockMax', 'stockMin', 'display_stock')
@@ -156,10 +156,10 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         fieldsets = super().get_fieldsets(request, obj)
         if obj is None:  # Creating new product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'brand', 'barcode', 'tiene_iva', 'sat', 'active', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')})
         else:  # Editing existing product
             fieldsets = list(fieldsets)
-            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'brand', 'barcode', 'tiene_iva', 'sat', 'active', 'group')})
+            fieldsets[0] = (fieldsets[0][0], {'fields': ('id', 'name', 'clave', 'brand', 'barcode', 'sat', 'active', 'group')})
         return fieldsets
 
     def display_stock(self, obj):

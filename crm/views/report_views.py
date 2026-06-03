@@ -293,8 +293,7 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
                 elif item.id in unit_no_iva_ids:
                     has_iva = False
                 else:
-                    # No InventoryUnit data → fall back to product.tiene_iva
-                    has_iva = item.product and item.product.tiene_iva
+                    has_iva = False
                 if has_iva:
                     iva_rate = Decimal('0.16')
                     item_price = Decimal(str(item.price)) * qty
