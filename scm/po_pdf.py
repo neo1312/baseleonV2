@@ -86,7 +86,7 @@ def generate_po_pdf(po):
     content.append(Paragraph("ORDER ITEMS", heading_style))
     
     items_data = [
-        ['SKU', 'Product Description', 'Qty to Order']
+        ['SKU', 'Product Description', 'Unidad Empaque', 'Qty to Order']
     ]
     
     def _sort_key(pv1):
@@ -102,13 +102,14 @@ def generate_po_pdf(po):
         items_data.append([
             str(pv1) if pv1 else '',
             str(po_item.product.name),
+            str(unidad_empaque),
             qty
         ])
     
     # Sort by SKU/pv1
     items_data[1:] = sorted(items_data[1:], key=lambda x: _sort_key(x[0]))
     
-    items_table = Table(items_data, colWidths=[1.2*inch, 4.5*inch, 1.3*inch])
+    items_table = Table(items_data, colWidths=[1.2*inch, 3.5*inch, 1.3*inch, 1.3*inch])
     items_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f4788')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -119,8 +120,7 @@ def generate_po_pdf(po):
         ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f9f9f9')),
         ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#cccccc')),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('ALIGN', (0, 1), (2, -1), 'CENTER'),
+        ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
         ('RIGHTPADDING', (0, 0), (-1, -1), 8),
         ('TOPPADDING', (0, 0), (-1, -1), 6),

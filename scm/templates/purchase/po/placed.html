@@ -145,6 +145,70 @@
     </div>
 </div>
 
+<!-- Send Modal -->
+<div class="modal fade" id="sendModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">Send Purchase Order</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <form id="sendForm" method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>Send PO <strong id="sendPoNumberDisplay"></strong> to <strong id="sendProviderPhoneDisplay"></strong></p>
+                    <div class="form-group">
+                        <label><strong>Send Method:</strong></label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="send_method" value="pdf" checked>
+                            <label class="form-check-label">PDF Only</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="send_method" value="whatsapp">
+                            <label class="form-check-label">WhatsApp Only</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="send_method" value="both">
+                            <label class="form-check-label">PDF + WhatsApp</label>
+                        </div>
+                    </div>
+                    <input type="hidden" id="sendMethodInput" value="pdf">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning"><i class="fas fa-paper-plane"></i> Send</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Delete Purchase Order</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <form id="deleteForm" method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>Are you sure you want to delete PO <strong id="poNumberDisplay"></strong>?</p>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        This will remove all inventory units associated with this order.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 function setDateRange(days) {
     var today = new Date();
