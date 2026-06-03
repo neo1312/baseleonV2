@@ -79,6 +79,15 @@
                         </div>
                     </div>
 
+                    <!-- IVA Checkbox -->
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" id="hasIva" checked>
+                        <label class="form-check-label" for="hasIva">
+                            <strong>Factura con IVA</strong>
+                            <small class="text-muted">— Marca si este proveedor te facturó con IVA</small>
+                        </label>
+                    </div>
+
                     <!-- Action Buttons -->
                     <div class="mt-4">
                         <button type="button" class="btn btn-success btn-lg" id="submit_btn">
@@ -164,6 +173,14 @@ function addItem() {
         });
 }
 
+function recalcItem(item) {
+    const cost = parseFloat(item.cost);
+    const hasIva = document.getElementById('hasIva').checked;
+    const displayCost = hasIva ? cost / 1.16 : cost;
+    const ivaAmount = hasIva ? cost - displayCost : 0;
+    return { displayCost, ivaAmount };
+}
+
 function renderItems() {
     const tbody = document.getElementById('items_tbody');
     tbody.innerHTML = '';
@@ -171,13 +188,11 @@ function renderItems() {
     let total_cost = 0;
 
     items.forEach((item, index) => {
-        const item_total = item.cost * item.quantity;
+        const { displayCost, ivaAmount } = recalcItem(item);
+        const item_total = displayCost * item.quantity;
         total_items += item.quantity;
         total_cost += item_total;
 
-        const cost = parseFloat(item.cost);
-        const unitSinIva = cost / 1.16;
-        const ivaAmount = cost - unitSinIva;
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${item.pv1}</td>
@@ -189,7 +204,7 @@ function renderItems() {
                 </div>
             </td>
             <td>${item.product_name}</td>
-            <td>$${cost.toFixed(2)}</td>
+            <td>$${displayCost.toFixed(2)}</td>
             <td>$${ivaAmount.toFixed(2)}</td>
             <td>$${item_total.toFixed(2)}</td>
             <td><button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${index})"><i class="fas fa-trash"></i></button></td>
@@ -215,7 +230,10 @@ function removeItem(index) {
 }
 
 function calculateTotal() {
-    return items.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
+    return items.reduce((sum, item) => {
+        const { displayCost } = recalcItem(item);
+        return sum + (displayCost * item.quantity);
+    }, 0);
 }
 
 // Submit
@@ -266,5 +284,6 @@ document.getElementById('pv1_input').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('quantity_input').focus(); }
 });
 document.getElementById('add_item_btn').addEventListener('click', addItem);
+document.getElementById('hasIva').addEventListener('change', renderItems);
 </script>
 {% endblock %}

@@ -88,6 +88,7 @@ class productResource(resources.ModelResource):
 class ProductProviderInline(admin.TabularInline):
     model = ProductProvider
     extra = 1
+    can_delete = True
     fields = ('provider', 'pv1', 'bundle_price', 'unidad_empaque', 'provider_cost', 'date_created', 'last_updated')
     readonly_fields = ('provider_cost', 'date_created', 'last_updated')
     raw_id_fields = ('provider',)
