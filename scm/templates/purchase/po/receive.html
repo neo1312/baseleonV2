@@ -27,20 +27,21 @@
                             </div>
                         </div>
 
-                        <div class="table-responsive mb-4">
-                             <table class="table table-sm table-bordered">
+                        <div class="mb-4 table-fit">
+                             <table class="table table-sm table-bordered table-fit">
                                  <thead class="table-dark">
                                      <tr>
-                                         <th class="text-center" style="width:60px;">Status</th>
-                                         <th class="text-center" style="width:110px;">SKU</th>
-                                         <th class="text-center" style="width:100px;">Quantity</th>
-                                         <th style="min-width:250px;">Description</th>
-                                         <th class="text-center" style="width:100px;">Unidad Empaque</th>
-                                         <th class="text-center" style="width:95px;">Ordered Qty</th>
-                                         <th class="text-center" style="width:105px;">Received Qty</th>
-                                         <th class="text-center" style="width:125px;">Cost per Unit</th>
-                                         <th class="text-center" style="width:80px;">IVA</th>
-                                         <th class="text-end" style="width:110px;">Line Total</th>
+                                         <th class="text-center">Status</th>
+                                         <th class="text-center">SKU</th>
+                                         <th class="text-center">Qty</th>
+                                         <th>Description</th>
+                                         <th class="text-center">Ord Qty</th>
+                                         <th class="text-center">Rec Qty</th>
+                                          <th class="text-center">Cost/U</th>
+                                          <th class="text-center">Cost/U + IVA</th>
+                                          <th class="text-center">IVA</th>
+                                          <th class="text-end">Line Total</th>
+                                          <th class="text-end">Line Total + IVA</th>
                                      </tr>
                                  </thead>
                                 <tbody>
@@ -76,13 +77,6 @@
                                             <small><strong>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</strong></small>
                                         </td>
                                         <td class="text-center">
-                                            {% if pp_unidad > 1 %}
-                                                <span class="badge badge-warning">{{ pp_unidad }}</span>
-                                            {% else %}
-                                                1
-                                            {% endif %}
-                                        </td>
-                                        <td class="text-center">
                                             <strong>{{ item.ordered_quantity }}</strong>
                                         </td>
                                         <td class="text-center">
@@ -90,37 +84,56 @@
                                                 {% if item.received_quantity is not None %}{{ item.received_quantity }}{% else %}0{% endif %}
                                             </span>
                                         </td>
-                                        <td class="text-end">
-                                            <input type="number" 
-                                                   name="received_cost_{{ item.id }}" 
-                                                   class="form-control received-cost-input" 
-                                                   value="{% if item.received_cost_per_unit %}{{ item.received_cost_per_unit|floatformat:2 }}{% else %}{{ item.ordered_cost_per_unit|floatformat:2 }}{% endif %}" 
-                                                   min="0" 
-                                                   step="0.01"
-                                                   data-item-id="{{ item.id }}"
-                                                   onchange="updateLineTotal(this)"
-                                                   oninput="updateLineTotal(this)">
-                                        </td>
-                                        <td class="text-end">
-                                            <span class="iva-amount fw-bold" data-item-id="{{ item.id }}">
-                                                ${{ item.iva_amount|floatformat:2 }}
-                                            </span>
-                                        </td>
-                                        <td class="text-end">
-                                            <span class="line-total fw-bold" data-item-id="{{ item.id }}">
-                                                $0.00
-                                            </span>
-                                        </td>
-                                    </tr>
+                                         <td class="text-end">
+                                             <input type="number" 
+                                                    name="received_cost_{{ item.id }}" 
+                                                    class="form-control received-cost-input" 
+                                                    value="{% if item.received_cost_per_unit %}{{ item.received_cost_per_unit|floatformat:2 }}{% else %}{{ item.ordered_cost_per_unit|floatformat:2 }}{% endif %}" 
+                                                    min="0" 
+                                                    step="0.01"
+                                                    data-item-id="{{ item.id }}"
+                                                    onchange="updateLineTotal(this)"
+                                                    oninput="updateLineTotal(this)">
+                                         </td>
+                                         <td class="text-end">
+                                             <input type="number" 
+                                                    name="received_cost_with_iva_{{ item.id }}" 
+                                                    class="form-control received-cost-with-iva-input" 
+                                                    value="{{ item.unit_con_iva|floatformat:2 }}" 
+                                                    min="0" 
+                                                    step="0.01"
+                                                    data-item-id="{{ item.id }}"
+                                                    onchange="updateFromCostWithIva(this)"
+                                                    oninput="updateFromCostWithIva(this)">
+                                         </td>
+                                         <td class="text-end">
+                                             <span class="iva-amount fw-bold" data-item-id="{{ item.id }}">
+                                                 ${{ item.iva_amount|floatformat:2 }}
+                                             </span>
+                                         </td>
+                                         <td class="text-end">
+                                             <span class="line-total fw-bold" data-item-id="{{ item.id }}">
+                                                 $0.00
+                                             </span>
+                                         </td>
+                                         <td class="text-end">
+                                             <span class="line-total-iva fw-bold" data-item-id="{{ item.id }}">
+                                                 $0.00
+                                             </span>
+                                         </td>
+                                     </tr>
                                     {% endwith %}
                                     {% endfor %}
-                                    <tr class="table-active">
-                                        <td colspan="8" class="text-end"><strong>ORDER TOTAL:</strong></td>
-                                        <td></td>
-                                        <td class="text-end">
-                                            <strong class="h5" id="order-total">$0.00</strong>
-                                        </td>
-                                    </tr>
+                                     <tr class="table-active">
+                                          <td colspan="8" class="text-end"><strong>ORDER TOTAL:</strong></td>
+                                         <td></td>
+                                         <td class="text-end">
+                                             <strong class="h5" id="order-total">$0.00</strong>
+                                         </td>
+                                         <td class="text-end">
+                                             <strong class="h5" id="order-total-iva">$0.00</strong>
+                                         </td>
+                                     </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -405,15 +418,22 @@ function updateLineTotal(input) {
     
     const qtyInput = row.querySelector(`input[name="received_qty_${itemId}"]`);
     const costInput = row.querySelector(`input[name="received_cost_${itemId}"]`);
+    const costWithIvaInput = row.querySelector(`input[name="received_cost_with_iva_${itemId}"]`);
     
     if (qtyInput && costInput) {
         const qty = parseFloat(qtyInput.value) || 0;
         const cost = parseFloat(costInput.value) || 0;
         const lineTotal = qty * cost;
+        const hasIva = document.getElementById('receiveForm').dataset.hasIva === 'true';
         
         const lineTotalElement = row.querySelector('.line-total');
         if (lineTotalElement) {
             lineTotalElement.textContent = '$' + lineTotal.toFixed(2);
+        }
+        const lineTotalIvaElement = row.querySelector('.line-total-iva');
+        if (lineTotalIvaElement) {
+            const lineTotalIva = hasIva ? lineTotal * 1.16 : lineTotal;
+            lineTotalIvaElement.textContent = '$' + lineTotalIva.toFixed(2);
         }
         // Sync Received Qty display column
         const displaySpan = row.querySelector('.received-qty-display');
@@ -422,9 +442,14 @@ function updateLineTotal(input) {
         // Update unitary IVA (16% of cost per unit, only when PO has IVA)
         const ivaElement = row.querySelector('.iva-amount');
         if (ivaElement) {
-            const hasIva = document.getElementById('receiveForm').dataset.hasIva === 'true';
             const iva = hasIva ? cost * 0.16 : 0;
             ivaElement.textContent = '$' + iva.toFixed(2);
+        }
+        
+        // Sync Cost/Unit + IVA input when base cost changes
+        if (costWithIvaInput) {
+            const costWithIva = hasIva ? cost * 1.16 : cost;
+            costWithIvaInput.value = costWithIva.toFixed(2);
         }
     }
     
@@ -432,19 +457,57 @@ function updateLineTotal(input) {
     updateRowStatus(itemId);
 }
 
+// ==================== COST + IVA BACK-CALCULATION ====================
+function updateFromCostWithIva(input) {
+    const itemId = input.dataset.itemId;
+    const row = document.querySelector(`#receiveForm tr[data-item-id="${itemId}"]`);
+    if (!row) return;
+    
+    const costInput = row.querySelector(`input[name="received_cost_${itemId}"]`);
+    const costWithIvaInput = row.querySelector(`input[name="received_cost_with_iva_${itemId}"]`);
+    if (!costInput || !costWithIvaInput) return;
+    
+    const costWithIva = parseFloat(costWithIvaInput.value) || 0;
+    const hasIva = document.getElementById('receiveForm').dataset.hasIva === 'true';
+    
+    let cost;
+    if (hasIva) {
+        // Back-calculate: cost_with_iva = base_cost * 1.16 => base_cost = cost_with_iva / 1.16
+        cost = costWithIva / 1.16;
+    } else {
+        cost = costWithIva;
+    }
+    cost = Math.round(cost * 100) / 100; // Round to 2 decimal places
+    
+    costInput.value = cost.toFixed(2);
+    
+    // Trigger the full update (IVA, line total, summary, row status)
+    updateLineTotal(costInput);
+}
+
 function updateOrderTotal() {
     let total = 0;
+    let totalIva = 0;
     document.querySelectorAll('#receiveForm tr[data-item-id]').forEach(row => {
         const lineTotalElement = row.querySelector('.line-total');
         if (lineTotalElement) {
             const text = lineTotalElement.textContent.replace('$', '');
             total += parseFloat(text) || 0;
         }
+        const lineTotalIvaElement = row.querySelector('.line-total-iva');
+        if (lineTotalIvaElement) {
+            const text = lineTotalIvaElement.textContent.replace('$', '');
+            totalIva += parseFloat(text) || 0;
+        }
     });
     
     const totalElement = document.getElementById('order-total');
     if (totalElement) {
         totalElement.textContent = '$' + total.toFixed(2);
+    }
+    const totalIvaElement = document.getElementById('order-total-iva');
+    if (totalIvaElement) {
+        totalIvaElement.textContent = '$' + totalIva.toFixed(2);
     }
     
     updateSummary(total);
@@ -536,6 +599,11 @@ function submitForm(action) {
                 const lineTotal = qty * cost;
                 const lineTotalEl = row.querySelector('.line-total');
                 if (lineTotalEl) lineTotalEl.textContent = '$' + lineTotal.toFixed(2);
+                const lineTotalIvaEl = row.querySelector('.line-total-iva');
+                if (lineTotalIvaEl) {
+                    const hasIva = document.getElementById('receiveForm').dataset.hasIva === 'true';
+                    lineTotalIvaEl.textContent = '$' + (hasIva ? lineTotal * 1.16 : lineTotal).toFixed(2);
+                }
                 const displaySpan = row.querySelector('.received-qty-display');
                 if (displaySpan) displaySpan.textContent = qty;
                 const ivaEl = row.querySelector('.iva-amount');
@@ -543,6 +611,11 @@ function submitForm(action) {
                     const hasIva = document.getElementById('receiveForm').dataset.hasIva === 'true';
                     const iva = hasIva ? cost * 0.16 : 0;
                     ivaEl.textContent = '$' + iva.toFixed(2);
+                }
+                const costWithIvaInput = row.querySelector(`input[name="received_cost_with_iva_${row.dataset.itemId}"]`);
+                if (costWithIvaInput) {
+                    const hasIva = document.getElementById('receiveForm').dataset.hasIva === 'true';
+                    costWithIvaInput.value = (hasIva ? cost * 1.16 : cost).toFixed(2);
                 }
             }
             const itemId = row.dataset.itemId;
@@ -580,25 +653,42 @@ function submitForm(action) {
 </script>
 
 <style>
-.line-total {
-    min-width: 100px;
-    display: inline-block;
+.table-fit {
+    width: 100%;
+    overflow: hidden;
 }
-
+.table-fit table {
+    width: 100%;
+    font-size: 12px;
+}
+.table-fit .table-sm th,
+.table-fit .table-sm td {
+    padding: 0.2rem 0.3rem;
+    white-space: nowrap;
+}
+.table-fit th {
+    font-size: 11px;
+}
 .received-qty-input,
-.received-cost-input {
+.received-cost-input,
+.received-cost-with-iva-input {
     text-align: right;
 }
-
 .received-qty-input {
-    width: 85px;
+    width: 60px;
 }
-
 .received-cost-input {
-    width: 115px;
+    width: 75px;
 }
-
-/* Row color classes */
+.received-cost-with-iva-input {
+    width: 75px;
+    text-align: right;
+}
+.received-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
 tr.row-full {
     background-color: #d4edda !important;
 }
@@ -607,13 +697,6 @@ tr.row-partial {
 }
 tr.row-none {
     background-color: #f8d7da !important;
-}
-
-/* Checkbox styling */
-.received-checkbox {
-    width: 22px;
-    height: 22px;
-    cursor: pointer;
 }
 </style>
 {% endblock %}

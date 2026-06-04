@@ -469,14 +469,18 @@ def po_receive(request, po_id):
 
     # Add IVA breakdown for each item
     for item in po_items:
+        base_cost = item.received_cost_per_unit if item.received_cost_per_unit is not None else item.ordered_cost_per_unit
         if item.purchase_order.has_iva:
             # ordered_cost_per_unit is already base price without IVA
-            item.unit_sin_iva = item.ordered_cost_per_unit
-            item.iva_amount = (item.ordered_cost_per_unit * Decimal('0.16')).quantize(Decimal('0.01'))
+            item.unit_sin_iva = base_cost
+            item.iva_amount = (base_cost * Decimal('0.16')).quantize(Decimal('0.01'))
+            # unit_con_iva = base price * 1.16 for the initial display
+            item.unit_con_iva = (base_cost * Decimal('1.16')).quantize(Decimal('0.01'))
         else:
             # ordered_cost_per_unit is the full price, no IVA
-            item.unit_sin_iva = item.ordered_cost_per_unit
+            item.unit_sin_iva = base_cost
             item.iva_amount = Decimal('0')
+            item.unit_con_iva = base_cost
 
     context = {
         'title': f'Receive {po.po_number}',

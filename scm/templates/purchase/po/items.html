@@ -44,15 +44,14 @@
                              <label class="form-check-label" for="hasIvaCheck"><strong>Factura con IVA</strong></label>
                          </div>
 
-                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
-                            <table class="table table-striped table-hover" id="itemsTable">
+                        <div class="table-fit" style="max-height: 600px; overflow-y: auto;">
+                            <table class="table table-striped table-hover table-fit" id="itemsTable">
                                 <thead class="table-dark" style="position: sticky; top: 0; z-index: 1;">
                                     <tr>
                                         <th>SKU</th>
-                                        <th>Quantity to Order</th>
+                                        <th>Qty</th>
                                         <th>Description</th>
-                                        <th>Unidad Empaque</th>
-                                        <th>Cost per Unit</th>
+                                        <th>Cost/U</th>
                                         <th>IVA</th>
                                         <th>Total</th>
                                         <th>Action</th>
@@ -72,13 +71,6 @@
                                                    oninput="window.calculateRowTotal(this)">
                                         </td>
                                         <td>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</td>
-                                        <td class="text-center">
-                                            {% if pp_unidad > 1 %}
-                                                <span class="badge badge-warning">{{ pp_unidad }}</span>
-                                            {% else %}
-                                                1
-                                            {% endif %}
-                                        </td>
                                         <td>
                                         <input type="number" name="cost" class="form-control form-control-sm cost-input" 
                                                 value="{{ item.cost_per_unit }}" min="0" step="0.01"
@@ -89,7 +81,7 @@
                                         <td>
                                             <span class="iva-amount-cell" data-row-id="{{ item.product.id }}">{{ item.iva_amount|floatformat:2 }}</span>
                                         </td>
-                                        <td class="text-end font-weight-bold">
+                                        <td class="text-end fw-bold">
                                             <span class="total-cell" data-row-id="{{ item.product.id }}">
                                                 {{ item.total|floatformat:2 }}
                                             </span>
@@ -103,9 +95,9 @@
                                     {% endwith %}
                                     {% endfor %}
                                     <tr class="table-active">
-                                        <td colspan="5" class="text-end font-weight-bold">TOTAL ORDER VALUE:</td>
+                                        <td colspan="4" class="text-end fw-bold">TOTAL ORDER VALUE:</td>
                                         <td></td>
-                                        <td class="text-end font-weight-bold">
+                                        <td class="text-end fw-bold">
                                             <span id="cart_total">{{ cart_total|floatformat:2 }}</span>
                                         </td>
                                         <td></td>
@@ -268,14 +260,13 @@ window.addProductRow = function(p) {
             <input type="number" name="quantity" class="form-control form-control-sm quantity-input" value="1" min="0" step="1" data-row-id="${p.id}">
         </td>
         <td>${p.name}${pp_unidad > 1 ? ' <span class="badge badge-warning">EMPAQUE: ' + pp_unidad + '</span>' : ''}</td>
-        <td class="text-center">${pp_unidad > 1 ? '<span class="badge badge-warning">' + pp_unidad + '</span>' : '1'}</td>
         <td>
             <input type="number" name="cost" class="form-control form-control-sm cost-input" value="${p.cost.toFixed(2)}" min="0" step="0.01" data-row-id="${p.id}" data-cost-raw="${p.cost}">
         </td>
         <td>
             <span class="iva-amount-cell" data-row-id="${p.id}">0.00</span>
         </td>
-        <td class="text-end font-weight-bold">
+        <td class="text-end fw-bold">
             <span class="total-cell" data-row-id="${p.id}">${p.cost.toFixed(2)}</span>
         </td>
         <td class="text-center">
@@ -328,13 +319,22 @@ setTimeout(function() {
 </script>
 
 <style>
-.table-responsive {
-    border-radius: 0.25rem;
+.table-fit {
+    width: 100%;
 }
-.form-control-sm {
-    font-size: 0.875rem;
+.table-fit table {
+    width: 100%;
+    font-size: 12px;
 }
-input[type="number"] {
+.table-fit th,
+.table-fit td {
+    padding: 0.2rem 0.3rem;
+    white-space: nowrap;
+}
+.table-fit th {
+    font-size: 11px;
+}
+.table-fit input[type="number"] {
     text-align: right;
 }
 #searchInput, #addSearchInput {
