@@ -67,7 +67,7 @@
                             <input type="checkbox" name="product_ids" value="{{ product.id }}" class="form-check-input product-checkbox">
                         </td>
                         <td>
-                            <strong>{{ product.name }}</strong>
+                            <strong>{{ product.name }}</strong>{% if product.brand %} <span class="text-muted">—</span> {{ product.brand.name }}{% endif %}
                         </td>
                         <td>
                             {% if product.clave %}
@@ -111,7 +111,7 @@
                     <div class="d-flex align-items-start gap-2">
                         <input type="checkbox" name="product_ids" value="{{ product.id }}" class="form-check-input product-checkbox mt-1" style="margin-top: 0.35rem;">
                         <div class="flex-grow-1 min-w-0">
-                            <strong class="d-block text-break">{{ product.name }}</strong>
+                            <strong class="d-block text-break">{{ product.name }}</strong>{% if product.brand %} <span class="text-muted">—</span> {{ product.brand.name }}{% endif %}
                             <div class="small text-muted mt-1">
                                 {% if product.clave %}<span class="badge bg-light text-dark">Clave: {{ product.clave }}</span>{% endif %}
                                 {% if product.barcode %}<span class="badge bg-light text-dark">{{ product.barcode }}</span>{% endif %}

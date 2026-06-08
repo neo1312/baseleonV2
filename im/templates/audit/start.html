@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var tr = document.createElement('tr');
 
                 var nameTd = document.createElement('td');
-                nameTd.innerHTML = '<strong>' + p.name + '</strong>';
+                nameTd.innerHTML = '<strong>' + p.name + '</strong>' + (p.brand ? ' <span class="text-muted">\u2014</span> ' + p.brand : '');
 
                 var idTd = document.createElement('td');
                 var idText = '';

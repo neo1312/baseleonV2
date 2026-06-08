@@ -59,6 +59,7 @@ def audit_product_search(request):
             'name': p.name,
             'clave': p.clave or '',
             'barcode': p.barcode or '',
+            'brand': p.brand.name if p.brand else '',
             'system_count': p.stock_ready_to_sale,
         })
 

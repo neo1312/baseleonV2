@@ -204,7 +204,7 @@
                                     {% for product in problem_products %}
                                     <tr>
                                         <td>
-                                            <strong>{{ product.product__name }}</strong>
+                                            <strong>{{ product.product__name }}</strong>{% if product.product__brand__name %} <span class="text-muted">—</span> {{ product.product__brand__name }}{% endif %}
                                             {% if product.product__barcode %}
                                                 <br><code class="small">{{ product.product__barcode }}</code>
                                             {% endif %}
