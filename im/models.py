@@ -960,12 +960,14 @@ class InventoryAudit(models.Model):
         ('category', 'By Category'),
         ('manual', 'Manual Selection'),
         ('bulk', 'Bulk Audit'),
+        ('physical', 'Physical Inventory (Scan)'),
     ]
     
     id = models.AutoField(primary_key=True)
     audit_date = models.DateField(auto_now_add=True, verbose_name='Audit Date')
     audit_type = models.CharField(max_length=20, choices=AUDIT_TYPE_CHOICES, verbose_name='Audit Type')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name='Status')
+    title = models.CharField(max_length=200, null=True, blank=True, verbose_name='Title')
     
     # Auditor info
     auditor = models.CharField(max_length=150, verbose_name='Auditor')
@@ -990,7 +992,8 @@ class InventoryAudit(models.Model):
         ordering = ['-audit_date']
     
     def __str__(self):
-        return f"Audit {self.id} ({self.get_audit_type_display()}) - {self.audit_date} - {self.get_status_display()}"
+        label = self.title or f"Audit #{self.id}"
+        return f"{label} ({self.get_audit_type_display()}) - {self.audit_date} - {self.get_status_display()}"
     
     def update_stats(self):
         """Recalculate audit statistics"""

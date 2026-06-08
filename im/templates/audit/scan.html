@@ -1,0 +1,706 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}Escanear - Auditoría #{{ audit.id }}{% endblock %}
+
+{% block head %}
+{{ block.super }}
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  body, .wrapper, .content-wrapper {
+    background: #1a1a2e !important;
+    min-height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .main-header, .navbar, footer, .card-header {
+    display: none !important;
+  }
+  .content { padding: 0 !important; }
+  .container-fluid {
+    padding: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+  .card-body { padding: 0 !important; }
+
+  #scanner-container {
+    position: relative;
+    width: 100%;
+    background: #000;
+    overflow: hidden;
+  }
+  #scanner-container video {
+    width: 100% !important;
+    object-fit: cover;
+  }
+  #reader {
+    width: 100%;
+    min-height: 280px;
+  }
+  #reader video {
+    border-radius: 0 !important;
+  }
+  #reader__scan_region { background: #000 !important; }
+  #reader__dashboard_section { display: none !important; }
+  #reader__scan_region img { display: none !important; }
+
+  .scan-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #16213e;
+    color: #fff;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .scan-header .back-btn {
+    color: #fff;
+    font-size: 22px;
+    text-decoration: none;
+    line-height: 1;
+  }
+  .scan-header .title {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .scan-header .count-badge {
+    background: #0f3460;
+    color: #e94560;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .manual-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #16213e;
+  }
+  .manual-bar input {
+    flex: 1;
+    border: 1px solid #0f3460;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 16px;
+    background: #1a1a2e;
+    color: #fff;
+    outline: none;
+  }
+  .manual-bar input::placeholder { color: #666; }
+  .manual-bar input:focus { border-color: #e94560; }
+  .manual-bar button {
+    background: #e94560;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .manual-bar button:active { opacity: 0.8; }
+
+  .result-card {
+    margin: 10px 16px;
+    background: #16213e;
+    border-radius: 12px;
+    padding: 16px;
+    color: #fff;
+    display: none;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .result-card .product-name {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .result-card .product-brand {
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 8px;
+  }
+  .result-card .product-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .result-card .product-meta .badge {
+    background: #0f3460;
+    color: #ccc;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+  .result-card .count-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .result-card .count-row .sys-count {
+    background: #0f3460;
+    padding: 8px 14px;
+    border-radius: 8px;
+    text-align: center;
+    min-width: 70px;
+  }
+  .result-card .count-row .sys-count .label {
+    font-size: 11px;
+    color: #aaa;
+  }
+  .result-card .count-row .sys-count .value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .result-card .count-row input {
+    flex: 1;
+    border: 2px solid #0f3460;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 20px;
+    font-weight: 700;
+    text-align: center;
+    background: #1a1a2e;
+    color: #fff;
+    width: 100px;
+    outline: none;
+  }
+  .result-card .count-row input:focus { border-color: #e94560; }
+  .result-card .already-msg {
+    background: #1a1a2e;
+    color: #ffd700;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .result-card .btn-save {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    background: #e94560;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .result-card .btn-save:active { opacity: 0.8; }
+  .result-card .btn-save:disabled { opacity: 0.5; }
+  .result-card .btn-save.saved {
+    background: #2ecc71;
+  }
+
+  .progress-section {
+    padding: 0 16px;
+    margin-bottom: 8px;
+  }
+  .progress-bar-track {
+    background: #0f3460;
+    border-radius: 10px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    background: #e94560;
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    color: #aaa;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+
+  .counted-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 80px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .counted-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #16213e;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+  }
+  .counted-item .check {
+    color: #2ecc71;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .counted-item .info {
+    flex: 1;
+    min-width: 0;
+  }
+  .counted-item .info .name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .counted-item .info .sub {
+    font-size: 11px;
+    color: #888;
+  }
+  .counted-item .qty {
+    font-size: 16px;
+    font-weight: 700;
+    color: #e94560;
+    flex-shrink: 0;
+  }
+  .counted-list .empty-state {
+    text-align: center;
+    color: #555;
+    padding: 30px 0;
+    font-size: 14px;
+  }
+
+  .finish-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #16213e;
+    padding: 10px 16px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    border-top: 1px solid #0f3460;
+    z-index: 200;
+  }
+  .finish-bar button {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    background: #2ecc71;
+    color: #fff;
+  }
+  .finish-bar button:active { opacity: 0.8; }
+  .finish-bar button:disabled { opacity: 0.4; }
+
+  .toast-msg {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 999;
+    display: none;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .toast-msg.error { background: #e74c3c; }
+  .toast-msg.success { background: #2ecc71; }
+
+  #scan-status {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.7);
+    color: #aaa;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    z-index: 10;
+    white-space: nowrap;
+  }
+
+  @media (min-width: 768px) {
+    #scanner-container { max-width: 480px; margin: 0 auto; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="scan-app" style="display:flex;flex-direction:column;height:100vh;">
+  <div class="scan-header">
+    <a href="{% url 'im:audit_list' %}" class="back-btn">&larr;</a>
+    <span class="title">{% if audit.title %}{{ audit.title }}{% else %}Inv. Físico #{{ audit.id }}{% endif %}</span>
+    <span class="count-badge" id="header-count">{{ counted_count }}</span>
+  </div>
+
+  <div class="toast-msg" id="toast"></div>
+
+  <div id="scanner-container">
+    <div id="reader"></div>
+    <div id="scan-status">Esperando cámara...</div>
+  </div>
+
+  <div class="manual-bar">
+    <input type="text" id="manual-input" placeholder="Escribe clave o código de barras..." autocomplete="off" inputmode="search">
+    <button id="manual-search-btn">Buscar</button>
+  </div>
+
+  <div class="result-card" id="result-card">
+    <div class="already-msg" id="already-msg" style="display:none;"></div>
+    <div class="product-name" id="result-name"></div>
+    <div class="product-brand" id="result-brand"></div>
+    <div class="product-meta" id="result-meta"></div>
+    <div class="count-row">
+      <div class="sys-count">
+        <div class="label">Sistema</div>
+        <div class="value" id="result-system">0</div>
+      </div>
+      <input type="number" id="result-count" min="0" inputmode="numeric" value="0">
+    </div>
+    <button class="btn-save" id="btn-save" disabled>Guardar</button>
+  </div>
+
+  <div class="progress-section">
+    <div class="progress-label">
+      <span id="progress-text">{{ counted_count }} de {{ total_active }} total</span>
+      <span id="progress-percent">{{ percentage }}%</span>
+    </div>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progress-fill" style="width:{{ percentage }}%;"></div>
+    </div>
+  </div>
+
+  <div class="counted-list" id="counted-list">
+    <div class="empty-state">Escanea o escribe un producto para comenzar</div>
+  </div>
+
+  <div class="finish-bar">
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <button id="btn-finish" disabled>Finalizar Inventario</button>
+      <small style="color:#888;font-size:11px;text-align:center;">
+        Mínimo <strong style="color:#e94560;">{{ min_percentage }}%</strong> de productos inventariados requerido
+      </small>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block javascrip %}
+{{ block.super }}
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+(function() {
+  const AUDIT_ID = {{ audit.id }};
+  const TOTAL_ACTIVE = {{ total_active }};
+  const MIN_PCT = {{ min_percentage }};
+  const CSRF = csrftoken;
+  let scanner = null;
+  let isScanning = false;
+  let currentProductId = null;
+  let currentItemId = null;
+  let countedList = [];
+
+  {% for item in counted_items %}
+  countedList.push({
+    id: {{ item.product.id }},
+    name: '{{ item.product.name|escapejs }}',
+    brand: '{{ item.product.brand.name|default:""|escapejs }}',
+    physical_count: {{ item.physical_count }},
+  });
+  {% endfor %}
+
+  const readerEl = document.getElementById('reader');
+  const toastEl = document.getElementById('toast');
+  const manualInput = document.getElementById('manual-input');
+  const manualBtn = document.getElementById('manual-search-btn');
+  const resultCard = document.getElementById('result-card');
+  const resultName = document.getElementById('result-name');
+  const resultBrand = document.getElementById('result-brand');
+  const resultMeta = document.getElementById('result-meta');
+  const resultSystem = document.getElementById('result-system');
+  const resultCount = document.getElementById('result-count');
+  const btnSave = document.getElementById('btn-save');
+  const alreadyMsg = document.getElementById('already-msg');
+  const headerCount = document.getElementById('header-count');
+  const progressFill = document.getElementById('progress-fill');
+  const progressText = document.getElementById('progress-text');
+  const countedListEl = document.getElementById('counted-list');
+  const btnFinish = document.getElementById('btn-finish');
+  const scanStatus = document.getElementById('scan-status');
+
+  function showToast(msg, type) {
+    toastEl.textContent = msg;
+    toastEl.className = 'toast-msg ' + (type || '');
+    toastEl.style.display = 'block';
+    setTimeout(function() { toastEl.style.display = 'none'; }, 2500);
+  }
+
+  function updateProgress() {
+    var count = countedList.length;
+    headerCount.textContent = count;
+    var pct = TOTAL_ACTIVE > 0 ? Math.floor(count / TOTAL_ACTIVE * 100) : 0;
+    progressText.textContent = count + ' de ' + TOTAL_ACTIVE + ' total';
+    document.getElementById('progress-percent').textContent = pct + '%';
+    progressFill.style.width = pct + '%';
+    btnFinish.disabled = count === 0 || pct < MIN_PCT;
+  }
+
+  function renderCountedList() {
+    if (countedList.length === 0) {
+      countedListEl.innerHTML = '<div class="empty-state">Escanea o escribe un producto para comenzar</div>';
+      return;
+    }
+    var html = '';
+    for (var i = Math.max(0, countedList.length - 50); i < countedList.length; i++) {
+      var p = countedList[i];
+      var brandHtml = p.brand ? ' <span style="color:#666;">&mdash;</span> ' + p.brand : '';
+      html += '<div class="counted-item" data-id="' + p.id + '">'
+        + '<div class="check">&#10003;</div>'
+        + '<div class="info">'
+        + '<div class="name">' + p.name + brandHtml + '</div>'
+        + '<div class="sub">#' + p.id + '</div>'
+        + '</div>'
+        + '<div class="qty">' + p.physical_count + '</div>'
+        + '</div>';
+    }
+    countedListEl.innerHTML = html;
+    updateProgress();
+  }
+
+  function showProduct(data) {
+    resultName.textContent = data.product.name;
+    resultBrand.textContent = data.product.brand || '';
+    resultSystem.textContent = data.product.system_count;
+
+    var metaHtml = '';
+    if (data.product.clave) metaHtml += '<span class="badge">' + data.product.clave + '</span>';
+    if (data.product.barcode) metaHtml += '<span class="badge">' + data.product.barcode + '</span>';
+    resultMeta.innerHTML = metaHtml;
+
+    if (data.already_counted) {
+      alreadyMsg.style.display = 'block';
+      alreadyMsg.textContent = 'Ya contaste este producto (' + data.existing_count + ' unidades)';
+      resultCount.value = data.existing_count;
+      currentItemId = data.existing_item_id;
+    } else {
+      alreadyMsg.style.display = 'none';
+      resultCount.value = data.product.system_count;
+      currentItemId = null;
+    }
+
+    currentProductId = data.product.id;
+    resultCard.style.display = 'block';
+    btnSave.disabled = false;
+    btnSave.textContent = 'Guardar';
+    btnSave.className = 'btn-save';
+    resultCount.focus();
+    resultCount.select();
+  }
+
+  function lookupProduct(query) {
+    if (!query) return;
+    scanStatus.textContent = 'Buscando...';
+    fetch('/im/audit/scan/lookup/?q=' + encodeURIComponent(query) + '&audit_id=' + AUDIT_ID)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.found) {
+          showProduct(data);
+          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(100);
+          showToast('Producto encontrado', 'success');
+          scanStatus.textContent = 'Escanea el siguiente producto';
+        } else {
+          showToast(data.error || 'Producto no encontrado', 'error');
+          scanStatus.textContent = 'Producto no encontrado';
+        }
+      })
+      .catch(function() {
+        showToast('Error de conexión', 'error');
+        scanStatus.textContent = 'Error de conexión';
+      });
+  }
+
+  function saveCount() {
+    var count = parseInt(resultCount.value);
+    if (isNaN(count) || count < 0) {
+      showToast('Ingresa una cantidad válida', 'error');
+      return;
+    }
+    if (!currentProductId) return;
+
+    btnSave.disabled = true;
+    btnSave.textContent = 'Guardando...';
+
+    fetch('/im/audit/' + AUDIT_ID + '/scan/save/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ product_id: currentProductId, physical_count: count }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          btnSave.textContent = 'Guardado';
+          btnSave.className = 'btn-save saved';
+          showToast(data.product_name + ' guardado', 'success');
+
+          var exists = false;
+          for (var i = 0; i < countedList.length; i++) {
+            if (countedList[i].id === currentProductId) {
+              countedList[i].physical_count = count;
+              exists = true;
+              break;
+            }
+          }
+          if (!exists) {
+            countedList.push({
+              id: currentProductId,
+              name: resultName.textContent,
+              brand: resultBrand.textContent,
+              physical_count: count,
+            });
+          }
+          renderCountedList();
+
+          setTimeout(function() {
+            resultCard.style.display = 'none';
+            currentProductId = null;
+            btnSave.disabled = true;
+          }, 800);
+        } else {
+          showToast(data.error || 'Error al guardar', 'error');
+          btnSave.disabled = false;
+          btnSave.textContent = 'Guardar';
+        }
+      })
+      .catch(function() {
+        showToast('Error de conexión', 'error');
+        btnSave.disabled = false;
+        btnSave.textContent = 'Guardar';
+      });
+  }
+
+  btnSave.addEventListener('click', saveCount);
+
+  resultCount.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') saveCount();
+  });
+
+  manualInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      lookupProduct(manualInput.value.trim());
+    }
+  });
+
+  manualBtn.addEventListener('click', function() {
+    lookupProduct(manualInput.value.trim());
+  });
+
+  btnFinish.addEventListener('click', function() {
+    if (countedList.length === 0) return;
+    if (!confirm('¿Finalizar inventario con ' + countedList.length + ' productos contados?')) return;
+
+    btnFinish.disabled = true;
+    btnFinish.textContent = 'Finalizando...';
+
+    fetch('/im/audit/' + AUDIT_ID + '/scan/finish/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF },
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success && data.redirect_url) {
+          window.location.href = data.redirect_url;
+        } else if (data.error) {
+          showToast(data.error, 'error');
+          btnFinish.disabled = false;
+          btnFinish.textContent = 'Finalizar Inventario';
+        }
+      })
+      .catch(function() {
+        showToast('Error al finalizar', 'error');
+        btnFinish.disabled = false;
+        btnFinish.textContent = 'Finalizar Inventario';
+      });
+  });
+
+  function startScanner() {
+    if (!readerEl || !window.Html5Qrcode) {
+      scanStatus.textContent = 'Escáner no disponible';
+      return;
+    }
+
+    scanner = new Html5Qrcode('reader');
+
+    Html5Qrcode.getCameras().then(function(cameras) {
+      if (!cameras || cameras.length === 0) {
+        scanStatus.textContent = 'No se detectó cámara';
+        return;
+      }
+
+      var backCamera = null;
+      for (var i = 0; i < cameras.length; i++) {
+        if (cameras[i].label.toLowerCase().indexOf('back') !== -1
+            || cameras[i].label.toLowerCase().indexOf('rear') !== -1
+            || cameras[i].label.toLowerCase().indexOf('environment') !== -1
+            || cameras[i].label.toLowerCase().indexOf('trasera') !== -1) {
+          backCamera = cameras[i];
+          break;
+        }
+      }
+      var cameraId = backCamera ? backCamera.id : cameras[0].id;
+
+      scanStatus.textContent = 'Iniciando cámara...';
+
+      scanner.start(
+        cameraId,
+        {
+          fps: 15,
+          qrbox: { width: 250, height: 150 },
+          aspectRatio: 1.333,
+        },
+        function(decodedText) {
+          if (isScanning) return;
+          isScanning = true;
+          lookupProduct(decodedText.trim());
+          setTimeout(function() { isScanning = false; }, 2000);
+        },
+        function() {}
+      ).then(function() {
+        scanStatus.textContent = 'Apunta al código de barras';
+      }).catch(function(err) {
+        scanStatus.textContent = 'Error: ' + err;
+      });
+    }).catch(function() {
+      scanStatus.textContent = 'Cámara no disponible';
+    });
+  }
+
+  renderCountedList();
+  setTimeout(startScanner, 500);
+})();
+</script>
+{% endblock %}

@@ -127,6 +127,21 @@ def audit_start(request):
             messages.success(request, f'Bulk audit created with {audit.items.count()} products')
             return redirect('im:audit_review', audit_id=audit.id)
         
+        if audit_type == 'physical':
+            title = request.POST.get('title', '').strip()
+            if not title:
+                messages.error(request, 'Ingresa un nombre para el inventario físico')
+                return redirect('im:audit_start')
+            audit = InventoryAudit.objects.create(
+                audit_type='physical',
+                auditor=auditor,
+                title=title,
+                status='in_progress'
+            )
+            audit.started_at = timezone.now()
+            audit.save()
+            return redirect('im:audit_scan', audit_id=audit.id)
+
         notes = request.POST.get('notes', '')
         audit = InventoryAudit.objects.create(
             audit_type=audit_type,

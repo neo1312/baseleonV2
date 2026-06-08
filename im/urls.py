@@ -9,6 +9,7 @@ from im.views.audit_views import (
     audit_review, audit_apply_adjustments, audit_summary, audit_delete, audit_reports,
     audit_product_search
 )
+from im.views.scan_views import audit_scan, audit_scan_lookup, audit_scan_save, audit_scan_finish
 from im.views.import_products import import_products_csv_view
 from im.views.despiece_views import despiece_list, despiece_process
 from im.views.alarm_views import alarm_list, alarm_skip, alarm_skip_all, alarm_config, alarm_adjust, alarm_delete
@@ -39,6 +40,10 @@ urlpatterns=[
         path('audit/<int:audit_id>/summary/', audit_summary, name='audit_summary'),
         path('audit/<int:audit_id>/delete/', audit_delete, name='audit_delete'),
         path('audit/product-search/', audit_product_search, name='audit_product_search'),
+        path('audit/scan/lookup/', audit_scan_lookup, name='audit_scan_lookup'),
+        path('audit/<int:audit_id>/scan/', audit_scan, name='audit_scan'),
+        path('audit/<int:audit_id>/scan/save/', audit_scan_save, name='audit_scan_save'),
+        path('audit/<int:audit_id>/scan/finish/', audit_scan_finish, name='audit_scan_finish'),
 
         # Despiece URLs
         path('product/despiece/', despiece_list, name='despiece_list'),

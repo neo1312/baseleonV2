@@ -1,0 +1,135 @@
+"""
+Scan Inventory Views
+Mobile-first barcode scanning for physical inventory counts
+"""
+
+import json
+import math
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.db.models import Q
+
+from im.models import InventoryAudit, AuditItem, Product
+from crm.decorators import role_required
+
+MINIMUM_PERCENTAGE = 80
+
+
+@require_http_methods(["GET"])
+@role_required('Admin', 'Manager', 'Auditor')
+def audit_scan(request, audit_id):
+    """Mobile scan page for physical inventory"""
+    audit = get_object_or_404(InventoryAudit, id=audit_id, audit_type='physical')
+    counted_items = audit.items.select_related('product', 'product__brand').all()
+    total_active = Product.objects.filter(active=True).count()
+    counted_count = counted_items.count()
+    percentage = math.floor(counted_count / total_active * 100) if total_active > 0 else 0
+
+    context = {
+        'audit': audit,
+        'counted_items': counted_items,
+        'counted_count': counted_count,
+        'total_active': total_active,
+        'percentage': percentage,
+        'min_percentage': MINIMUM_PERCENTAGE,
+    }
+    return render(request, 'audit/scan.html', context)
+
+
+@require_http_methods(["GET"])
+@role_required('Admin', 'Manager', 'Auditor')
+def audit_scan_lookup(request):
+    """AJAX: Find product by barcode or exact clave match"""
+    q = request.GET.get('q', '').strip()
+    audit_id = request.GET.get('audit_id')
+
+    if not q or not audit_id:
+        return JsonResponse({'found': False, 'error': 'Parámetros insuficientes'})
+
+    product = Product.objects.filter(
+        Q(barcode=q) | Q(clave__iexact=q)
+    ).filter(active=True).first()
+
+    if not product:
+        return JsonResponse({'found': False, 'error': 'Producto no encontrado'})
+
+    audit = get_object_or_404(InventoryAudit, id=audit_id)
+    system_count = product.stock_ready_to_sale
+
+    existing_item = AuditItem.objects.filter(audit=audit, product=product).first()
+
+    return JsonResponse({
+        'found': True,
+        'product': {
+            'id': product.id,
+            'name': product.name,
+            'brand': product.brand.name if product.brand else '',
+            'clave': product.clave or '',
+            'barcode': product.barcode or '',
+            'system_count': system_count,
+        },
+        'already_counted': existing_item is not None,
+        'existing_count': existing_item.physical_count if existing_item else None,
+        'existing_item_id': existing_item.id if existing_item else None,
+    })
+
+
+@require_http_methods(["POST"])
+@role_required('Admin', 'Manager', 'Auditor')
+def audit_scan_save(request, audit_id):
+    """AJAX: Save or update physical count for a scanned product"""
+    data = json.loads(request.body)
+    product_id = data.get('product_id')
+    physical_count = data.get('physical_count')
+
+    if not product_id or physical_count is None:
+        return JsonResponse({'success': False, 'error': 'Faltan datos'})
+
+    audit = get_object_or_404(InventoryAudit, id=audit_id)
+    product = get_object_or_404(Product, id=product_id)
+    system_count = product.stock_ready_to_sale
+
+    try:
+        item, created = AuditItem.objects.update_or_create(
+            audit=audit,
+            product=product,
+            defaults={
+                'system_count': system_count,
+                'physical_count': physical_count,
+                'adjustment_status': 'pending',
+            }
+        )
+        return JsonResponse({
+            'success': True,
+            'created': created,
+            'item_id': item.id,
+            'product_name': product.name,
+            'physical_count': physical_count,
+            'system_count': system_count,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_http_methods(["POST"])
+@role_required('Admin', 'Manager', 'Auditor')
+def audit_scan_finish(request, audit_id):
+    """Mark a physical audit as complete (requires 80%+ coverage)"""
+    audit = get_object_or_404(InventoryAudit, id=audit_id, audit_type='physical')
+
+    total_active = Product.objects.filter(active=True).count()
+    counted_count = audit.items.count()
+    percentage = math.floor(counted_count / total_active * 100) if total_active > 0 else 0
+
+    if percentage < MINIMUM_PERCENTAGE:
+        return JsonResponse({
+            'success': False,
+            'error': f'Debes inventariar al menos el {MINIMUM_PERCENTAGE}% de los productos. '
+                     f'Actualmente llevas {percentage}% ({counted_count} de {total_active}).',
+        })
+
+    audit.status = 'under_review'
+    audit.save()
+    audit.update_stats()
+    return JsonResponse({'success': True, 'redirect_url': f'/im/audit/{audit_id}/review/'})
