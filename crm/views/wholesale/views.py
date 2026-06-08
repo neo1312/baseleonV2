@@ -13,6 +13,23 @@ def lookup_page(request):
     })
 
 
+import re
+
+
+GRANEL_PATTERNS = re.compile(
+    r'\bx\s*metro\b|\bpor\s*metro\b|\bmetros?\b',
+    re.IGNORECASE
+)
+
+
+def is_granel_product(product):
+    return (
+        product.granel
+        or product.Granel_Item
+        or bool(GRANEL_PATTERNS.search(product.name))
+    )
+
+
 @csrf_exempt
 @login_required(login_url='/login/')
 def search_products(request):
@@ -35,6 +52,7 @@ def search_products(request):
         for p in products:
             stock = p.stock_ready_to_sale
             granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
+            granel = is_granel_product(p)
 
             results.append({
                 'id': p.id,
@@ -45,8 +63,8 @@ def search_products(request):
                 'category': p.category.name if p.category else '',
                 'price': float(p.priceLista),
                 'price_mayoreo': float(p.priceMayoreo),
-                'granel': p.granel,
-                'Granel_Item': p.Granel_Item,
+                'granel': granel,
+                'Granel_Item': granel,
                 'minimo': p.minimo,
                 'granel_price': float(granel_price) if granel_price else None,
                 'stock': stock,
