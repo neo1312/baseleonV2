@@ -5,12 +5,14 @@ Mobile-first barcode scanning for physical inventory counts
 
 import json
 import math
+from decimal import Decimal
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db.models import Q
+from django.utils import timezone
 
-from im.models import InventoryAudit, AuditItem, Product
+from im.models import InventoryAudit, AuditItem, Product, InventoryUnit, AdjustmentTransaction
 from crm.decorators import role_required
 
 MINIMUM_PERCENTAGE = 80
@@ -108,6 +110,46 @@ def audit_scan_save(request, audit_id):
                 'adjustment_status': 'pending',
             }
         )
+
+        discrepancy = physical_count - system_count
+
+        if discrepancy > 0:
+            ts = int(timezone.now().timestamp())
+            for i in range(discrepancy):
+                InventoryUnit.objects.create(
+                    tracking_id=f"SCAN-{audit.id}-{product.id}-{ts}-{i}",
+                    product=product,
+                    status='ready_to_sale',
+                    purchase_cost=product.costo or Decimal('0'),
+                    received_cost=product.costo or Decimal('0'),
+                    received_date=timezone.now(),
+                )
+        elif discrepancy < 0:
+            units_to_retire = InventoryUnit.objects.filter(
+                product=product,
+                status='ready_to_sale'
+            ).order_by('received_date')[:abs(discrepancy)]
+            for unit in units_to_retire:
+                unit.status = 'retired_correction'
+                unit.retired_date = timezone.now()
+                unit.save()
+
+        if discrepancy != 0:
+            AdjustmentTransaction.objects.create(
+                audit_item=item,
+                product=product,
+                adjustment_reason='correction',
+                quantity_adjusted=discrepancy,
+                unit_cost=product.costo or Decimal('0'),
+                recorded_by=str(request.user),
+                status='applied',
+                applied_by=str(request.user),
+                applied_at=timezone.now(),
+            )
+
+        item.adjustment_status = 'applied'
+        item.save()
+
         return JsonResponse({
             'success': True,
             'created': created,
@@ -115,6 +157,8 @@ def audit_scan_save(request, audit_id):
             'product_name': product.name,
             'physical_count': physical_count,
             'system_count': system_count,
+            'discrepancy': discrepancy,
+            'inventory_adjusted': discrepancy != 0,
             'was_inactive': was_inactive,
             'total_active': total_active,
         })
