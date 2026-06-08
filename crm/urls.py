@@ -9,6 +9,7 @@ from crm.views.quote.views import quoteList, quoteInicia,quoteEdit,quoteDelete,q
 from crm.views.devolution.views import devolutionList, devolutionEdit, devolutionDelete, devolutionCreate,devolutionInicia,devolutionItemView,devolutionGetData,devolutionItemDelete,devpdfPrint,devolutionNew,devolutionLast
 from crm.views.report_views import daily_report
 from crm.views.my_reports_views import my_reports, my_reports_data, inventory_value
+from crm.views.wholesale import views as wholesale_views
 
 
 app_name='crm'
@@ -76,4 +77,7 @@ urlpatterns=[
         path('report/my-reports/', my_reports, name='my_reports'),
         path('report/my-reports/data/', my_reports_data, name='my_reports_data'),
         path('report/my-reports/inventory-value/', inventory_value, name='inventory_value'),
+
+        path('wholesale/', wholesale_views.lookup_page, name='wholesale_lookup'),
+        path('wholesale/search/', wholesale_views.search_products, name='wholesale_search'),
         ]

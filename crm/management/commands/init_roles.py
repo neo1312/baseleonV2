@@ -50,6 +50,10 @@ class Command(BaseCommand):
                 'view_product',
                 'view_provider',
             ],
+            'WholesaleBuyer': [
+                # Product lookup only
+                'view_product',
+            ],
         }
 
         # Create groups and assign permissions
