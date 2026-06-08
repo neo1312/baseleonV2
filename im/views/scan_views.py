@@ -49,7 +49,7 @@ def audit_scan_lookup(request):
 
     product = Product.objects.filter(
         Q(barcode=q) | Q(clave__iexact=q)
-    ).filter(active=True).first()
+    ).first()
 
     if not product:
         return JsonResponse({'found': False, 'error': 'Producto no encontrado'})
@@ -72,6 +72,7 @@ def audit_scan_lookup(request):
         'already_counted': existing_item is not None,
         'existing_count': existing_item.physical_count if existing_item else None,
         'existing_item_id': existing_item.id if existing_item else None,
+        'inactive': not product.active,
     })
 
 
@@ -90,6 +91,13 @@ def audit_scan_save(request, audit_id):
     product = get_object_or_404(Product, id=product_id)
     system_count = product.stock_ready_to_sale
 
+    was_inactive = not product.active
+    if was_inactive:
+        product.active = True
+        product.save()
+
+    total_active = Product.objects.filter(active=True).count()
+
     try:
         item, created = AuditItem.objects.update_or_create(
             audit=audit,
@@ -107,6 +115,8 @@ def audit_scan_save(request, audit_id):
             'product_name': product.name,
             'physical_count': physical_count,
             'system_count': system_count,
+            'was_inactive': was_inactive,
+            'total_active': total_active,
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})

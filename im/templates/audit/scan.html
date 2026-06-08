@@ -377,7 +377,7 @@
 <script>
 (function() {
   const AUDIT_ID = {{ audit.id }};
-  const TOTAL_ACTIVE = {{ total_active }};
+  let TOTAL_ACTIVE = {{ total_active }};
   const MIN_PCT = {{ min_percentage }};
   const CSRF = csrftoken;
   let currentProductId = null;
@@ -459,7 +459,12 @@
     if (data.product.barcode) metaHtml += '<span class="badge">' + data.product.barcode + '</span>';
     resultMeta.innerHTML = metaHtml;
 
-    if (data.already_counted) {
+    if (data.inactive) {
+      alreadyMsg.style.display = 'block';
+      alreadyMsg.textContent = 'Producto inactivo — se activará al guardar el conteo';
+      resultCount.value = data.product.system_count;
+      currentItemId = null;
+    } else if (data.already_counted) {
       alreadyMsg.style.display = 'block';
       alreadyMsg.textContent = 'Ya contaste este producto (' + data.existing_count + ' unidades)';
       resultCount.value = data.existing_count;
@@ -536,6 +541,12 @@
               physical_count: count,
             });
           }
+
+          if (data.was_inactive && data.total_active) {
+            TOTAL_ACTIVE = data.total_active;
+            showToast('Producto activado automáticamente', 'success');
+          }
+
           renderCountedList();
 
           setTimeout(function() {
