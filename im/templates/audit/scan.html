@@ -7,7 +7,7 @@
 {{ block.super }}
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <style>
-  html, body { height: 100%; overflow: hidden; }
+  html, body { height: 100%; }
   body, .wrapper, .content-wrapper {
     background: #1a1a2e !important;
     min-height: 100vh !important;
@@ -31,27 +31,6 @@
     border-radius: 0 !important;
   }
   .card-body { padding: 0 !important; }
-
-  #scanner-container {
-    position: relative;
-    width: 100%;
-    background: #000;
-    overflow: hidden;
-  }
-  #scanner-container video {
-    width: 100% !important;
-    object-fit: cover;
-  }
-  #reader {
-    width: 100%;
-    min-height: 280px;
-  }
-  #reader video {
-    border-radius: 0 !important;
-  }
-  #reader__scan_region { background: #000 !important; }
-  #reader__dashboard_section { display: none !important; }
-  #reader__scan_region img { display: none !important; }
 
   .scan-header {
     position: sticky;
@@ -329,22 +308,11 @@
   .toast-msg.error { background: #e74c3c; }
   .toast-msg.success { background: #2ecc71; }
 
-  #scan-status {
-    position: absolute;
-    bottom: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.7);
-    color: #aaa;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 11px;
-    z-index: 10;
-    white-space: nowrap;
-  }
-
   @media (min-width: 768px) {
-    #scanner-container { max-width: 480px; margin: 0 auto; }
+    .manual-bar { max-width: 480px; margin: 0 auto; }
+    .result-card { max-width: 480px; margin: 10px auto; }
+    .progress-section { max-width: 480px; margin: 0 auto; }
+    .counted-list { max-width: 480px; margin: 0 auto; }
   }
 </style>
 {% endblock %}
@@ -358,11 +326,6 @@
   </div>
 
   <div class="toast-msg" id="toast"></div>
-
-  <div id="scanner-container">
-    <div id="reader"></div>
-    <div id="scan-status">Esperando cámara...</div>
-  </div>
 
   <div class="manual-bar">
     <input type="text" id="manual-input" placeholder="Escribe clave o código de barras..." autocomplete="off" inputmode="search">
@@ -411,15 +374,12 @@
 
 {% block javascrip %}
 {{ block.super }}
-<script src="https://unpkg.com/html5-qrcode"></script>
 <script>
 (function() {
   const AUDIT_ID = {{ audit.id }};
   const TOTAL_ACTIVE = {{ total_active }};
   const MIN_PCT = {{ min_percentage }};
   const CSRF = csrftoken;
-  let scanner = null;
-  let isScanning = false;
   let currentProductId = null;
   let currentItemId = null;
   let countedList = [];
@@ -433,7 +393,6 @@
   });
   {% endfor %}
 
-  const readerEl = document.getElementById('reader');
   const toastEl = document.getElementById('toast');
   const manualInput = document.getElementById('manual-input');
   const manualBtn = document.getElementById('manual-search-btn');
@@ -450,7 +409,6 @@
   const progressText = document.getElementById('progress-text');
   const countedListEl = document.getElementById('counted-list');
   const btnFinish = document.getElementById('btn-finish');
-  const scanStatus = document.getElementById('scan-status');
 
   function showToast(msg, type) {
     toastEl.textContent = msg;
@@ -523,7 +481,6 @@
 
   function lookupProduct(query) {
     if (!query) return;
-    scanStatus.textContent = 'Buscando...';
     fetch('/im/audit/scan/lookup/?q=' + encodeURIComponent(query) + '&audit_id=' + AUDIT_ID)
       .then(function(r) { return r.json(); })
       .then(function(data) {
@@ -531,15 +488,12 @@
           showProduct(data);
           if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(100);
           showToast('Producto encontrado', 'success');
-          scanStatus.textContent = 'Escanea el siguiente producto';
         } else {
           showToast(data.error || 'Producto no encontrado', 'error');
-          scanStatus.textContent = 'Producto no encontrado';
         }
       })
       .catch(function() {
         showToast('Error de conexión', 'error');
-        scanStatus.textContent = 'Error de conexión';
       });
   }
 
@@ -647,60 +601,7 @@
       });
   });
 
-  function startScanner() {
-    if (!readerEl || !window.Html5Qrcode) {
-      scanStatus.textContent = 'Escáner no disponible';
-      return;
-    }
-
-    scanner = new Html5Qrcode('reader');
-
-    Html5Qrcode.getCameras().then(function(cameras) {
-      if (!cameras || cameras.length === 0) {
-        scanStatus.textContent = 'No se detectó cámara';
-        return;
-      }
-
-      var backCamera = null;
-      for (var i = 0; i < cameras.length; i++) {
-        if (cameras[i].label.toLowerCase().indexOf('back') !== -1
-            || cameras[i].label.toLowerCase().indexOf('rear') !== -1
-            || cameras[i].label.toLowerCase().indexOf('environment') !== -1
-            || cameras[i].label.toLowerCase().indexOf('trasera') !== -1) {
-          backCamera = cameras[i];
-          break;
-        }
-      }
-      var cameraId = backCamera ? backCamera.id : cameras[0].id;
-
-      scanStatus.textContent = 'Iniciando cámara...';
-
-      scanner.start(
-        cameraId,
-        {
-          fps: 15,
-          qrbox: { width: 250, height: 150 },
-          aspectRatio: 1.333,
-        },
-        function(decodedText) {
-          if (isScanning) return;
-          isScanning = true;
-          lookupProduct(decodedText.trim());
-          setTimeout(function() { isScanning = false; }, 2000);
-        },
-        function() {}
-      ).then(function() {
-        scanStatus.textContent = 'Apunta al código de barras';
-      }).catch(function(err) {
-        scanStatus.textContent = 'Error: ' + err;
-      });
-    }).catch(function() {
-      scanStatus.textContent = 'Cámara no disponible';
-    });
-  }
-
   renderCountedList();
-  setTimeout(startScanner, 500);
 })();
 </script>
 {% endblock %}
