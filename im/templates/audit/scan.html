@@ -308,13 +308,85 @@
   .toast-msg.error { background: #e74c3c; }
   .toast-msg.success { background: #2ecc71; }
 
+  .camera-btn {
+    background: #0f3460;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 18px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .camera-btn:active { opacity: 0.7; background: #e94560; }
+  .camera-btn.active { background: #e94560; }
+
+  .scanner-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 500;
+    background: #000;
+  }
+  .scanner-overlay.open { display: block; }
+  .scanner-overlay #reader {
+    width: 100%;
+    height: calc(100% - 60px);
+    overflow: hidden;
+  }
+  .scanner-overlay #reader video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+  .scanner-overlay .scanner-header {
+    position: sticky;
+    top: 0;
+    z-index: 501;
+    background: #111;
+    color: #fff;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .scanner-overlay .scanner-header .close-scanner {
+    color: #fff;
+    font-size: 22px;
+    text-decoration: none;
+    line-height: 1;
+    cursor: pointer;
+    background: none;
+    border: none;
+  }
+  .scanner-overlay .scanner-header span {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .scanner-flash {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 9999;
+    background: #fff;
+    display: none;
+  }
+  .scanner-flash.flash { display: block; animation: flashAnim 0.2s ease; }
+  @keyframes flashAnim {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
   @media (min-width: 768px) {
     .manual-bar { max-width: 480px; margin: 0 auto; }
     .result-card { max-width: 480px; margin: 10px auto; }
     .progress-section { max-width: 480px; margin: 0 auto; }
     .counted-list { max-width: 480px; margin: 0 auto; }
+    .scanner-overlay { max-width: 480px; left: 50%; transform: translateX(-50%); }
   }
 </style>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -329,8 +401,18 @@
 
   <div class="manual-bar">
     <input type="text" id="manual-input" placeholder="Escribe clave o código de barras..." autocomplete="off" inputmode="search">
+    <button id="camera-btn" class="camera-btn" type="button">📷</button>
     <button id="manual-search-btn">Buscar</button>
   </div>
+
+  <div class="scanner-overlay" id="scanner-overlay">
+    <div class="scanner-header">
+      <button class="close-scanner" id="close-scanner">&larr;</button>
+      <span>Apunta al código de barras</span>
+    </div>
+    <div id="reader"></div>
+  </div>
+  <div class="scanner-flash" id="scanner-flash"></div>
 
   <div class="result-card" id="result-card">
     <div class="already-msg" id="already-msg" style="display:none;"></div>
@@ -611,6 +693,83 @@
         btnFinish.textContent = 'Finalizar Inventario';
       });
   });
+
+  // ─── Camera Barcode Scanner ─────────────────────────────────────
+  var html5QrCode = null;
+  var isScanning = false;
+  const cameraBtn = document.getElementById('camera-btn');
+  const scannerOverlay = document.getElementById('scanner-overlay');
+  const closeScanner = document.getElementById('close-scanner');
+  const scannerFlash = document.getElementById('scanner-flash');
+
+  function flashEffect() {
+    scannerFlash.classList.remove('flash');
+    void scannerFlash.offsetWidth;
+    scannerFlash.classList.add('flash');
+    setTimeout(function() { scannerFlash.classList.remove('flash'); }, 250);
+  }
+
+  function startScanner() {
+    if (isScanning) return;
+    scannerOverlay.classList.add('open');
+    cameraBtn.classList.add('active');
+    cameraBtn.textContent = '⏳';
+    isScanning = true;
+
+    try {
+      html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        {
+          fps: 15,
+          qrbox: { width: 280, height: 120 },
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_93,
+            Html5QrcodeSupportedFormats.ITF,
+          ],
+        },
+        function onSuccess(decodedText) {
+          flashEffect();
+          stopScanner();
+          manualInput.value = decodedText;
+          lookupProduct(decodedText);
+        },
+        function onError() {}
+      ).then(function() {
+        cameraBtn.textContent = '📷';
+      }).catch(function() {
+        showToast('No se pudo acceder a la cámara', 'error');
+        stopScanner();
+      });
+    } catch(e) {
+      showToast('Error al iniciar cámara', 'error');
+      stopScanner();
+    }
+  }
+
+  function stopScanner() {
+    isScanning = false;
+    scannerOverlay.classList.remove('open');
+    cameraBtn.classList.remove('active');
+    cameraBtn.textContent = '📷';
+    if (html5QrCode) {
+      try {
+        html5QrCode.stop().then(function() {
+          html5QrCode.clear();
+        }).catch(function() {});
+      } catch(e) {}
+      html5QrCode = null;
+    }
+  }
+
+  cameraBtn.addEventListener('click', startScanner);
+  closeScanner.addEventListener('click', stopScanner);
 
   renderCountedList();
 })();
