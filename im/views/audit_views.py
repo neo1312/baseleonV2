@@ -289,6 +289,7 @@ def audit_select_products(request, audit_id):
 
 
 @require_http_methods(["GET", "POST"])
+@role_required('Admin', 'Auditor')
 def audit_enter_counts(request, audit_id):
     """Enter physical counts for audit items"""
     audit = get_object_or_404(InventoryAudit, id=audit_id, status='in_progress')
@@ -318,6 +319,7 @@ def audit_enter_counts(request, audit_id):
 
 
 @require_http_methods(["GET", "POST"])
+@role_required('Admin', 'Auditor')
 def audit_review(request, audit_id):
     """Review and approve discrepancies"""
     audit = get_object_or_404(InventoryAudit, id=audit_id, status__in=['in_progress', 'under_review'])
@@ -373,6 +375,7 @@ def audit_review(request, audit_id):
 
 
 @require_http_methods(["GET", "POST"])
+@role_required('Admin', 'Auditor')
 def audit_apply_adjustments(request, audit_id):
     """Apply approved adjustments and create transactions"""
     audit = get_object_or_404(InventoryAudit, id=audit_id, status='under_review')
@@ -473,6 +476,7 @@ def audit_apply_adjustments(request, audit_id):
 
 
 @require_http_methods(["GET"])
+@role_required('Admin', 'Auditor')
 def audit_summary(request, audit_id):
     """View audit summary and results"""
     audit = get_object_or_404(InventoryAudit, id=audit_id)
@@ -504,6 +508,7 @@ def audit_summary(request, audit_id):
 
 
 @require_http_methods(["GET"])
+@role_required('Admin', 'Auditor')
 def audit_list(request):
     """List all audits"""
     from datetime import date
@@ -515,6 +520,11 @@ def audit_list(request):
     status_filter = request.GET.get('status')
     if status_filter:
         audits = audits.filter(status=status_filter)
+    
+    # Filter by auditor
+    auditor_filter = request.GET.get('auditor')
+    if auditor_filter:
+        audits = audits.filter(auditor__icontains=auditor_filter)
     
     # Filter by date range
     today = date.today()
@@ -534,11 +544,16 @@ def audit_list(request):
     except ValueError:
         pass  # Invalid date format, ignore filter
     
+    # Get unique auditors for the filter dropdown
+    auditors = InventoryAudit.objects.values_list('auditor', flat=True).distinct().order_by('auditor')
+    
     context = {
         'title': 'Inventory Audits',
         'audits': audits,
         'status_choices': InventoryAudit.STATUS_CHOICES,
         'current_status': status_filter,
+        'current_auditor': auditor_filter,
+        'auditors': auditors,
         'from_date': from_date,
         'to_date': to_date,
     }
@@ -546,6 +561,7 @@ def audit_list(request):
 
 
 @require_http_methods(["POST"])
+@role_required('Admin', 'Auditor')
 def audit_delete(request, audit_id):
     """Delete an incomplete audit"""
     audit = get_object_or_404(InventoryAudit, id=audit_id)
@@ -562,6 +578,7 @@ def audit_delete(request, audit_id):
 
 
 @require_http_methods(["GET"])
+@role_required('Admin', 'Auditor')
 def audit_reports(request):
     """Audit reports and analytics dashboard with sales and devolution integration"""
     from django.db.models import Sum, Count, Avg, F, Case, When, Value, DecimalField as DecField

@@ -36,6 +36,9 @@
                 {% if current_status %}
                     <input type="hidden" name="status" value="{{ current_status }}">
                 {% endif %}
+                {% if current_auditor %}
+                    <input type="hidden" name="auditor" value="{{ current_auditor }}">
+                {% endif %}
                 
                 <div class="col-12 col-sm-auto">
                     <label for="from_date" class="form-label mb-2 mb-sm-0">Desde:</label>
@@ -45,6 +48,16 @@
                 <div class="col-12 col-sm-auto">
                     <label for="to_date" class="form-label mb-2 mb-sm-0">Hasta:</label>
                     <input type="date" id="to_date" name="to_date" class="form-control form-control-sm" value="{{ to_date }}">
+                </div>
+                
+                <div class="col-12 col-sm-auto">
+                    <label for="auditor" class="form-label mb-2 mb-sm-0">Auditor:</label>
+                    <select id="auditor" name="auditor" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        {% for auditor in auditors %}
+                            <option value="{{ auditor }}" {% if current_auditor == auditor %}selected{% endif %}>{{ auditor }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 
                 <div class="col-12 col-sm-auto">
