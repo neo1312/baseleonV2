@@ -7,7 +7,7 @@ from im.views.product.views import productList, productCreate,productEdit,produc
 from im.views.audit_views import (
     audit_list, audit_start, audit_select_products, audit_enter_counts,
     audit_review, audit_apply_adjustments, audit_summary, audit_delete, audit_reports,
-    audit_product_search
+    audit_product_search, audit_join
 )
 from im.views.scan_views import audit_scan, audit_scan_lookup, audit_scan_save, audit_scan_finish
 from im.views.import_products import import_products_csv_view
@@ -44,6 +44,7 @@ urlpatterns=[
         path('audit/<int:audit_id>/scan/', audit_scan, name='audit_scan'),
         path('audit/<int:audit_id>/scan/save/', audit_scan_save, name='audit_scan_save'),
         path('audit/<int:audit_id>/scan/finish/', audit_scan_finish, name='audit_scan_finish'),
+        path('audit/<int:audit_id>/join/', audit_join, name='audit_join'),
 
         # Despiece URLs
         path('product/despiece/', despiece_list, name='despiece_list'),

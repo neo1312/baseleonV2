@@ -986,6 +986,12 @@ class InventoryAudit(models.Model):
     # Notes
     notes = models.TextField(null=True, blank=True, verbose_name='Notes')
     
+    # Collaborators
+    collaborators = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True,
+        verbose_name='Collaborators'
+    )
+    
     class Meta:
         verbose_name = 'Inventory Audit'
         verbose_name_plural = 'Inventory Audits'
@@ -1065,6 +1071,7 @@ class AuditItem(models.Model):
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created At')
+    counted_by = models.CharField(max_length=150, null=True, blank=True, verbose_name='Counted By')
     verified_by = models.CharField(max_length=150, null=True, blank=True, verbose_name='Verified By')
     approved_by = models.CharField(max_length=150, null=True, blank=True, verbose_name='Approved By')
     

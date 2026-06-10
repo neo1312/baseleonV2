@@ -28,6 +28,9 @@ def audit_scan(request, audit_id):
     counted_count = counted_items.count()
     percentage = math.floor(counted_count / total_active * 100) if total_active > 0 else 0
 
+    # Auto-join user as collaborator when they access the scan page
+    audit.collaborators.add(request.user)
+    
     context = {
         'audit': audit,
         'counted_items': counted_items,
@@ -108,6 +111,7 @@ def audit_scan_save(request, audit_id):
                 'system_count': system_count,
                 'physical_count': physical_count,
                 'adjustment_status': 'pending',
+                'counted_by': str(request.user),
             }
         )
 

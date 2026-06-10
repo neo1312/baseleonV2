@@ -547,6 +547,10 @@ def audit_list(request):
     # Get unique auditors for the filter dropdown
     auditors = InventoryAudit.objects.values_list('auditor', flat=True).distinct().order_by('auditor')
     
+    # Annotate each audit with whether current user is a collaborator
+    for audit in audits:
+        audit.user_is_collaborator = audit.collaborators.filter(id=request.user.id).exists()
+    
     context = {
         'title': 'Inventory Audits',
         'audits': audits,
@@ -793,3 +797,16 @@ def audit_reports(request):
     }
     
     return render(request, 'audit/reports.html', context)
+
+
+@require_http_methods(["POST"])
+@role_required('Admin', 'Auditor')
+def audit_join(request, audit_id):
+    """Join an in-progress audit as a collaborator"""
+    audit = get_object_or_404(InventoryAudit, id=audit_id)
+    if audit.status in ('draft', 'in_progress'):
+        audit.collaborators.add(request.user)
+        messages.success(request, f'Te has unido a la auditoría #{audit.id}')
+    else:
+        messages.error(request, 'Solo puedes unirte a auditorías en progreso')
+    return redirect(request.META.get('HTTP_REFERER', 'im:audit_list'))
