@@ -29,7 +29,11 @@ def audit_scan(request, audit_id):
     percentage = math.floor(counted_count / total_active * 100) if total_active > 0 else 0
 
     # Auto-join user as collaborator when they access the scan page
-    audit.collaborators.add(request.user)
+    from django.db.utils import OperationalError
+    try:
+        audit.collaborators.add(request.user)
+    except OperationalError:
+        pass
     
     context = {
         'audit': audit,

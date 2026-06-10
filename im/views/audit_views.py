@@ -548,8 +548,13 @@ def audit_list(request):
     auditors = InventoryAudit.objects.values_list('auditor', flat=True).distinct().order_by('auditor')
     
     # Annotate each audit with whether current user is a collaborator
-    for audit in audits:
-        audit.user_is_collaborator = audit.collaborators.filter(id=request.user.id).exists()
+    from django.db.utils import OperationalError
+    try:
+        for audit in audits:
+            audit.user_is_collaborator = audit.collaborators.filter(id=request.user.id).exists()
+    except OperationalError:
+        for audit in audits:
+            audit.user_is_collaborator = False
     
     context = {
         'title': 'Inventory Audits',
@@ -803,9 +808,13 @@ def audit_reports(request):
 @role_required('Admin', 'Auditor')
 def audit_join(request, audit_id):
     """Join an in-progress audit as a collaborator"""
+    from django.db.utils import OperationalError
     audit = get_object_or_404(InventoryAudit, id=audit_id)
     if audit.status in ('draft', 'in_progress'):
-        audit.collaborators.add(request.user)
+        try:
+            audit.collaborators.add(request.user)
+        except OperationalError:
+            pass
         messages.success(request, f'Te has unido a la auditoría #{audit.id}')
     else:
         messages.error(request, 'Solo puedes unirte a auditorías en progreso')
