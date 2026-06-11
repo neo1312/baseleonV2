@@ -44,7 +44,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'crm.middleware.WholesaleBuyerRestrictionMiddleware',
+    'crm.middleware.BuyerRestrictionMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
