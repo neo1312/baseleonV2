@@ -21,7 +21,6 @@ class BuyerRestrictionMiddleware:
                     '/wholesale/',
                     '/login/',
                     '/logout/',
-                    '/',
                 )
 
                 if not any(path.startswith(prefix) for prefix in allowed_prefixes):
