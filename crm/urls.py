@@ -5,8 +5,8 @@ from django.urls import path
 from crm.home_views import home, user_login, user_logout
 from crm.views.client.views import clientList, clientCreate,clientEdit,clientDelete
 from crm.views.sale.views import saleList, saleInicia,saleEdit,saleDelete,saleCreate,saleGetData,saleItemView,saleItemDelete,salepdfPrint,saleNew,saleLast,saleCreateNew,sale_ticket_json,print_ticket_view,saleItemUpdateQuantity
-from crm.views.quote.views import quoteList, quoteInicia,quoteEdit,quoteDelete,quoteCreate,quoteGetData,quoteItemView,quoteItemDelete,quotepdfPrint,quoteNew,quoteLast,quoteToSale,quoteCheckStock
-from crm.views.devolution.views import devolutionList, devolutionEdit, devolutionDelete, devolutionCreate,devolutionInicia,devolutionItemView,devolutionGetData,devolutionItemDelete,devpdfPrint,devolutionNew,devolutionLast
+from crm.views.quote.views import quoteList, quoteInicia,quoteEdit,quoteDelete,quoteCreate,quoteGetData,quoteItemView,quoteItemDelete,quotepdfPrint,quoteNew,quoteLast,quoteToSale,quoteCheckStock,quote_ticket_json
+from crm.views.devolution.views import devolutionList, devolutionEdit, devolutionDelete, devolutionCreate,devolutionInicia,devolutionItemView,devolutionGetData,devolutionItemDelete,devpdfPrint,devolutionNew,devolutionLast,devolution_ticket_json
 from crm.views.report_views import daily_report
 from crm.views.my_reports_views import my_reports, my_reports_data, inventory_value
 from crm.views.wholesale import views as wholesale_views
@@ -55,6 +55,7 @@ urlpatterns=[
         path('quote/itemdelete/<int:pk>/',quoteItemDelete,name='quoteItemDelete'),
         path('quote/pdfprint/<int:pk>/',quotepdfPrint,name='pdfPrint'),
         path('quote/last',quoteLast,name='quoteLast'),
+        path('quote/quote_ticket_json/<int:pk>',quote_ticket_json,name='quote_ticket_json'),
 
 
 
@@ -72,6 +73,7 @@ urlpatterns=[
 
         path('devolution/itemdelete/<int:pk>/',devolutionItemDelete,name='devolutiuonItemDelete'),
         path('devolution/pdfprint/<int:pk>/',devpdfPrint,name='devpdfPrint'),
+        path('devolution/devolution_ticket_json/<int:pk>',devolution_ticket_json,name='devolution_ticket_json'),
         
         path('report/daily/',daily_report,name='daily_report'),
         path('report/my-reports/', my_reports, name='my_reports'),

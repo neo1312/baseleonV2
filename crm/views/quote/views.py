@@ -281,6 +281,31 @@ def quoteLast(request):
     return response
 
 @csrf_exempt
+def quote_ticket_json(request, pk):
+    quote = Quote.objects.get(id=pk)
+    items = quote.quoteitem_set.all()
+
+    items_data = []
+    for i in items:
+        items_data.append({
+            "name": i.product.name if i.product else "Deleted Product",
+            "price": float(i.precioUnitario),
+            "quantity": float(i.quantity),
+            "item_total": float(i.get_total),
+        })
+
+    data = {
+        "sale_id": quote.id,
+        "total": float(quote.get_cart_total),
+        "client": quote.client.name if quote.client else "Público en general",
+        "date": quote.date_created,
+        "items": items_data,
+    }
+
+    return JsonResponse(data)
+
+
+@csrf_exempt
 def quoteToSale(request, quote_id):
     """Convert a quote to a sale by copying all items from the quote to a new sale."""
     quote = get_object_or_404(Quote, id=quote_id)

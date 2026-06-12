@@ -238,3 +238,28 @@ def devolutionNew(request):
             }
     data = add_section_context(data)
     return render(request, 'devolution/new.html', data)
+
+
+@csrf_exempt
+def devolution_ticket_json(request, pk):
+    devolution = Devolution.objects.get(id=pk)
+    items = devolution.devolutionitem_set.all()
+
+    items_data = []
+    for i in items:
+        items_data.append({
+            "name": i.product.name if i.product else "Deleted Product",
+            "price": float(i.precioUnitario),
+            "quantity": float(i.quantity),
+            "item_total": float(i.get_total),
+        })
+
+    data = {
+        "sale_id": devolution.id,
+        "total": float(devolution.get_cart_total),
+        "client": devolution.client.name if devolution.client else "Público en general",
+        "date": devolution.date_created,
+        "items": items_data,
+    }
+
+    return JsonResponse(data)
