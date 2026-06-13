@@ -37,35 +37,33 @@
         <div class="pos-main">
             <!-- LEFT: PRODUCTS TABLE -->
             <div class="pos-products-section">
-                <table class="products-table" id="products-table">
-                    <thead>
-                        <tr>
-                            <th>Barcode</th>
-                            <th>Product</th>
-                            <th>Brand</th>
-                            <th>Stock</th>
-                            <th>Regular</th>
-                            <th class="col-mayoreo">Mayoreo</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="products-tbody">
-                        {% for product in products %}
-                        <tr data-product-id="{{ product.id }}" data-price-granel="{{ product.price_granel }}" data-minimo="{{ product.minimo }}" class="{% if product.Granel_Item %}row-granel{% endif %}">
-                            <td class="barcode">{{ product.barcode }}</td>
-                            <td class="name">{{ product.compose_name }}{% if product.Granel_Item %} <span class="badge-granel">GRANEL</span>{% endif %}</td>
-                            <td class="brand">{{ product.brand }}</td>
-                            <td class="stock">{{ product.stock }}</td>
-                            <td class="price-regular">${{ product.price|floatformat:2 }}</td>
-                            <td class="price-mayoreo col-mayoreo">${{ product.price_mayoreo|floatformat:2 }}</td>
-                            <td class="action">
-                                <input type="number" class="qty-input" value="1" min="1" style="width: 50px;">
-                                <button class="btn-add" onclick="addToCart(this)">+</button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                    <table class="products-table" id="products-table">
+                        <thead>
+                            <tr>
+                                <th>Barcode</th>
+                                <th>Product</th>
+                                <th>Stock</th>
+                                <th>Regular</th>
+                                <th class="col-mayoreo">Mayoreo</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="products-tbody">
+                            {% for product in products %}
+                            <tr data-product-id="{{ product.id }}" data-price-granel="{{ product.price_granel }}" data-minimo="{{ product.minimo }}" class="{% if product.Granel_Item %}row-granel{% endif %}">
+                                <td class="barcode">{{ product.barcode }}</td>
+                                <td class="name">{{ product.compose_name }}{% if product.Granel_Item %} <span class="badge-granel">GRANEL</span>{% endif %}</td>
+                                <td class="stock">{{ product.stock }}</td>
+                                <td class="price-regular">${{ product.price|floatformat:2 }}</td>
+                                <td class="price-mayoreo col-mayoreo">${{ product.price_mayoreo|floatformat:2 }}</td>
+                                <td class="action">
+                                    <input type="number" class="qty-input" value="1" min="1" style="width: 50px;">
+                                    <button class="btn-add" onclick="addToCart(this)">+</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
             </div>
 
             <!-- RIGHT: CART -->
