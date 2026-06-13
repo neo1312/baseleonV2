@@ -456,6 +456,7 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
     totals['combined']['fifo_gross_profit'] = fifo_gross_profit
     totals['combined']['cost_of_goods_fifo_iva'] = totals['combined']['sales_cost_fifo_iva']
     totals['combined']['fifo_gross_profit_iva'] = totals['combined']['sales_iva_base'] - totals['combined']['sales_cost_fifo_iva']
+    totals['combined']['cost_plus_iva'] = totals['combined']['sales_cost_iva'] * Decimal('1.16')
     totals['combined']['financial_gross_profit'] = financial_gross_profit
     
     if totals['combined']['sales_total'] > 0:

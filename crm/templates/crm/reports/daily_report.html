@@ -127,7 +127,7 @@
         </div>
     </div>
 
-    <!-- Row 4: IVA Products -->
+    <!-- Row 4: IVA Products (brutos + netos) -->
     <div class="row mb-3">
         <div class="col-md-12">
             <div class="card border-success">
@@ -135,45 +135,34 @@
                     <h6 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> IVA Products</h6>
                 </div>
                 <div class="card-body">
-                    <div class="row text-center">
+                    <!-- Brutos (con IVA) -->
+                    <div class="row text-center border-bottom pb-2 mb-2">
                         <div class="col-4 border-end">
-                            <small class="text-muted">Cost (real, IVA out)</small>
-                            <h4 class="text-danger mb-0">${{ totals.combined.sales_cost_iva|floatformat:2 }}</h4>
+                            <small class="text-muted">Sale + IVA</small>
+                            <h4 class="text-primary mb-0">${{ totals.combined.sales_iva_total|floatformat:2 }}</h4>
                         </div>
                         <div class="col-4 border-end">
-                            <small class="text-muted">Sale (sin IVA)</small>
-                            <h4 class="text-primary mb-0">${{ totals.combined.sales_iva_base|floatformat:2 }}</h4>
+                            <small class="text-muted">Cost + IVA</small>
+                            <h4 class="text-danger mb-0">${{ totals.combined.cost_plus_iva|floatformat:2 }}</h4>
                         </div>
                         <div class="col-4">
-                            <small class="text-muted">IVA Amount</small>
-                            <h4 class="text-warning mb-0">${{ totals.combined.iva_collected|floatformat:2 }}</h4>
+                            <small class="text-muted">Profit</small>
+                            <h4 class="text-success mb-0">${{ totals.combined.real_profit_iva|floatformat:2 }}</h4>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Row 5: Accounting (IVA products only) -->
-    <div class="row mb-3">
-        <div class="col-md-12">
-            <div class="card border-dark">
-                <div class="card-header bg-dark text-white py-2">
-                    <h6 class="mb-0"><i class="fas fa-calculator"></i> Accounting (solo IVA)</h6>
-                </div>
-                <div class="card-body">
+                    <!-- Netos (sin IVA) + IVA trasladar -->
                     <div class="row text-center">
                         <div class="col-4 border-end">
-                            <small class="text-muted">FIFO Cost (IVA)</small>
-                            <h4 class="text-info mb-0">${{ totals.combined.cost_of_goods_fifo_iva|floatformat:2 }}</h4>
+                            <small class="text-muted">Sale not IVA</small>
+                            <h4 class="text-info mb-0">${{ totals.combined.sales_iva_base|floatformat:2 }}</h4>
                         </div>
                         <div class="col-4 border-end">
-                            <small class="text-muted">IVA Sale Cost</small>
-                            <h4 class="text-warning mb-0">${{ totals.combined.iva_collected|floatformat:2 }}</h4>
+                            <small class="text-muted">Cost not IVA</small>
+                            <h4 class="text-secondary mb-0">${{ totals.combined.sales_cost_iva|floatformat:2 }}</h4>
                         </div>
                         <div class="col-4">
-                            <small class="text-muted">Utility (FIFO IVA)</small>
-                            <h4 class="text-success mb-0">${{ totals.combined.fifo_gross_profit_iva|floatformat:2 }}</h4>
+                            <small class="text-muted">IVA trasladar</small>
+                            <h4 class="text-warning mb-0">${{ totals.combined.iva_collected|floatformat:2 }}</h4>
                         </div>
                     </div>
                 </div>
