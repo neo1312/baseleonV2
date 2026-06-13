@@ -429,6 +429,8 @@ class devolutionItem(models.Model):
     quantity=models.CharField(max_length=50,default=0)
     cost=models.CharField(null=True,blank=True,max_length=50)
     margen=models.CharField(max_length=100,verbose_name='margen',default=0)
+    sale_item = models.ForeignKey('crm.saleItem', null=True, blank=True, on_delete=models.SET_NULL)
+    purchase_with_iva = models.BooleanField(default=False)
 
     #utility fields
     date_created = models.DateTimeField(blank=True, null=True)

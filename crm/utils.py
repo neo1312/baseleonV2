@@ -109,6 +109,7 @@ ROLE_FEATURES = {
                 'items': [
                     {'title': 'POS System', 'description': 'Fast & easy checkout', 'icon': '💳', 'url': '/pos/', 'color': '#DC143C'},
                     {'title': 'Customer Display', 'description': 'Customer-facing ticket', 'icon': '🖥️', 'url': '/pos/customer-display/', 'color': '#FF8C00'},
+                    {'title': 'Cierre de Caja', 'description': 'Abrir y realizar arqueo', 'icon': '💰', 'url': '/cash-register/', 'color': '#FF8C00'},
                 ]
             },
             {
@@ -117,12 +118,6 @@ ROLE_FEATURES = {
                     {'title': 'Nueva Venta', 'description': 'Registrar venta', 'icon': '🛒', 'url': '/sale/new', 'color': '#DC143C'},
                     {'title': 'Nueva Cotización', 'description': 'Crear cotización', 'icon': '📋', 'url': '/quote/new', 'color': '#B8221C'},
                     {'title': 'Procesar Devolución', 'description': 'Registrar devolución', 'icon': '↩️', 'url': '/devolution/new', 'color': '#8B1414'},
-                ]
-            },
-            {
-                'category': 'Caja',
-                'items': [
-                    {'title': 'Cierre de Caja', 'description': 'Abrir y realizar arqueo', 'icon': '💰', 'url': '/cash-register/', 'color': '#FF8C00'},
                 ]
             },
             {

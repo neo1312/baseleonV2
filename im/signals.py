@@ -171,13 +171,26 @@ def devolution_item_post_save(sender, instance, created, **kwargs):
             status='sold'
         ).order_by('-sold_date')[:quantity]
         
+        has_iva = False
+        sale_item = None
         reverted_count = 0
         for unit in sold_units:
+            if unit.purchase_with_iva:
+                has_iva = True
+            if unit.sale_item and not sale_item:
+                sale_item = unit.sale_item
             unit.status = 'ready_to_sale'
             unit.sale_item = None
             unit.sold_date = None
             unit.save()
             reverted_count += 1
+        
+        # Store IVA info on the devolution item for reporting
+        if reverted_count > 0:
+            devolutionItem.objects.filter(pk=instance.pk).update(
+                purchase_with_iva=has_iva,
+                sale_item=sale_item
+            )
         
         logger.info(f'Reverted {reverted_count} InventoryUnits to ready_to_sale for devolutionItem {instance.id}')
         
