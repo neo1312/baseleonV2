@@ -44,167 +44,137 @@
     {% if report_data %}
     {% with totals=report_data.totals %}
 
-    <!-- Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
+    <!-- Row 1: General Financial -->
+    <div class="row mb-3">
+        <div class="col-md-12">
             <div class="card border-primary">
-                <div class="card-body">
-                    <h6 class="card-title text-muted">Total Sales</h6>
-                    <h3 class="text-primary">${{ totals.combined.sales_total|floatformat:2 }}</h3>
-                    <small class="text-muted">{{ totals.combined.sales_count }} transactions</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-success">
-                <div class="card-body">
-                    <h6 class="card-title text-muted">Profit (FIFO)</h6>
-                    <h3 class="text-success">${{ totals.combined.fifo_gross_profit|floatformat:2 }}</h3>
-                    <small class="text-muted">{{ totals.combined.fifo_gross_profit_margin }}% margin</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-info">
-                <div class="card-body">
-                    <h6 class="card-title text-muted">Profit (Financial)</h6>
-                    <h3 class="text-info">${{ totals.combined.financial_gross_profit|floatformat:2 }}</h3>
-                    <small class="text-muted">{{ totals.combined.financial_gross_profit_margin }}% margin</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-secondary">
-                <div class="card-body">
-                    <h6 class="card-title text-muted">Avg Transaction</h6>
-                    <h3 class="text-secondary">${{ totals.combined.avg_transaction_value }}</h3>
-                    <small class="text-muted">{{ totals.combined.items_sold }} items sold</small>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Detailed Report Tabs -->
-    <div class="row">
-        <div class="col-md-12">
-            <ul class="nav nav-tabs mb-4" role="tablist">
-                <li class="nav-item">
-                    <a class="nav-link active" id="combined-tab" data-toggle="tab" href="#combined" role="tab" aria-controls="combined" aria-selected="true">
-                        <i class="fas fa-chart-pie"></i> Combined
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" id="menudeo-tab" data-toggle="tab" href="#menudeo" role="tab" aria-controls="menudeo" aria-selected="false">
-                        <i class="fas fa-shopping-bag"></i> Retail (Menudeo)
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" id="mayoreo-tab" data-toggle="tab" href="#mayoreo" role="tab" aria-controls="mayoreo" aria-selected="false">
-                        <i class="fas fa-boxes"></i> Wholesale (Mayoreo)
-                    </a>
-                </li>
-            </ul>
-
-            <div class="tab-content">
-                <!-- Combined Tab -->
-                <div class="tab-pane fade show active" id="combined" role="tabpanel" aria-labelledby="combined-tab">
-                    {% include 'crm/reports/report_section.html' with totals=totals.combined title='Combined Report' %}
-                </div>
-
-                <!-- Menudeo Tab -->
-                <div class="tab-pane fade" id="menudeo" role="tabpanel" aria-labelledby="menudeo-tab">
-                    {% include 'crm/reports/report_section.html' with totals=totals.menudeo title='Retail (Menudeo) Report' %}
-                </div>
-
-                <!-- Mayoreo Tab -->
-                <div class="tab-pane fade" id="mayoreo" role="tabpanel" aria-labelledby="mayoreo-tab">
-                    {% include 'crm/reports/report_section.html' with totals=totals.mayoreo title='Wholesale (Mayoreo) Report' %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- IVA Breakdown Section -->
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> Desglose de IVA</h5>
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0"><i class="fas fa-chart-line"></i> General Financial (IVA out)</h6>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <div class="card border-success h-100">
-                                <div class="card-header bg-success text-white py-2">
-                                    <small class="fw-bold">Ventas con IVA</small>
-                                </div>
-                                <div class="card-body py-2">
-                                    <div class="row">
-                                        <div class="col-6">
-                                            <small class="text-muted">Total (precio final)</small>
-                                            <h5 class="mb-0">${{ totals.combined.sales_iva_total|floatformat:2 }}</h5>
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Base gravable</small>
-                                            <h5 class="mb-0">${{ totals.combined.sales_iva_base|floatformat:2 }}</h5>
-                                        </div>
-                                        <div class="col-6 mt-2">
-                                            <small class="text-muted">IVA cobrado</small>
-                                            <h5 class="mb-0 text-warning">${{ totals.combined.iva_collected|floatformat:2 }}</h5>
-                                        </div>
-                                        <div class="col-6 mt-2">
-                                            <small class="text-muted">Utilidad real</small>
-                                            <h5 class="mb-0 text-success">${{ totals.combined.real_profit_iva|floatformat:2 }}</h5>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    <div class="row text-center">
+                        <div class="col-4 border-end">
+                            <small class="text-muted">Total Sales (real)</small>
+                            <h4 class="text-primary mb-0">${{ totals.combined.real_sales|floatformat:2 }}</h4>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="card border-secondary h-100">
-                                <div class="card-header bg-secondary text-white py-2">
-                                    <small class="fw-bold">Ventas sin IVA</small>
-                                </div>
-                                <div class="card-body py-2">
-                                    <div class="row">
-                                        <div class="col-6">
-                                            <small class="text-muted">Total</small>
-                                            <h5 class="mb-0">${{ totals.combined.sales_no_iva_total|floatformat:2 }}</h5>
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Utilidad</small>
-                                            <h5 class="mb-0 text-success">${{ totals.combined.real_profit_no_iva|floatformat:2 }}</h5>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="col-4 border-end">
+                            <small class="text-muted">Total Cost (real)</small>
+                            <h4 class="text-danger mb-0">${{ totals.combined.real_cost|floatformat:2 }}</h4>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted">Profit (in your pocket)</small>
+                            <h4 class="text-success mb-0">${{ totals.combined.real_profit|floatformat:2 }}</h4>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="card border-dark">
-                                <div class="card-header bg-dark text-white py-2">
-                                    <small class="fw-bold"><i class="fas fa-balance-scale"></i> Balance de IVA</small>
-                                </div>
-                                <div class="card-body py-2">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <small class="text-muted">IVA cobrado (ventas)</small>
-                                            <h5 class="mb-0 text-warning">${{ totals.combined.iva_collected|floatformat:2 }}</h5>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <small class="text-muted">IVA acreditable (compras)</small>
-                                            <h5 class="mb-0 text-info">${{ totals.combined.iva_creditable|floatformat:2 }}</h5>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <small class="text-muted">A pagar al SAT</small>
-                                            <h5 class="mb-0 {% if totals.combined.iva_balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                                                ${{ totals.combined.iva_balance|floatformat:2 }}
-                                            </h5>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2: Wholesale -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white py-2">
+                    <h6 class="mb-0"><i class="fas fa-boxes"></i> Wholesale</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4 border-end">
+                            <small class="text-muted">Sales</small>
+                            <h4 class="text-primary mb-0">${{ totals.mayoreo.net_sales|floatformat:2 }}</h4>
+                            <small class="text-muted">{{ totals.mayoreo.sales_count }} transactions</small>
+                        </div>
+                        <div class="col-4 border-end">
+                            <small class="text-muted">Cost</small>
+                            <h4 class="text-danger mb-0">${{ totals.mayoreo.cost_of_goods|floatformat:2 }}</h4>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted">Profit</small>
+                            <h4 class="text-success mb-0">${{ totals.mayoreo.gross_profit|floatformat:2 }}</h4>
+                            <small class="text-muted">{{ totals.mayoreo.gross_profit_margin }}% margin</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 3: Non-IVA Products -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card border-secondary">
+                <div class="card-header bg-secondary text-white py-2">
+                    <h6 class="mb-0"><i class="fas fa-receipt"></i> Non-IVA Products</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4 border-end">
+                            <small class="text-muted">Sales</small>
+                            <h4 class="text-primary mb-0">${{ totals.combined.sales_no_iva_total|floatformat:2 }}</h4>
+                        </div>
+                        <div class="col-4 border-end">
+                            <small class="text-muted">Cost</small>
+                            <h4 class="text-danger mb-0">${{ totals.combined.sales_cost_no_iva|floatformat:2 }}</h4>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted">Profit</small>
+                            <h4 class="text-success mb-0">${{ totals.combined.real_profit_no_iva|floatformat:2 }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 4: IVA Products -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white py-2">
+                    <h6 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> IVA Products</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4 border-end">
+                            <small class="text-muted">Cost (real, IVA out)</small>
+                            <h4 class="text-danger mb-0">${{ totals.combined.sales_cost_iva|floatformat:2 }}</h4>
+                        </div>
+                        <div class="col-4 border-end">
+                            <small class="text-muted">Sale (sin IVA)</small>
+                            <h4 class="text-primary mb-0">${{ totals.combined.sales_iva_base|floatformat:2 }}</h4>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted">IVA Amount</small>
+                            <h4 class="text-warning mb-0">${{ totals.combined.iva_collected|floatformat:2 }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 5: Accounting -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card border-dark">
+                <div class="card-header bg-dark text-white py-2">
+                    <h6 class="mb-0"><i class="fas fa-calculator"></i> Accounting</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4 border-end">
+                            <small class="text-muted">FIFO Cost</small>
+                            <h4 class="text-info mb-0">${{ totals.combined.cost_of_goods_fifo|floatformat:2 }}</h4>
+                        </div>
+                        <div class="col-4 border-end">
+                            <small class="text-muted">IVA Sale Cost</small>
+                            <h4 class="text-warning mb-0">${{ totals.combined.iva_collected|floatformat:2 }}</h4>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted">Utility (FIFO)</small>
+                            <h4 class="text-success mb-0">${{ totals.combined.fifo_gross_profit|floatformat:2 }}</h4>
+                            <small class="text-muted">{{ totals.combined.fifo_gross_profit_margin }}% margin</small>
                         </div>
                     </div>
                 </div>
@@ -213,28 +183,6 @@
     </div>
 
     {% endwith %}
-    
-    <!-- SAT Products Count -->
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card border-warning">
-                <div class="card-body">
-                    <h6 class="card-title text-muted">SAT Products Sold</h6>
-                    <h3 class="text-warning">{{ report_data.sat_count }}</h3>
-                    <small class="text-muted">Products marked as SAT sold in this period</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card border-warning">
-                <div class="card-body">
-                    <h6 class="card-title text-muted">SAT Sales Total</h6>
-                    <h3 class="text-warning">${{ report_data.sat_total|floatformat:2 }}</h3>
-                    <small class="text-muted">Total sales amount for SAT products</small>
-                </div>
-            </div>
-        </div>
-    </div>
     
     {% else %}
     <div class="alert alert-info">

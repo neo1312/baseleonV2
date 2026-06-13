@@ -1,5 +1,5 @@
 from django.contrib import admin
-from crm.models import Client,Sale,saleItem,Devolution,devolutionItem,Quote,quoteItem,ClientTier,ClientTierStatus
+from crm.models import Client,Sale,saleItem,Devolution,devolutionItem,Quote,quoteItem,ClientTier,ClientTierStatus,CashRegisterSession,CashCount,CajaConfig
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 
@@ -220,3 +220,7 @@ class ClientTierStatusAdmin(ImportExportModelAdmin, admin.ModelAdmin):
     get_status_display.short_description = 'Client Status'
 
 admin.site.register(ClientTierStatus, ClientTierStatusAdmin)
+
+admin.site.register(CashRegisterSession)
+admin.site.register(CashCount)
+admin.site.register(CajaConfig)

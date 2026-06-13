@@ -8,6 +8,7 @@ from crm.views.sale.views import saleList, saleInicia,saleEdit,saleDelete,saleCr
 from crm.views.quote.views import quoteList, quoteInicia,quoteEdit,quoteDelete,quoteCreate,quoteGetData,quoteItemView,quoteItemDelete,quotepdfPrint,quoteNew,quoteLast,quoteToSale,quoteCheckStock,quote_ticket_json
 from crm.views.devolution.views import devolutionList, devolutionEdit, devolutionDelete, devolutionCreate,devolutionInicia,devolutionItemView,devolutionGetData,devolutionItemDelete,devpdfPrint,devolutionNew,devolutionLast,devolution_ticket_json
 from crm.views.report_views import daily_report
+from crm.views.cash_views import session_list, session_open, session_detail
 from crm.views.my_reports_views import my_reports, my_reports_data, inventory_value
 from crm.views.wholesale import views as wholesale_views
 
@@ -82,4 +83,8 @@ urlpatterns=[
 
         path('wholesale/', wholesale_views.lookup_page, name='wholesale_lookup'),
         path('wholesale/search/', wholesale_views.search_products, name='wholesale_search'),
+
+        path('cash-register/', session_list, name='cash_session_list'),
+        path('cash-register/open/', session_open, name='cash_session_open'),
+        path('cash-register/detail/', session_detail, name='cash_session_detail'),
         ]

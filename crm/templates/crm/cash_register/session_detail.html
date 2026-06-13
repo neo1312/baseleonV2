@@ -1,0 +1,231 @@
+{% extends 'body.html' %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2><i class="fas fa-cash-register"></i> Arqueo de Caja</h2>
+                <a href="{% url 'crm:cash_session_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Info -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">Sesión #{{ session.id }} &mdash; {{ session.cashier.username }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <small class="text-muted">Apertura</small>
+                    <p class="mb-0 fw-bold">{{ session.opened_at|date:"d/m/Y H:i" }}</p>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">Fondo inicial</small>
+                    <p class="mb-0 fw-bold">${{ session.opening_balance|floatformat:2 }}</p>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">Corte: 5:30 PM</small>
+                    <p class="mb-0 fw-bold">Si cierra después, pasa al día siguiente</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST">
+    {% csrf_token %}
+
+    <!-- Expected amounts -->
+    <div class="card mb-4 border-primary">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-calculator"></i> Esperado (ventas del turno)</h5>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-4 border-end">
+                    <small class="text-muted">Efectivo</small>
+                    <h3 class="text-success mb-0">${{ expected_cash|floatformat:2 }}</h3>
+                    <small>(fondo + ventas cash &minus; devoluciones)</small>
+                </div>
+                <div class="col-4 border-end">
+                    <small class="text-muted">Tarjeta</small>
+                    <h3 class="text-info mb-0">${{ expected_card|floatformat:2 }}</h3>
+                </div>
+                <div class="col-4">
+                    <small class="text-muted">Cheque</small>
+                    <h3 class="text-warning mb-0">${{ expected_check|floatformat:2 }}</h3>
+                </div>
+            </div>
+            <hr>
+            <div class="text-center">
+                <h5>Total esperado: <strong>${{ total_expected|floatformat:2 }}</strong></h5>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cash Count Form -->
+    <div class="card mb-4 border-success">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-money-bill-wave"></i> Conteo Físico</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <!-- Bills -->
+                <div class="col-md-6">
+                    <h6 class="text-primary">Billetes</h6>
+                    <table class="table table-sm" id="bill-table">
+                        <thead>
+                            <tr>
+                                <th>Denominación</th>
+                                <th style="width: 100px;">Cantidad</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for field, value in DENOMINATIONS %}
+                            {% if value >= 20 %}
+                            <tr>
+                                <td><strong>${{ value|floatformat:0 }}</strong></td>
+                                <td>
+                                    <input type="number" name="{{ field }}"
+                                           class="form-control form-control-sm denom-input"
+                                           min="0" value="0" data-value="{{ value }}">
+                                </td>
+                                <td class="denom-subtotal">$0.00</td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Coins -->
+                <div class="col-md-6">
+                    <h6 class="text-warning">Monedas</h6>
+                    <table class="table table-sm" id="coin-table">
+                        <thead>
+                            <tr>
+                                <th>Denominación</th>
+                                <th style="width: 100px;">Cantidad</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for field, value in DENOMINATIONS %}
+                            {% if value < 20 %}
+                            <tr>
+                                <td><strong>
+                                    {% if value >= 1 %}
+                                        ${{ value|floatformat:0 }}
+                                    {% else %}
+                                        ${{ value|floatformat:2 }}
+                                    {% endif %}
+                                </strong></td>
+                                <td>
+                                    <input type="number" name="{{ field }}"
+                                           class="form-control form-control-sm denom-input"
+                                           min="0" value="0" data-value="{{ value }}">
+                                </td>
+                                <td class="denom-subtotal">$0.00</td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <hr>
+            <div class="row">
+                <div class="col-12">
+                    <h5>Total efectivo contado: <strong id="cash-total">$0.00</strong></h5>
+                </div>
+            </div>
+
+            <!-- Vouchers -->
+            <h6 class="mt-3 text-info">Vouchers / Comprobantes</h6>
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Total Tarjeta</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" name="counted_card_total" id="counted_card"
+                               class="form-control" step="0.01" min="0" value="0">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Total Cheque</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" name="counted_check_total" id="counted_check"
+                               class="form-control" step="0.01" min="0" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+            <div class="row">
+                <div class="col-md-6">
+                    <label class="form-label">Notas</label>
+                    <textarea name="notes" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="col-md-6 d-flex align-items-end justify-content-end">
+                    <div class="text-end">
+                        <h4>Total contado: <strong id="total-counted">$0.00</strong></h4>
+                        <h4>Diferencia:
+                            <strong id="total-diff" class="text-success">$0.00</strong>
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 mb-4">
+        <button type="submit" class="btn btn-danger btn-lg"
+                onclick="return confirm('¿Confirmar cierre de caja?\n\nSe registrará el arqueo y se cerrará la sesión.')">
+            <i class="fas fa-lock"></i> Cerrar Caja
+        </button>
+    </div>
+    </form>
+</div>
+
+<script>
+document.querySelectorAll('.denom-input').forEach(input => {
+    input.addEventListener('input', updateTotals);
+});
+document.getElementById('counted_card').addEventListener('input', updateTotals);
+document.getElementById('counted_check').addEventListener('input', updateTotals);
+
+function updateTotals() {
+    let cashTotal = 0;
+    document.querySelectorAll('.denom-input').forEach(input => {
+        const val = parseInt(input.value) || 0;
+        const denom = parseFloat(input.dataset.value) || 0;
+        const sub = val * denom;
+        cashTotal += sub;
+        const td = input.closest('tr').querySelector('.denom-subtotal');
+        if (td) td.textContent = '$' + sub.toFixed(2);
+    });
+    document.getElementById('cash-total').textContent = '$' + cashTotal.toFixed(2);
+
+    const card = parseFloat(document.getElementById('counted_card').value) || 0;
+    const check = parseFloat(document.getElementById('counted_check').value) || 0;
+    const totalCounted = cashTotal + card + check;
+    document.getElementById('total-counted').textContent = '$' + totalCounted.toFixed(2);
+
+    const expectedTotal = {{ total_expected|safe }};
+    const diff = totalCounted - expectedTotal;
+    const el = document.getElementById('total-diff');
+    const sign = diff >= 0 ? '+' : '';
+    el.textContent = '$' + sign + diff.toFixed(2);
+    el.className = diff >= 0 ? 'text-success' : 'text-danger';
+
+    // Add descriptive label
+    const label = diff > 0 ? ' (Sobrante)' : diff < 0 ? ' (Faltante)' : '';
+    el.textContent = '$' + sign + diff.toFixed(2) + label;
+}
+</script>
+{% endblock %}

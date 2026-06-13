@@ -55,10 +55,16 @@ def daily_report(request):
             total=Sum(F('price') * Cast('quantity', output_field=DecimalField(max_digits=10, decimal_places=0)))
         )['total'] or Decimal('0')
 
+        totals = calculate_report_totals(sales, devolutions, from_datetime, to_datetime)
+
+        totals['combined']['real_sales'] = totals['combined']['sales_iva_base'] + totals['combined']['sales_no_iva_total']
+        totals['combined']['real_cost'] = totals['combined']['sales_cost_iva'] + totals['combined']['sales_cost_no_iva']
+        totals['combined']['real_profit'] = totals['combined']['real_profit_iva'] + totals['combined']['real_profit_no_iva']
+
         date_range_data = {
             'date_from': from_datetime.date(),
             'date_to': to_datetime.date() - timedelta(days=1),
-            'totals': calculate_report_totals(sales, devolutions, from_datetime, to_datetime),
+            'totals': totals,
             'sat_count': sat_count,
             'sat_total': sat_total,
         }
@@ -113,6 +119,8 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
             'iva_collected': Decimal('0'),
             'real_profit_iva': Decimal('0'),
             'real_profit_no_iva': Decimal('0'),
+            'sales_cost_iva': Decimal('0'),
+            'sales_cost_no_iva': Decimal('0'),
         },
         'mayoreo': {
             'sales_count': 0,
@@ -146,6 +154,8 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
             'iva_collected': Decimal('0'),
             'real_profit_iva': Decimal('0'),
             'real_profit_no_iva': Decimal('0'),
+            'sales_cost_iva': Decimal('0'),
+            'sales_cost_no_iva': Decimal('0'),
         },
         'combined': {
             'sales_count': 0,
@@ -181,6 +191,8 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
             'iva_balance': Decimal('0'),
             'real_profit_iva': Decimal('0'),
             'real_profit_no_iva': Decimal('0'),
+            'sales_cost_iva': Decimal('0'),
+            'sales_cost_no_iva': Decimal('0'),
         }
     }
     
@@ -299,15 +311,18 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
                     item_price = Decimal(str(item.price)) * qty
                     base = item_price / (1 + iva_rate)
                     iva = item_price - base
-                    cost = Decimal(str(item.cost)) * qty if item.cost else Decimal('0')
+                    raw_cost = Decimal(str(item.cost)) * qty if item.cost else Decimal('0')
+                    cost_no_iva = raw_cost / (1 + iva_rate)
                     totals[sale_tipo]['sales_iva_total'] += item_price
                     totals[sale_tipo]['sales_iva_base'] += base
                     totals[sale_tipo]['iva_collected'] += iva
-                    totals[sale_tipo]['real_profit_iva'] += base - cost
+                    totals[sale_tipo]['sales_cost_iva'] += cost_no_iva
+                    totals[sale_tipo]['real_profit_iva'] += base - cost_no_iva
                 else:
                     item_price = Decimal(str(item.price)) * qty
                     cost = Decimal(str(item.cost)) * qty if item.cost else Decimal('0')
                     totals[sale_tipo]['sales_no_iva_total'] += item_price
+                    totals[sale_tipo]['sales_cost_no_iva'] += cost
                     totals[sale_tipo]['real_profit_no_iva'] += item_price - cost
             except (ValueError, TypeError):
                 pass
@@ -411,7 +426,8 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
                   'items_sold', 'devolutions_count', 'devolutions_total', 'devolutions_cost',
                   'devolution_cost_fifo', 'devolution_cost_financial', 'devolution_items',
                   'sales_iva_total', 'sales_iva_base', 'sales_no_iva_total', 'iva_collected',
-                  'real_profit_iva', 'real_profit_no_iva']:
+                  'real_profit_iva', 'real_profit_no_iva',
+                  'sales_cost_iva', 'sales_cost_no_iva']:
         totals['combined'][field] = totals['menudeo'][field] + totals['mayoreo'][field]
     
     net_sales = totals['combined']['sales_total'] - totals['combined']['devolutions_total']

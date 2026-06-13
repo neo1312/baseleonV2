@@ -53,6 +53,7 @@ ROLE_FEATURES = {
                     {'title': 'My Reports', 'description': 'Dashboard con gráficas', 'icon': '📊', 'url': '/report/my-reports/', 'color': '#6F42C1'},
                     {'title': 'Reporte Diario', 'description': 'Ganancia diaria', 'icon': '💰', 'url': '/report/daily/', 'color': '#0047AB'},
                     {'title': 'Alarmas', 'description': 'Monitorear márgenes y alertas', 'icon': '🔔', 'url': '/im/alarms/', 'color': '#FF8C00'},
+                    {'title': 'Cierre de Caja', 'description': 'Arqueo y sesiones de caja', 'icon': '💰', 'url': '/cash-register/', 'color': '#FF8C00'},
                 ]
             },
             {
@@ -116,6 +117,12 @@ ROLE_FEATURES = {
                     {'title': 'Nueva Venta', 'description': 'Registrar venta', 'icon': '🛒', 'url': '/sale/new', 'color': '#DC143C'},
                     {'title': 'Nueva Cotización', 'description': 'Crear cotización', 'icon': '📋', 'url': '/quote/new', 'color': '#B8221C'},
                     {'title': 'Procesar Devolución', 'description': 'Registrar devolución', 'icon': '↩️', 'url': '/devolution/new', 'color': '#8B1414'},
+                ]
+            },
+            {
+                'category': 'Caja',
+                'items': [
+                    {'title': 'Cierre de Caja', 'description': 'Abrir y realizar arqueo', 'icon': '💰', 'url': '/cash-register/', 'color': '#FF8C00'},
                 ]
             },
             {
@@ -214,6 +221,7 @@ MENU_STRUCTURE = {
         {'category': 'Reporte Diario', 'icon': 'fas fa-chart-line', 'url': '/report/daily/', 'color': 'text-success'},
         {'category': 'Reportes de Ventas', 'icon': 'fas fa-chart-bar', 'url': '/report/sale', 'color': 'text-success'},
         {'category': 'Alarmas', 'icon': 'fas fa-bell', 'url': '/im/alarms/', 'color': 'text-warning'},
+        {'category': 'Cierre de Caja', 'icon': 'fas fa-cash-register', 'url': '/cash-register/', 'color': 'text-warning'},
         {'divider': True},
         {'category': 'Parámetros de Pronóstico', 'icon': 'fas fa-sliders-h', 'url': '/admin/im/forecastconfiguration/', 'color': 'text-info'},
     ],
@@ -236,6 +244,8 @@ MENU_STRUCTURE = {
         {'category': 'Cotizaciones', 'icon': 'fas fa-quote-left', 'url': '/quote/new', 'color': 'text-info'},
         {'category': 'Devoluciones', 'icon': 'fas fa-undo', 'url': '/devolution/new', 'color': 'text-warning'},
         {'category': 'Consultar Productos', 'icon': 'fas fa-search', 'url': '/wholesale/', 'color': 'text-success'},
+        {'divider': True},
+        {'category': 'Cierre de Caja', 'icon': 'fas fa-cash-register', 'url': '/cash-register/', 'color': 'text-warning'},
         {'divider': True},
         {'category': 'Productos', 'icon': 'fas fa-boxes', 'url': '/im/product/list', 'color': 'text-success'},
         {'category': 'Clientes', 'icon': 'fas fa-users', 'url': '/client/list', 'color': 'text-info'},

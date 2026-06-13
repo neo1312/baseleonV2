@@ -2,6 +2,8 @@ from django.db import models, transaction
 from django.utils import timezone
 from django.db.models.signals import post_save,post_delete,pre_save
 from django.dispatch import receiver
+from django.db.models import Sum, Count
+from decimal import Decimal
 from im.models import Product
 import math
 import logging
@@ -737,6 +739,164 @@ class ClientTierStatus(models.Model):
         verbose_name = 'Client Tier Status'
         verbose_name_plural = 'Client Tier Statuses'
         ordering = ['client']
+
+class CajaConfig(models.Model):
+    cutoff_time = models.TimeField(
+        default=timezone.datetime.strptime('17:30', '%H:%M').time(),
+        verbose_name='Cutoff Time'
+    )
+
+    class Meta:
+        verbose_name = 'Caja Configuration'
+        verbose_name_plural = 'Caja Configuration'
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class CashRegisterSession(models.Model):
+    statuses = [
+        ('open', 'Open'),
+        ('closed', 'Closed'),
+    ]
+    cashier = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True)
+    opened_at = models.DateTimeField(blank=True, null=True)
+    closed_at = models.DateTimeField(blank=True, null=True)
+    opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    status = models.CharField(choices=statuses, max_length=20, default='open')
+    effective_date = models.DateField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f'#{self.id} - {self.cashier} - {self.opened_at}'
+
+    def save(self, *args, **kwargs):
+        if self.opened_at is None:
+            self.opened_at = timezone.localtime(timezone.now())
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = 'Cash Register Session'
+        verbose_name_plural = 'Cash Register Sessions'
+        ordering = ['-opened_at']
+
+    def expected_cash_total(self):
+        from crm.models import Sale, Devolution
+        qs = Sale.objects.filter(
+            date_created__gte=self.opened_at,
+            date_created__lt=self.closed_at or timezone.now(),
+            payment_method='cash',
+            status='completed',
+        )
+        cash_sales = qs.aggregate(total=Sum('total_amount'))['total'] or 0
+        dev_total = sum(
+            d.get_cart_total for d in Devolution.objects.filter(
+                date_created__gte=self.opened_at,
+                date_created__lt=self.closed_at or timezone.now(),
+            )
+        )
+        return self.opening_balance + cash_sales - Decimal(str(dev_total))
+
+    def expected_card_total(self):
+        from crm.models import Sale
+        qs = Sale.objects.filter(
+            date_created__gte=self.opened_at,
+            date_created__lt=self.closed_at or timezone.now(),
+            payment_method='card',
+            status='completed',
+        )
+        return qs.aggregate(total=Sum('total_amount'))['total'] or 0
+
+    def expected_check_total(self):
+        from crm.models import Sale
+        qs = Sale.objects.filter(
+            date_created__gte=self.opened_at,
+            date_created__lt=self.closed_at or timezone.now(),
+            payment_method='check',
+            status='completed',
+        )
+        return qs.aggregate(total=Sum('total_amount'))['total'] or 0
+
+    def total_expected(self):
+        return self.expected_cash_total() + self.expected_card_total() + self.expected_check_total()
+
+    def expected_sales_breakdown(self):
+        from crm.models import Sale
+        sales_in_range = Sale.objects.filter(
+            date_created__gte=self.opened_at,
+            date_created__lt=self.closed_at or timezone.now(),
+            status='completed',
+        )
+        breakdown = sales_in_range.values('payment_method').annotate(
+            total=Sum('total_amount'),
+            count=Count('id'),
+        )
+        return {b['payment_method']: {'total': b['total'] or 0, 'count': b['count']} for b in breakdown}
+
+
+class CashCount(models.Model):
+    session = models.OneToOneField(CashRegisterSession, on_delete=models.CASCADE, related_name='cash_count')
+
+    bill_1000 = models.IntegerField(default=0)
+    bill_500 = models.IntegerField(default=0)
+    bill_200 = models.IntegerField(default=0)
+    bill_100 = models.IntegerField(default=0)
+    bill_50 = models.IntegerField(default=0)
+    bill_20 = models.IntegerField(default=0)
+
+    coin_10 = models.IntegerField(default=0)
+    coin_5 = models.IntegerField(default=0)
+    coin_2 = models.IntegerField(default=0)
+    coin_1 = models.IntegerField(default=0)
+    coin_50ctv = models.IntegerField(default=0)
+
+    counted_card_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    counted_check_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    counted_cash_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_counted = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    expected_cash_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    expected_card_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    expected_check_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    cash_difference = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_difference = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    counted_at = models.DateTimeField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+
+    DENOMINATIONS = [
+        ('bill_1000', 1000), ('bill_500', 500), ('bill_200', 200),
+        ('bill_100', 100), ('bill_50', 50), ('bill_20', 20),
+        ('coin_10', 10), ('coin_5', 5), ('coin_2', 2), ('coin_1', 1),
+        ('coin_50ctv', 0.50),
+    ]
+
+    def calculate_cash_total(self):
+        total = 0
+        for field, value in self.DENOMINATIONS:
+            count = getattr(self, field, 0) or 0
+            total += count * value
+        return Decimal(str(round(total, 2)))
+
+    def save(self, *args, **kwargs):
+        self.counted_cash_total = self.calculate_cash_total()
+        self.total_counted = self.counted_cash_total + self.counted_card_total + self.counted_check_total
+        self.cash_difference = self.counted_cash_total - self.expected_cash_total
+        self.total_difference = self.total_counted - (
+            self.expected_cash_total + self.expected_card_total + self.expected_check_total
+        )
+        if self.counted_at is None:
+            self.counted_at = timezone.localtime(timezone.now())
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = 'Cash Count (Arqueo)'
+        verbose_name_plural = 'Cash Counts (Arqueos)'
+
 
 @receiver(post_save, sender=Client)
 def create_client_tier_status(sender, instance, created, **kwargs):

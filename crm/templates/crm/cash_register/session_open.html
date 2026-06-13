@@ -1,0 +1,36 @@
+{% extends 'body.html' %}
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-cash-register"></i> Abrir Caja</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Monto de apertura (fondo en caja)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" name="opening_balance" class="form-control form-control-lg"
+                                       step="0.01" min="0" value="500.00" required>
+                            </div>
+                            <div class="form-text">Cantidad de efectivo con la que inicia la caja (ej. $500.00)</div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-play"></i> Iniciar Sesión
+                            </button>
+                            <a href="{% url 'crm:cash_session_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
