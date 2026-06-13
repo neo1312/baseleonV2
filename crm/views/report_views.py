@@ -306,12 +306,17 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
                     has_iva = False
                 else:
                     has_iva = False
+                if item.cost:
+                    raw_cost = Decimal(str(item.cost)) * qty
+                elif item.product and item.product.costo:
+                    raw_cost = Decimal(str(item.product.costo)) * qty
+                else:
+                    raw_cost = Decimal('0')
                 if has_iva:
                     iva_rate = Decimal('0.16')
                     item_price = Decimal(str(item.price)) * qty
                     base = item_price / (1 + iva_rate)
                     iva = item_price - base
-                    raw_cost = Decimal(str(item.cost)) * qty if item.cost else Decimal('0')
                     cost_no_iva = raw_cost / (1 + iva_rate)
                     totals[sale_tipo]['sales_iva_total'] += item_price
                     totals[sale_tipo]['sales_iva_base'] += base
@@ -320,10 +325,9 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
                     totals[sale_tipo]['real_profit_iva'] += base - cost_no_iva
                 else:
                     item_price = Decimal(str(item.price)) * qty
-                    cost = Decimal(str(item.cost)) * qty if item.cost else Decimal('0')
                     totals[sale_tipo]['sales_no_iva_total'] += item_price
-                    totals[sale_tipo]['sales_cost_no_iva'] += cost
-                    totals[sale_tipo]['real_profit_no_iva'] += item_price - cost
+                    totals[sale_tipo]['sales_cost_no_iva'] += raw_cost
+                    totals[sale_tipo]['real_profit_no_iva'] += item_price - raw_cost
             except (ValueError, TypeError):
                 pass
     
