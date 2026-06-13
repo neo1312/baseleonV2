@@ -95,6 +95,7 @@
                         <div class="col-4">
                             <small class="text-muted">= Net Profit</small>
                             <h4 class="text-success mb-0"><strong>${{ totals.combined.real_profit_net|floatformat:2 }}</strong></h4>
+                            <small class="text-muted">{{ totals.combined.real_margin_net }}% margin</small>
                         </div>
                     </div>
                     <!-- KPIs -->
@@ -141,6 +142,7 @@
                         <div class="col-4">
                             <small class="text-muted">Profit</small>
                             <h4 class="text-success mb-0">${{ totals.combined.real_profit_no_iva|floatformat:2 }}</h4>
+                            <small class="text-muted">{{ totals.combined.no_iva_margin }}% margin</small>
                         </div>
                     </div>
                 </div>
@@ -168,6 +170,7 @@
                         <div class="col-3 border-end">
                             <small class="text-muted">Profit</small>
                             <h4 class="text-success mb-0">${{ totals.combined.fifo_gross_profit_iva|floatformat:2 }}</h4>
+                            <small class="text-muted">{{ totals.combined.iva_margin }}% margin</small>
                         </div>
                         <div class="col-3">
                             <small class="text-muted">IVA trasladar</small>

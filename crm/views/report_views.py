@@ -68,6 +68,19 @@ def daily_report(request):
         totals['combined']['real_sales_net'] = totals['combined']['real_sales'] - totals['combined']['real_dev_adjusted']
         totals['combined']['real_cost_net'] = totals['combined']['real_cost'] - totals['combined']['real_dev_cost_adjusted']
         totals['combined']['real_profit_net'] = totals['combined']['real_sales_net'] - totals['combined']['real_cost_net']
+        # Margin percentages
+        if totals['combined']['real_sales_net'] > 0:
+            totals['combined']['real_margin_net'] = round(totals['combined']['real_profit_net'] / totals['combined']['real_sales_net'] * 100, 2)
+        else:
+            totals['combined']['real_margin_net'] = Decimal('0')
+        if totals['combined']['sales_no_iva_total'] > 0:
+            totals['combined']['no_iva_margin'] = round(totals['combined']['real_profit_no_iva'] / totals['combined']['sales_no_iva_total'] * 100, 2)
+        else:
+            totals['combined']['no_iva_margin'] = Decimal('0')
+        if totals['combined']['sales_iva_base'] > 0:
+            totals['combined']['iva_margin'] = round(totals['combined']['fifo_gross_profit_iva'] / totals['combined']['sales_iva_base'] * 100, 2)
+        else:
+            totals['combined']['iva_margin'] = Decimal('0')
 
         date_range_data = {
             'date_from': from_datetime.date(),
