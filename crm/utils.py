@@ -12,6 +12,7 @@ ROLE_FEATURES = {
                 'items': [
                     {'title': 'POS System', 'description': 'Fast checkout & sales', 'icon': '💳', 'url': '/pos/', 'color': '#DC143C'},
                     {'title': 'Customer Display', 'description': 'Customer-facing ticket', 'icon': '🖥️', 'url': '/pos/customer-display/', 'color': '#FF8C00'},
+                    {'title': 'Cierre de Caja', 'description': 'Arqueo y sesiones de caja', 'icon': '💰', 'url': '/cash-register/', 'color': '#FF8C00'},
                 ]
             },
             {
@@ -53,7 +54,6 @@ ROLE_FEATURES = {
                     {'title': 'My Reports', 'description': 'Dashboard con gráficas', 'icon': '📊', 'url': '/report/my-reports/', 'color': '#6F42C1'},
                     {'title': 'Reporte Diario', 'description': 'Ganancia diaria', 'icon': '💰', 'url': '/report/daily/', 'color': '#0047AB'},
                     {'title': 'Alarmas', 'description': 'Monitorear márgenes y alertas', 'icon': '🔔', 'url': '/im/alarms/', 'color': '#FF8C00'},
-                    {'title': 'Cierre de Caja', 'description': 'Arqueo y sesiones de caja', 'icon': '💰', 'url': '/cash-register/', 'color': '#FF8C00'},
                 ]
             },
             {
