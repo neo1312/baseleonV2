@@ -121,6 +121,7 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
             'real_profit_no_iva': Decimal('0'),
             'sales_cost_iva': Decimal('0'),
             'sales_cost_no_iva': Decimal('0'),
+            'sales_cost_fifo_iva': Decimal('0'),
         },
         'mayoreo': {
             'sales_count': 0,
@@ -156,6 +157,7 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
             'real_profit_no_iva': Decimal('0'),
             'sales_cost_iva': Decimal('0'),
             'sales_cost_no_iva': Decimal('0'),
+            'sales_cost_fifo_iva': Decimal('0'),
         },
         'combined': {
             'sales_count': 0,
@@ -193,6 +195,7 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
             'real_profit_no_iva': Decimal('0'),
             'sales_cost_iva': Decimal('0'),
             'sales_cost_no_iva': Decimal('0'),
+            'sales_cost_fifo_iva': Decimal('0'),
         }
     }
     
@@ -323,6 +326,8 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
                     totals[sale_tipo]['iva_collected'] += iva
                     totals[sale_tipo]['sales_cost_iva'] += cost_no_iva
                     totals[sale_tipo]['real_profit_iva'] += base - cost_no_iva
+                    if item.product:
+                        totals[sale_tipo]['sales_cost_fifo_iva'] += get_fifo_cost(item.product, qty)
                 else:
                     item_price = Decimal(str(item.price)) * qty
                     totals[sale_tipo]['sales_no_iva_total'] += item_price
@@ -431,7 +436,8 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
                   'devolution_cost_fifo', 'devolution_cost_financial', 'devolution_items',
                   'sales_iva_total', 'sales_iva_base', 'sales_no_iva_total', 'iva_collected',
                   'real_profit_iva', 'real_profit_no_iva',
-                  'sales_cost_iva', 'sales_cost_no_iva']:
+                   'sales_cost_iva', 'sales_cost_no_iva',
+                   'sales_cost_fifo_iva']:
         totals['combined'][field] = totals['menudeo'][field] + totals['mayoreo'][field]
     
     net_sales = totals['combined']['sales_total'] - totals['combined']['devolutions_total']
@@ -448,6 +454,8 @@ def calculate_report_totals(sales, devolutions, from_datetime=None, to_datetime=
     totals['combined']['cost_of_goods_financial'] = cost_of_goods_financial
     totals['combined']['gross_profit'] = gross_profit
     totals['combined']['fifo_gross_profit'] = fifo_gross_profit
+    totals['combined']['cost_of_goods_fifo_iva'] = totals['combined']['sales_cost_fifo_iva']
+    totals['combined']['fifo_gross_profit_iva'] = totals['combined']['sales_iva_base'] - totals['combined']['sales_cost_fifo_iva']
     totals['combined']['financial_gross_profit'] = financial_gross_profit
     
     if totals['combined']['sales_total'] > 0:
