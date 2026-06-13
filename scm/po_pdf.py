@@ -101,7 +101,7 @@ def generate_po_pdf(po):
         qty = str(int(po_item.ordered_quantity / unidad_empaque)) if unidad_empaque > 1 else str(po_item.ordered_quantity)
         items_data.append([
             str(pv1) if pv1 else '',
-            str(po_item.product.name),
+            str(po_item.product.compose_name),
             str(unidad_empaque),
             qty
         ])

@@ -90,7 +90,7 @@ def despiece_process(request, pk):
     available = config.source_product.stock_ready_to_sale
     if source_qty > available:
         return JsonResponse({
-            'error': f'Stock insuficiente. Disponible: {available} unidad(es) de {config.source_product.name}'
+            'error': f'Stock insuficiente. Disponible: {available} unidad(es) de {config.source_product.compose_name}'
         }, status=400)
 
     # 1. Retire source InventoryUnits (FIFO)

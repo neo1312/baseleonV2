@@ -50,7 +50,7 @@
                                     <tr data-item-id="{{ item.id }}" 
                                         data-barcode="{{ item.product.barcode }}" 
                                         data-clave="{{ item.product|get_provider_pv1:po.provider }}"
-                                        data-name="{{ item.product.name|lower }}"
+                                        data-name="{{ item.product.compose_name|lower }}"
                                         data-ordered="{{ item.ordered_quantity }}">
                                         <td class="text-center">
                                             <input type="checkbox" class="received-checkbox" data-item-id="{{ item.id }}"
@@ -74,7 +74,7 @@
                                                    onfocus="fillOrderedQty(this)">
                                         </td>
                                         <td>
-                                            <small><strong>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</strong></small>
+                                            <small><strong>{{ item.product.compose_name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</strong></small>
                                         </td>
                                         <td class="text-center">
                                             <strong>{{ item.ordered_quantity }}</strong>
@@ -222,7 +222,7 @@
                             {% for item in po_items %}
                             {% with pp_unidad=item.product|get_unidad_empaque:po.provider %}
                             <tr data-item-id="{{ item.id }}"{% if pp_unidad > 1 %} class="table-warning"{% endif %}>
-                                <td><small>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</small></td>
+                                <td><small>{{ item.product.compose_name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</small></td>
                                 <td class="text-center modal-qty">-</td>
                                 <td class="text-end modal-cost">-</td>
                                 <td class="text-end"><span class="modal-line-total">$0.00</span></td>
@@ -283,7 +283,7 @@
                             {% for item in po_items %}
                             {% with pp_unidad=item.product|get_unidad_empaque:po.provider %}
                             <tr data-item-id="{{ item.id }}"{% if pp_unidad > 1 %} class="table-warning"{% endif %}>
-                                <td><small>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</small></td>
+                                <td><small>{{ item.product.compose_name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</small></td>
                                 <td class="text-center modal-qty">-</td>
                                 <td class="text-end modal-cost">-</td>
                                 <td class="text-end"><span class="modal-line-total">$0.00</span></td>

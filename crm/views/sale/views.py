@@ -152,12 +152,12 @@ def saleGetData(request):
             return JsonResponse({'error':'No valid product found'},status=404)
 
         if sale.tipo=='menudeo':
-            name = [product.id,product.name,product.priceLista]
+            name = [product.id,product.compose_name,product.priceLista]
             print("menudeo")
             print(sale.id)
             print(product.brand)
         elif sale.tipo=='mayoreo' :
-            name = [product.id,product.name,product.priceMayoreo]
+            name = [product.id,product.compose_name,product.priceMayoreo]
             print("mayoreo")
             print(sale.id)
             print(product.brand)
@@ -283,7 +283,7 @@ def sale_ticket_json(request, pk):
     items_data = []
     for i in items:
         items_data.append({
-            "name": i.product.name if i.product else "Deleted Product",
+            "name": i.product.compose_name if i.product else "Deleted Product",
             "price": float(i.price),
             "quantity": float(i.quantity),
             "item_total": float(i.price) * float(i.quantity),

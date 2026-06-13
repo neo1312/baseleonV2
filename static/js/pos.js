@@ -131,7 +131,7 @@ function searchProducts(query) {
                 if (p.Granel_Item) row.classList.add('row-granel');
                 row.innerHTML = `
                     <td class="barcode">${p.barcode}</td>
-                    <td class="name">${p.name}${p.Granel_Item ? ' <span class="badge-granel">GRANEL</span>' : ''}</td>
+                    <td class="name">${p.compose_name || p.name}${p.Granel_Item ? ' <span class="badge-granel">GRANEL</span>' : ''}</td>
                     <td class="brand">${p.brand || ''}</td>
                     <td class="stock">${p.stock}</td>
                     <td class="price-regular">$${parseFloat(p.price).toFixed(2)}</td>

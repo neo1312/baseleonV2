@@ -15,7 +15,7 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(f'✓ Client: {client.name}')
-        self.stdout.write(f'✓ Product: {product.name} (Stock: {product.stock_ready_to_sale})\n')
+        self.stdout.write(f'✓ Product: {product.compose_name} (Stock: {product.stock_ready_to_sale})\n')
 
         # Create a test sale
         sale = Sale.objects.create(client=client, tipo='menudeo', monedero=False)

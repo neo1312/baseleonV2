@@ -31,7 +31,7 @@
                                 {% for row in rows %}
                                 <tr>
                                     <td><code>{{ row.pv1 }}</code></td>
-                                    <td>{{ row.product.name }}</td>
+                                    <td>{{ row.product.compose_name }}</td>
                                     <td>{{ row.quantity }}</td>
                                     <td>${{ row.cost|floatformat:2 }}</td>
                                     <td class="iva-col unit-value-cell" style="display:none">${{ row.cost|div:1.16|floatformat:2 }}</td>

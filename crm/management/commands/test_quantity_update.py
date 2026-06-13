@@ -26,7 +26,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR('✗ Product "uno" not found'))
             return
 
-        self.stdout.write(f'✓ Product: {product.name}')
+        self.stdout.write(f'✓ Product: {product.compose_name}')
 
         # Create a new sale
         sale = Sale.objects.create(

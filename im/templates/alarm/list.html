@@ -70,7 +70,7 @@
                         <tr>
                             <td>
                                 {% if alarm.product %}
-                                <strong>{{ alarm.product.name }}</strong>
+                                <strong>{{ alarm.product.compose_name }}</strong>
                                 {% if alarm.product.clave %}
                                 <br><small class="text-muted">Clave: {{ alarm.product.clave }}</small>
                                 {% endif %}
@@ -116,7 +116,7 @@
                             <div class="modal-dialog">
                                 <div class="modal-content">
                                     <div class="modal-header bg-primary text-white">
-                                        <h5 class="modal-title">Adjust: {{ alarm.product.name }}</h5>
+                                        <h5 class="modal-title">Adjust: {{ alarm.product.compose_name }}</h5>
                                         <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
                                     </div>
                                     <div class="modal-body">
@@ -197,7 +197,7 @@
                                         {% csrf_token %}
                                         <div class="modal-body">
                                             <p>
-                                                <strong>{% if alarm.product %}{{ alarm.product.name }}{% else %}System Alarm{% endif %}</strong>
+                                                <strong>{% if alarm.product %}{{ alarm.product.compose_name }}{% else %}System Alarm{% endif %}</strong>
                                                 — {{ alarm.config.name }}
                                             </p>
                                             <div class="form-group">
@@ -253,7 +253,7 @@
                         <tr>
                             <td>
                                 {% if alarm.product %}
-                                <strong>{{ alarm.product.name }}</strong>
+                                <strong>{{ alarm.product.compose_name }}</strong>
                                 {% if alarm.product.clave %}
                                 <br><small class="text-muted">Clave: {{ alarm.product.clave }}</small>
                                 {% endif %}

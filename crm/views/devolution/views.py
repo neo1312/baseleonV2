@@ -248,7 +248,7 @@ def devolution_ticket_json(request, pk):
     items_data = []
     for i in items:
         items_data.append({
-            "name": i.product.name if i.product else "Deleted Product",
+            "name": i.product.compose_name if i.product else "Deleted Product",
             "price": float(i.precioUnitario),
             "quantity": float(i.quantity),
             "item_total": float(i.get_total),

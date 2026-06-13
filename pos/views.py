@@ -43,6 +43,7 @@ def pos_index(request):
             'barcode': p.barcode,
             'name': p.name,
             'brand': p.brand.name if p.brand else '',
+            'compose_name': p.compose_name,
             'price': float(p.priceLista),
             'price_mayoreo': float(p.priceMayoreo),
             'price_granel': float(granel_price) if granel_price else None,
@@ -100,6 +101,7 @@ def search_products(request):
                 'barcode': p.barcode,
                 'name': p.name,
                 'brand': p.brand.name if p.brand else '',
+                'compose_name': p.compose_name,
                 'price': float(p.priceLista),
                 'price_mayoreo': float(p.priceMayoreo),
                 'price_granel': float(granel_price) if granel_price else None,
@@ -128,6 +130,7 @@ def debug_stock(request):
                     'id': p.id,
                     'name': p.name,
                     'barcode': p.barcode,
+                    'compose_name': p.compose_name,
                     'stock_ready_to_sale': available_stock,
                     'priceLista': float(p.priceLista),
                     'priceMayoreo': float(p.priceMayoreo),
@@ -154,6 +157,7 @@ def get_product_stock(request):
             return JsonResponse({
                 'id': product.id,
                 'name': product.name,
+                'compose_name': product.compose_name,
                 'stock': available_stock,
                 'success': True,
             })
@@ -183,6 +187,7 @@ def validate_stock(request):
                     validation_results.append({
                         'product_id': product_id,
                         'product_name': product.name,
+                        'compose_name': product.compose_name,
                         'requested': requested_qty,
                         'available': available,  # NOW CORRECT - from InventoryUnit
                         'valid': is_valid,
@@ -229,6 +234,7 @@ def get_product(request):
                 'id': product.id,
                 'barcode': product.barcode,
                 'name': product.name,
+                'compose_name': product.compose_name,
                 'price': float(price),
                 'price_granel': float(granel_price) if granel_price else None,
                 'stock': product.stock_ready_to_sale,
@@ -300,7 +306,7 @@ def complete_sale(request):
                 
                 # Validate stock (InventoryUnit ready_to_sale)
                 if product.stock_ready_to_sale < quantity:
-                    raise ValueError(f"Insufficient stock for {product.name}")
+                    raise ValueError(f"Insufficient stock for {product.compose_name}")
                 
                 # Create sale item
                 sale_item = saleItem.objects.create(

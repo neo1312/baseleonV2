@@ -60,6 +60,7 @@ def search_products(request):
                 'barcode': p.barcode,
                 'name': p.name,
                 'brand': p.brand.name if p.brand else '',
+                'compose_name': p.compose_name,
                 'category': p.category.name if p.category else '',
                 'price': float(p.priceLista),
                 'price_mayoreo': float(p.priceMayoreo),

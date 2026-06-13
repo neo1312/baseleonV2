@@ -140,7 +140,7 @@ def counter_view(request):
     if products.exists():
         random_product = random.choice(products)
         product_id=random_product.id
-        product_name=random_product.name
+        product_name=random_product.compose_name
         product_barcode=random_product.barcode
         product_stock=random_product.stock_ready_to_sale
         product_costo=random_product.costo

@@ -28,7 +28,7 @@
                 {% for item in items %}
                 <tr>
                     <td>
-                        <strong>{{ item.product.name }}</strong>{% if item.product.brand %} <span class="text-muted">—</span> {{ item.product.brand.name }}{% endif %}
+                        <strong>{{ item.product.compose_name }}</strong>
                         {% if item.product.barcode %}
                             <br><code class="small">{{ item.product.barcode }}</code>
                         {% endif %}

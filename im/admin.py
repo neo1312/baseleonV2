@@ -95,7 +95,7 @@ class ProductProviderInline(admin.TabularInline):
 
 class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
     search_fields=['name','category__name','brand__name','id','barcode','clave']
-    list_display=('id','clave','barcode','name','brand','display_group','get_stock_ready_to_sale','get_abc_classification','costo','priceLista','priceMayoreo','active','sat','Granel_Item')
+    list_display=('id','clave','barcode','display_compose_name','brand','display_group','get_stock_ready_to_sale','get_abc_classification','costo','priceLista','priceMayoreo','active','sat','Granel_Item')
     list_filter=('active', ProviderFilter, 'brand', 'category', 'group', ABCClassificationFilter)
     resocurce_class = productResource
     ordering=('id','last_updated')
@@ -168,6 +168,10 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         return obj.stock_ready_to_sale
     display_stock.short_description = 'Stock'
 
+    @admin.display(description='Name')
+    def display_compose_name(self, obj):
+        return obj.compose_name
+
     def display_group(self, obj):
         """Show group badge if product belongs to a group"""
         if obj.group:
@@ -203,7 +207,7 @@ class productAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         sale_items = saleItem.objects.filter(product=obj).count()
         dev_items = devolutionItem.objects.filter(product=obj).count()
         
-        info = f"Product '{obj.name}' deleted. "
+        info = f"Product '{obj.compose_name}' deleted. "
         orphans = []
         if po_items:
             orphans.append(f"{po_items} PO items")

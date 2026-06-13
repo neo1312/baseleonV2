@@ -56,7 +56,7 @@ def alarm_skip(request, alarm_id):
     alarm.resolved_at = timezone.now()
     alarm.resolved_by = str(request.user)
     alarm.save()
-    product_name = alarm.product.name if alarm.product else 'System'
+    product_name = alarm.product.compose_name if alarm.product else 'System'
     messages.success(request, f'Alarm skipped for {product_name}')
     return redirect('im:alarm_list')
 
@@ -114,7 +114,7 @@ def alarm_adjust(request, alarm_id):
             alarm.resolved_at = timezone.now()
             alarm.resolved_by = str(request.user)
             alarm.save()
-            messages.success(request, f'{product.name} margin updated to {new_margin}%')
+            messages.success(request, f'{product.compose_name} margin updated to {new_margin}%')
         except (ValueError, TypeError):
             messages.error(request, 'Invalid margin value')
 
@@ -130,7 +130,7 @@ def alarm_adjust(request, alarm_id):
             alarm.resolved_at = timezone.now()
             alarm.resolved_by = str(request.user)
             alarm.save()
-            messages.success(request, f'{product.name} price set to ${new_price:.2f}')
+            messages.success(request, f'{product.compose_name} price set to ${new_price:.2f}')
         except (ValueError, TypeError, DecimalException):
             messages.error(request, 'Invalid price value')
 
@@ -142,7 +142,7 @@ def alarm_adjust(request, alarm_id):
         alarm.resolved_by = str(request.user)
         alarm.notes = 'Marked as promotion'
         alarm.save()
-        messages.success(request, f'{product.name} marked as on promotion — alarm suppressed')
+        messages.success(request, f'{product.compose_name} marked as on promotion — alarm suppressed')
 
     else:
         messages.error(request, 'Invalid action')

@@ -165,7 +165,7 @@ def group_product_search(request):
 
     results = []
     for p in products:
-        label = p.name
+        label = p.compose_name
         bits = []
         if p.clave:
             bits.append(f'Clave: {p.clave}')
@@ -178,6 +178,7 @@ def group_product_search(request):
             'id': p.id,
             'text': label,
             'name': p.name,
+            'compose_name': p.compose_name,
             'clave': p.clave or '',
             'barcode': p.barcode or '',
         })
@@ -227,5 +228,5 @@ def group_remove_product(request, pk, product_id):
     product.group = None
     product.save()
 
-    messages.success(request, f'"{product.name}" removed from group "{group.name}".')
+    messages.success(request, f'"{product.compose_name}" removed from group "{group.name}".')
     return redirect('im:groupEdit', pk=pk)

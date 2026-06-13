@@ -41,7 +41,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <strong>{{ item.product.name }}</strong>{% if item.product.brand %} <span class="text-muted">—</span> {{ item.product.brand.name }}{% endif %}
+                            <strong>{{ item.product.compose_name }}</strong>
                             {% if item.product.descripcion %}
                                 <br><small class="text-muted">{{ item.product.descripcion|truncatewords:10 }}</small>
                             {% endif %}

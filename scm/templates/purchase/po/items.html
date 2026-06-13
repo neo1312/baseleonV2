@@ -70,7 +70,7 @@
                                                    onchange="window.calculateRowTotal(this)"
                                                    oninput="window.calculateRowTotal(this)">
                                         </td>
-                                        <td>{{ item.product.name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</td>
+                                        <td>{{ item.product.compose_name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</td>
                                         <td>
                                         <input type="number" name="cost" class="form-control form-control-sm cost-input" 
                                                 value="{{ item.cost_per_unit }}" min="0" step="0.01"

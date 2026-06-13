@@ -80,6 +80,7 @@ def po_select_provider(request):
                 items.append({
                     'id': p.id,
                     'name': p.name,
+                    'compose_name': p.compose_name,
                     'sku': p.get_pv1(provider),
                     'barcode': p.barcode,
                     'available_stock': p.stock_ready_to_sale,
@@ -201,6 +202,7 @@ def po_search_product(request):
             'barcode': p.barcode,
             'pv1': pp.pv1 if pp else '',
             'name': p.name,
+            'compose_name': p.compose_name,
             'cost': float(p.get_provider_cost(provider_id)),
             'unidad_empaque': int(p.get_unidad_empaque(provider_id) or 1),
         })
@@ -779,7 +781,7 @@ def po_instant_lookup_pv1(request):
             return JsonResponse({
                 'success': True,
                 'product_id': product.id,
-                'product_name': product.name,
+                'product_name': product.compose_name,
                 'pv1': product_provider.pv1,
                 'cost': cost,
                 'unit': product.unidad,

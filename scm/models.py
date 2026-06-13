@@ -229,7 +229,7 @@ class PurchaseOrderItem(models.Model):
         ordering = ['product_id']
     
     def __str__(self):
-        return f"{self.purchase_order.po_number} - {self.product.name}"
+        return f"{self.purchase_order.po_number} - {self.product.compose_name}"
     
     def save(self, *args, **kwargs):
         # Calculate totals

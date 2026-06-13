@@ -185,7 +185,7 @@ def my_reports_data(request):
 
         data['product'] = {
             'id': product.id,
-            'name': product.name,
+            'name': product.compose_name,
             'barcode': product.barcode,
             'stock': product.stock_ready_to_sale,
             'abc': abc.abc_classification if abc else 'N/A',

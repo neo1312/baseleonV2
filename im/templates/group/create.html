@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         inlineProducts.push({
             id: data.id,
-            name: data.name || data.text,
+            name: data.compose_name || data.name || data.text,
             clave: data.clave || '',
             barcode: data.barcode || ''
         });

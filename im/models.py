@@ -139,8 +139,13 @@ class Product(models.Model):
     def unidad_verbose(self):
         return self.get_unidad_display()
 
+    @property
+    def compose_name(self):
+        brand_name = self.brand.name if self.brand else ''
+        return f"{self.name} — {brand_name}" if brand_name else self.name
+
     def __str__(self):
-        return '{}'.format(self.name)
+        return self.compose_name
 
 
 
@@ -547,7 +552,7 @@ class InventoryUnit(models.Model):
     last_updated = models.DateTimeField(blank=True, null=True)
     
     def __str__(self):
-        return f'{self.tracking_id} - {self.product.name} ({self.status})'
+        return f'{self.tracking_id} - {self.product.compose_name} ({self.status})'
     
     def save(self, *args, **kwargs):
         if self.date_created is None:
@@ -658,7 +663,7 @@ class ProductABCMetrics(models.Model):
     last_updated = models.DateTimeField(blank=True, null=True)
     
     def __str__(self):
-        return f'{self.product.name} - {self.abc_classification}'
+        return f'{self.product.compose_name} - {self.abc_classification}'
     
     def save(self, *args, **kwargs):
         if self.date_created is None:
@@ -832,7 +837,7 @@ class DemandForecast(models.Model):
     last_updated = models.DateTimeField(blank=True, null=True)
     
     def __str__(self):
-        return f'{self.product.name} - Daily: {self.forecast_daily}, Confidence: {self.confidence_level}%'
+        return f'{self.product.compose_name} - Daily: {self.forecast_daily}, Confidence: {self.confidence_level}%'
     
     def save(self, *args, **kwargs):
         if self.date_created is None:
@@ -890,7 +895,7 @@ class ProductProvider(models.Model):
         return round(Decimal(str(Decimal(str(self.bundle_price)) / Decimal(str(ue)))), 2)
     
     def __str__(self):
-        return f'{self.product.name} - {self.provider.name}: {self.pv1}'
+        return f'{self.product.compose_name} - {self.provider.name}: {self.pv1}'
     
     def save(self, *args, **kwargs):
         if self.date_created is None:
@@ -1082,7 +1087,7 @@ class AuditItem(models.Model):
         ordering = ['product__name']
     
     def __str__(self):
-        return f"{self.product.name if self.product else 'Unknown'} - Discrepancy: {self.discrepancy}"
+        return f"{self.product.compose_name if self.product else 'Unknown'} - Discrepancy: {self.discrepancy}"
     
     def save(self, *args, **kwargs):
         # Auto-calculate discrepancy
@@ -1125,7 +1130,7 @@ class AdjustmentTransaction(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"Adjustment: {self.product.name if self.product else 'Unknown'} ({self.quantity_adjusted:+d} units)"
+        return f"Adjustment: {self.product.compose_name if self.product else 'Unknown'} ({self.quantity_adjusted:+d} units)"
     
     def save(self, *args, **kwargs):
         # Calculate total value
@@ -1157,7 +1162,7 @@ class DespieceConfig(models.Model):
     )
 
     def __str__(self):
-        return f'{self.source_product.name} → {self.destination_product.name} ({self.units_per_source} c/u)'
+        return f'{self.source_product.compose_name} → {self.destination_product.compose_name} ({self.units_per_source} c/u)'
 
     def save(self, *args, **kwargs):
         from decimal import Decimal, ROUND_HALF_UP
@@ -1210,7 +1215,7 @@ class DespieceLog(models.Model):
     date_created = models.DateTimeField(auto_now_add=True, verbose_name='Fecha')
 
     def __str__(self):
-        return f'{self.source_quantity} {self.config.source_product.name} → {self.destination_quantity} {self.config.destination_product.name}'
+        return f'{self.source_quantity} {self.config.source_product.compose_name} → {self.destination_quantity} {self.config.destination_product.compose_name}'
 
     class Meta:
         verbose_name = 'Registro de Despiece'
@@ -1256,7 +1261,7 @@ class Alarm(models.Model):
     notes = models.TextField(null=True, blank=True, verbose_name='Notas')
 
     def __str__(self):
-        return f'{self.product.name} - {self.config.name}: {self.current_value}%'
+        return f'{self.product.compose_name} - {self.config.name}: {self.current_value}%'
 
     class Meta:
         verbose_name = 'Alarma'

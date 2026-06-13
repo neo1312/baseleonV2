@@ -106,12 +106,12 @@
                                 <tr>
                                     <td><code>{{ p.barcode }}</code></td>
                                     <td>{% if p.clave %}<code>{{ p.clave }}</code>{% else %}<span class="text-muted">—</span>{% endif %}</td>
-                                    <td>{{ p.name }}</td>
+                                    <td>{{ p.compose_name }}</td>
                                     <td>{{ p.stock_ready_to_sale }}</td>
                                     <td>
                                         <form method="post" action="{% url 'im:groupRemoveProduct' group.id p.id %}" style="display:inline;">
                                             {% csrf_token %}
-                                            <button type="submit" class="btn btn-danger btn-xs" onclick="return confirm('Remove {{ p.name|escapejs }} from this group?')">
+                                            <button type="submit" class="btn btn-danger btn-xs" onclick="return confirm('Remove {{ p.compose_name|escapejs }} from this group?')">
                                                 <i class="fas fa-times"></i> Remove
                                             </button>
                                         </form>
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         inlineProducts.push({
             id: data.id,
-            name: data.name || data.text,
+            name: data.compose_name || data.name || data.text,
             clave: data.clave || '',
             barcode: data.barcode || ''
         });

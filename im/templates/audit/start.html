@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         bulkProducts.push({
             id: data.id,
-            name: data.name || data.text,
+            name: data.compose_name || data.name || data.text,
             clave: data.clave || '',
             barcode: data.barcode || '',
             system_count: data.system_count !== undefined ? data.system_count : 0,
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var tr = document.createElement('tr');
 
                 var nameTd = document.createElement('td');
-                nameTd.innerHTML = '<strong>' + p.name + '</strong>' + (p.brand ? ' <span class="text-muted">\u2014</span> ' + p.brand : '');
+                nameTd.innerHTML = '<strong>' + (p.compose_name || p.name) + '</strong>';
 
                 var idTd = document.createElement('td');
                 var idText = '';

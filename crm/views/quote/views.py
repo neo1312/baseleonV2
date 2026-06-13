@@ -185,7 +185,7 @@ def quoteItemView(request):
         # Check if stock is low and add warning
         warning = None
         if float(quantity) > stockActual:
-            warning = f"Low stock warning: {product.name} only has {stockActual} units, but {quantity} were requested"
+            warning = f"Low stock warning: {product.compose_name} only has {stockActual} units, but {quantity} were requested"
         
         itemsquote=quote.quoteitem_set.all()
         outputlist=list(filter(lambda x:x.product.id==pk,itemsquote))
@@ -288,7 +288,7 @@ def quote_ticket_json(request, pk):
     items_data = []
     for i in items:
         items_data.append({
-            "name": i.product.name if i.product else "Deleted Product",
+            "name": i.product.compose_name if i.product else "Deleted Product",
             "price": float(i.precioUnitario),
             "quantity": float(i.quantity),
             "item_total": float(i.get_total),
@@ -317,7 +317,7 @@ def quoteToSale(request, quote_id):
     for quote_item in quote_items:
         if quote_item.product.stock_ready_to_sale < float(quote_item.quantity):
             insufficient_stock.append({
-                'product': quote_item.product.name,
+                'product': quote_item.product.compose_name,
                 'requested': quote_item.quantity,
                 'available': quote_item.product.stock_ready_to_sale
             })
@@ -363,7 +363,7 @@ def quoteCheckStock(request, quote_id):
     for quote_item in quote_items:
         if quote_item.product.stock_ready_to_sale < float(quote_item.quantity):
             insufficient_stock.append({
-                'product': quote_item.product.name,
+                'product': quote_item.product.compose_name,
                 'requested': float(quote_item.quantity),
                 'available': float(quote_item.product.stock_ready_to_sale)
             })

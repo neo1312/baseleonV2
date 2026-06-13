@@ -469,7 +469,7 @@
   {% for item in counted_items %}
   countedList.push({
     id: {{ item.product.id }},
-    name: '{{ item.product.name|escapejs }}',
+    name: '{{ item.product.compose_name|escapejs }}',
     brand: '{{ item.product.brand.name|default:""|escapejs }}',
     physical_count: {{ item.physical_count }},
   });
@@ -532,7 +532,7 @@
   }
 
   function showProduct(data) {
-    resultName.textContent = data.product.name;
+    resultName.textContent = data.product.compose_name || data.product.name || '';
     resultBrand.textContent = data.product.brand || '';
     resultSystem.textContent = data.product.system_count;
 

@@ -31,10 +31,10 @@ class Command(BaseCommand):
                         
                         if is_new:
                             created += 1
-                            self.stdout.write(f"✓ Created: {product.name} (ID: {product.id})")
+                            self.stdout.write(f"✓ Created: {product.compose_name} (ID: {product.id})")
                         else:
                             updated += 1
-                            self.stdout.write(f"↻ Updated: {product.name} (ID: {product.id})")
+                            self.stdout.write(f"↻ Updated: {product.compose_name} (ID: {product.id})")
                             
                     except Exception as e:
                         errors += 1

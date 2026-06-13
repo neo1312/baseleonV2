@@ -44,7 +44,7 @@ def audit_product_search(request):
 
     results = []
     for p in products:
-        label = p.name
+        label = p.compose_name
         bits = []
         if p.clave:
             bits.append(f'Clave: {p.clave}')
@@ -57,6 +57,7 @@ def audit_product_search(request):
             'id': p.id,
             'text': label,
             'name': p.name,
+            'compose_name': p.compose_name,
             'clave': p.clave or '',
             'barcode': p.barcode or '',
             'brand': p.brand.name if p.brand else '',
@@ -304,7 +305,7 @@ def audit_enter_counts(request, audit_id):
                     item.physical_count = int(physical_count)
                     item.save()
                 except (ValueError, TypeError):
-                    messages.error(request, f'Invalid count for {item.product.name}')
+                    messages.error(request, f'Invalid count for {item.product.compose_name}')
                     return redirect('im:audit_enter_counts', audit_id=audit_id)
         
         messages.success(request, 'Counts entered. Proceed to review discrepancies.')

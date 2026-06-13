@@ -67,7 +67,7 @@
                             <input type="checkbox" name="product_ids" value="{{ product.id }}" class="form-check-input product-checkbox">
                         </td>
                         <td>
-                            <strong>{{ product.name }}</strong>{% if product.brand %} <span class="text-muted">—</span> {{ product.brand.name }}{% endif %}
+                            <strong>{{ product.compose_name }}</strong>
                         </td>
                         <td>
                             {% if product.clave %}
@@ -111,7 +111,7 @@
                     <div class="d-flex align-items-start gap-2">
                         <input type="checkbox" name="product_ids" value="{{ product.id }}" class="form-check-input product-checkbox mt-1" style="margin-top: 0.35rem;">
                         <div class="flex-grow-1 min-w-0">
-                            <strong class="d-block text-break">{{ product.name }}</strong>{% if product.brand %} <span class="text-muted">—</span> {{ product.brand.name }}{% endif %}
+                            <strong class="d-block text-break">{{ product.compose_name }}</strong>
                             <div class="small text-muted mt-1">
                                 {% if product.clave %}<span class="badge bg-light text-dark">Clave: {{ product.clave }}</span>{% endif %}
                                 {% if product.barcode %}<span class="badge bg-light text-dark">{{ product.barcode }}</span>{% endif %}
@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         inlineProducts.push({
             id: data.id,
-            name: data.name || data.text,
+            name: data.compose_name || data.name || data.text,
             clave: data.clave || '',
             barcode: data.barcode || ''
         });
@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 tag.style.cssText = 'background: #e8f0fe; color: #1967d2; font-size: 0.85rem; border: 1px solid #c6dafc;';
 
                 var label = document.createElement('span');
-                label.textContent = p.name;
+                label.textContent = p.compose_name || p.name;
                 if (p.clave) label.textContent += ' (' + p.clave + ')';
                 else if (p.barcode) label.textContent += ' (' + p.barcode + ')';
 

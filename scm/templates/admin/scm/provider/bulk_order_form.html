@@ -151,7 +151,7 @@
                     {% for product in products %}
                     <tr>
                         <td>{{ product.id }}</td>
-                        <td>{{ product.name }}</td>
+                        <td>{{ product.compose_name }}</td>
                         <td>{{ product.category.name|default:"N/A" }}</td>
                         <td class="unit-cost" data-cost="{{ product.costo }}">${{ product.costo }}</td>
                         <td>
