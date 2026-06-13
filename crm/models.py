@@ -745,7 +745,11 @@ class ClientTierStatus(models.Model):
 class CajaConfig(models.Model):
     cutoff_time = models.TimeField(
         default=timezone.datetime.strptime('17:30', '%H:%M').time(),
-        verbose_name='Cutoff Time'
+        verbose_name='Cutoff Lunes-Viernes'
+    )
+    cutoff_time_saturday = models.TimeField(
+        default=timezone.datetime.strptime('15:00', '%H:%M').time(),
+        verbose_name='Cutoff Sábado'
     )
 
     class Meta:

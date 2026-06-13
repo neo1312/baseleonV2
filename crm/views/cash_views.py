@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.utils import timezone
 
-from crm.models import CashRegisterSession, CashCount, CajaConfig
+from crm.models import CashRegisterSession, CashCount, CajaConfig, Sale
 from crm.decorators import role_required
 
 
@@ -54,14 +54,47 @@ def session_detail(request):
     expected_check = session.expected_check_total()
     total_expected = expected_cash + expected_card + expected_check
 
-    if request.method == 'POST':
-        cutoff_config = CajaConfig.get()
-        cutoff = cutoff_config.cutoff_time
-        now = timezone.localtime(timezone.now())
+    cutoff_config = CajaConfig.get()
+    now = timezone.localtime(timezone.now())
+    weekday = now.weekday()  # Lun=0, Dom=6
 
-        effective_date = now.date()
-        if now.time() > cutoff:
+    # Determine cutoff and next day label
+    if weekday == 5:  # Sábado
+        cutoff_today = cutoff_config.cutoff_time_saturday
+        next_day_label = 'Lunes'
+    elif weekday == 6:  # Domingo
+        cutoff_today = None
+        next_day_label = 'Lunes'
+    else:
+        cutoff_today = cutoff_config.cutoff_time
+        next_day_label = 'mañana'
+
+    # Find sales made after today's cutoff (they belong to next session)
+    post_cutoff_sales = []
+    post_cutoff_total = Decimal('0')
+    if cutoff_today and now.time() > cutoff_today:
+        cutoff_dt = now.replace(hour=cutoff_today.hour, minute=cutoff_today.minute, second=0, microsecond=0)
+        post_cutoff_sales = list(Sale.objects.filter(
+            date_created__gte=cutoff_dt,
+            date_created__lt=now,
+            status='completed',
+        ))
+        if post_cutoff_sales:
+            post_cutoff_total = sum(s.total_amount for s in post_cutoff_sales)
+
+    if request.method == 'POST':
+        if weekday == 6:  # Domingo → todo a lunes
             effective_date = now.date() + timedelta(days=1)
+        elif weekday == 5:  # Sábado
+            if now.time() > cutoff_config.cutoff_time_saturday:
+                effective_date = now.date() + timedelta(days=2)
+            else:
+                effective_date = now.date()
+        else:  # Lunes-Viernes
+            if now.time() > cutoff_config.cutoff_time:
+                effective_date = now.date() + timedelta(days=1)
+            else:
+                effective_date = now.date()
 
         session.closed_at = now
         session.status = 'closed'
@@ -104,5 +137,10 @@ def session_detail(request):
         'expected_check': float(expected_check),
         'total_expected': float(total_expected),
         'DENOMINATIONS': CashCount.DENOMINATIONS,
+        'post_cutoff_sales': post_cutoff_sales,
+        'post_cutoff_total': float(post_cutoff_total),
+        'post_cutoff_count': len(post_cutoff_sales),
+        'next_day_label': next_day_label,
+        'cutoff_today': cutoff_today,
     }
     return render(request, 'crm/cash_register/session_detail.html', context)
