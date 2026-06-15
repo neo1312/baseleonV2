@@ -160,7 +160,7 @@ def my_reports_data(request):
 
         # Stock and sales since last purchase
         stock_before_purchase = 0
-        stock_after_purchase = 0
+        stock_at_purchase = 0
         sold_since_purchase = 0
         last_purchase_date_display = 'N/A'
         purchase_date = None
@@ -191,7 +191,7 @@ def my_reports_data(request):
         # Therefore: stock_before = current_stock + sold_since - last_purchase_qty - adjustments
         if purchase_date and last_purchase:
             stock_before_purchase = product.stock_ready_to_sale + sold_since_purchase - last_purchase.ordered_quantity - audit_adjustments
-            stock_after_purchase = stock_before_purchase + last_purchase.ordered_quantity
+            stock_at_purchase = stock_before_purchase + last_purchase.ordered_quantity
 
         # Sale trend (last 30 days sales qty)
         sale_trend_data = (
@@ -228,7 +228,7 @@ def my_reports_data(request):
             'last_purchase_qty': last_purchase.ordered_quantity if last_purchase else 0,
             'last_sale_date': last_sale.date_created.strftime('%Y-%m-%d %H:%M') if last_sale and last_sale.date_created else 'N/A',
             'last_sale_qty': int(last_sale.quantity) if last_sale else 0,
-            'stock_after_purchase': stock_after_purchase,
+            'stock_at_purchase': stock_at_purchase,
             'stock_before_purchase': stock_before_purchase,
             'sold_since_purchase': sold_since_purchase,
             'last_purchase_date_full': last_purchase_date_display,
