@@ -84,6 +84,7 @@
                     <th>Fecha</th>
                     <th>Tipo</th>
                     <th>Nombre</th>
+                    <th>Proveedor</th>
                     <th>Estado</th>
                     <th class="d-none d-lg-table-cell">Auditor</th>
                     <th class="text-center">Productos</th>
@@ -99,6 +100,7 @@
                     <td>{{ audit.audit_date|date:"d/m/y" }}</td>
                     <td><span class="badge bg-info">{{ audit.get_audit_type_display }}</span></td>
                     <td class="small">{% if audit.title %}{{ audit.title }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                    <td class="small">{% if audit.provider %}{{ audit.provider.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
                     <td>
                         {% if audit.status == 'draft' %}
                             <span class="badge bg-secondary">Borrador</span>
@@ -132,7 +134,7 @@
                                     <i class="fas fa-arrow-right"></i>
                                 </a>
                             {% endif %}
-                            {% if audit.audit_type == 'physical' and audit.status != 'completed' %}
+                            {% if audit.audit_type == 'physical' and audit.status != 'completed' or audit.audit_type == 'provider' and audit.status != 'completed' %}
                                 <a href="{% url 'im:audit_scan' audit.id %}" class="btn btn-outline-info" title="Escanear">
                                     <i class="fas fa-camera"></i>
                                 </a>
@@ -175,6 +177,9 @@
                 </div>
                 {% if audit.title %}
                 <div class="small text-muted mb-2">{{ audit.title }}</div>
+                {% endif %}
+                {% if audit.provider %}
+                <div class="small mb-2"><strong>Proveedor:</strong> {{ audit.provider.name }}</div>
                 {% endif %}
                 
                 <div class="row g-2 mb-3 small">
@@ -230,7 +235,7 @@
                             <i class="fas fa-arrow-right"></i>
                         </a>
                     {% endif %}
-                    {% if audit.audit_type == 'physical' and audit.status != 'completed' %}
+                    {% if audit.audit_type == 'physical' and audit.status != 'completed' or audit.audit_type == 'provider' and audit.status != 'completed' %}
                         <a href="{% url 'im:audit_scan' audit.id %}" class="btn btn-sm btn-outline-info">
                             <i class="fas fa-camera"></i>
                         </a>

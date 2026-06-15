@@ -38,6 +38,7 @@
                                 <strong>Por Categoría:</strong> Contar por categoría<br>
                                 <strong>Manual:</strong> Seleccionar productos específicos<br>
                                 <strong>Físico (Escáner):</strong> Inventario general usando cámara del teléfono para escanear códigos de barras<br>
+                                <strong>Por Proveedor (Escáner):</strong> Inventario por proveedor usando cámara para escanear códigos de barras<br>
                                 <strong>Bulk:</strong> Agregar productos manualmente con conteo físico, nota global y causa
                             </small>
                         </div>
@@ -47,6 +48,24 @@
                             <input type="text" class="form-control" id="title" name="title" 
                                    placeholder="Ej: Primer Semestre 2026">
                             <small class="form-text text-muted">Pon un nombre para identificar este inventario físico</small>
+                        </div>
+
+                        <div class="mb-3" id="provider_group" style="display:none;">
+                            <label for="provider_id" class="form-label">Proveedor <span class="text-danger">*</span></label>
+                            <select class="form-select" id="provider_id" name="provider_id">
+                                <option value="">-- Selecciona Proveedor --</option>
+                                {% for p in providers %}
+                                    <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Selecciona el proveedor para auditar sus productos</small>
+                        </div>
+
+                        <div class="mb-3" id="provider_title_group" style="display:none;">
+                            <label for="provider_title" class="form-label">Nombre del Inventario <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="provider_title" name="title" 
+                                   placeholder="Ej: Inventario Proveedor X Marzo 2026">
+                            <small class="form-text text-muted">Pon un nombre para identificar este inventario por proveedor</small>
                         </div>
 
                         <div class="mb-3">
@@ -173,6 +192,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var bulkSection = document.getElementById('bulk_section');
     var standardNotesGroup = document.getElementById('standard_notes_group');
     var physicalTitleGroup = document.getElementById('physical_title_group');
+    var providerGroup = document.getElementById('provider_group');
+    var providerTitleGroup = document.getElementById('provider_title_group');
     var submitBtn = document.getElementById('submit_btn');
     var submitText = document.getElementById('submit_text');
 
@@ -185,20 +206,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function toggleBulkMode() {
         var val = auditTypeSelect.value;
+        bulkSection.style.display = 'none';
+        standardNotesGroup.style.display = 'none';
+        physicalTitleGroup.style.display = 'none';
+        providerGroup.style.display = 'none';
+        providerTitleGroup.style.display = 'none';
+
         if (val === 'bulk') {
             bulkSection.style.display = 'block';
-            standardNotesGroup.style.display = 'none';
-            physicalTitleGroup.style.display = 'none';
             submitText.textContent = 'Crear Auditoría Masiva';
         } else if (val === 'physical') {
-            bulkSection.style.display = 'none';
-            standardNotesGroup.style.display = 'none';
             physicalTitleGroup.style.display = 'block';
             submitText.textContent = 'Iniciar Inventario Físico';
+        } else if (val === 'provider') {
+            providerGroup.style.display = 'block';
+            providerTitleGroup.style.display = 'block';
+            submitText.textContent = 'Iniciar Inventario por Proveedor';
         } else {
-            bulkSection.style.display = 'none';
             standardNotesGroup.style.display = 'block';
-            physicalTitleGroup.style.display = 'none';
             submitText.textContent = 'Iniciar Auditoría';
         }
     }

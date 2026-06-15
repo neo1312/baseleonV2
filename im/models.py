@@ -966,6 +966,7 @@ class InventoryAudit(models.Model):
         ('manual', 'Manual Selection'),
         ('bulk', 'Bulk Audit'),
         ('physical', 'Physical Inventory (Scan)'),
+        ('provider', 'Por Proveedor (Escáner)'),
     ]
     
     id = models.AutoField(primary_key=True)
@@ -995,6 +996,12 @@ class InventoryAudit(models.Model):
     collaborators = models.ManyToManyField(
         settings.AUTH_USER_MODEL, blank=True,
         verbose_name='Collaborators'
+    )
+    
+    # Provider (only used for 'provider' audit type)
+    provider = models.ForeignKey(
+        'scm.Provider', on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name='Proveedor'
     )
     
     class Meta:

@@ -13,6 +13,7 @@ from decimal import Decimal
 import random
 
 from im.models import InventoryAudit, AuditItem, AdjustmentTransaction, Product, InventoryUnit
+from scm.models import Provider
 from django.db.models import Count, Q, Sum, Avg, F, Value
 from django.db.models import DecimalField
 from crm.decorators import role_required
@@ -143,6 +144,27 @@ def audit_start(request):
             audit.save()
             return redirect('im:audit_scan', audit_id=audit.id)
 
+        if audit_type == 'provider':
+            title = request.POST.get('title', '').strip()
+            provider_id = request.POST.get('provider_id', '').strip()
+            if not title:
+                messages.error(request, 'Ingresa un nombre para el inventario por proveedor')
+                return redirect('im:audit_start')
+            if not provider_id:
+                messages.error(request, 'Selecciona un proveedor')
+                return redirect('im:audit_start')
+            provider = get_object_or_404(Provider, id=provider_id)
+            audit = InventoryAudit.objects.create(
+                audit_type='provider',
+                auditor=auditor,
+                title=title,
+                provider=provider,
+                status='in_progress'
+            )
+            audit.started_at = timezone.now()
+            audit.save()
+            return redirect('im:audit_scan', audit_id=audit.id)
+
         notes = request.POST.get('notes', '')
         audit = InventoryAudit.objects.create(
             audit_type=audit_type,
@@ -152,9 +174,11 @@ def audit_start(request):
         )
         return redirect('im:audit_select_products', audit_id=audit.id)
     
+    providers = Provider.objects.all().order_by('name')
     context = {
         'title': 'Start Inventory Audit',
         'audit_types': InventoryAudit.AUDIT_TYPE_CHOICES,
+        'providers': providers,
     }
     return render(request, 'audit/start.html', context)
 
