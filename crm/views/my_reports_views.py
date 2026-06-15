@@ -9,7 +9,7 @@ from django.db.models.functions import Cast, TruncDate, Coalesce
 from django.db.models import DecimalField, Value
 from crm.models import Sale, saleItem
 from scm.models import PurchaseOrder, PurchaseOrderItem
-from im.models import Product, ProductABCMetrics, InventoryUnit
+from im.models import Product, ProductABCMetrics, InventoryUnit, AdjustmentTransaction
 from crm.decorators import role_required
 
 
@@ -187,6 +187,16 @@ def my_reports_data(request):
                 sold_date__gte=purchase_date,
             ).count()
 
+        # Net audit adjustments since last purchase (positive = added, negative = removed)
+        audit_adjustments = 0
+        if purchase_date:
+            adj_result = AdjustmentTransaction.objects.filter(
+                product=product,
+                created_at__gte=purchase_date,
+                status='applied',
+            ).aggregate(total=Sum('quantity_adjusted'))
+            audit_adjustments = adj_result['total'] or 0
+
         # Sale trend (last 30 days sales qty)
         sale_trend_data = (
             saleItem.objects
@@ -225,6 +235,7 @@ def my_reports_data(request):
             'stock_at_purchase': stock_at_purchase,
             'sold_since_purchase': sold_since_purchase,
             'last_purchase_date_full': last_purchase_date_display,
+            'audit_adjustments': audit_adjustments,
             'trend_labels': trend_labels,
             'trend_qty': trend_qty,
         }

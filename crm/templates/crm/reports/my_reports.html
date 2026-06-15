@@ -126,6 +126,8 @@
                                     <tr><th>Last Purchase</th><td id="pLastPurchase"></td></tr>
                                     <tr><th>Stock at Last Purchase</th><td id="pStockAtPurchase"></td></tr>
                                     <tr><th>Sold Since Last Purchase</th><td id="pSoldSincePurchase"></td></tr>
+                                    <tr><th>Audit Adjustments</th><td id="pAuditAdjustments"></td></tr>
+                                    <tr><th>Formula Check</th><td id="pFormulaCheck"></td></tr>
                                     <tr><th>Last Sale</th><td id="pLastSale"></td></tr>
                                 </table>
                             </div>
@@ -263,6 +265,9 @@ function lookupProduct() {
             document.getElementById('pLastPurchase').textContent = p.last_purchase_date + ' (qty: ' + p.last_purchase_qty + ')';
             document.getElementById('pStockAtPurchase').textContent = p.stock_at_purchase;
             document.getElementById('pSoldSincePurchase').textContent = p.sold_since_purchase;
+            document.getElementById('pAuditAdjustments').textContent = (p.audit_adjustments >= 0 ? '+' : '') + p.audit_adjustments;
+            var expected = p.stock_at_purchase - p.sold_since_purchase + p.audit_adjustments;
+            document.getElementById('pFormulaCheck').textContent = expected + ' (actual stock: ' + p.stock + ') ' + (expected === p.stock ? '✓' : '✗');
             document.getElementById('pLastSale').textContent = p.last_sale_date + ' (qty: ' + p.last_sale_qty + ')';
             document.getElementById('productResult').style.display = 'block';
 
