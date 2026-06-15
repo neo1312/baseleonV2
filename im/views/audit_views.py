@@ -12,7 +12,7 @@ from django.core.paginator import Paginator
 from decimal import Decimal
 import random
 
-from im.models import InventoryAudit, AuditItem, AdjustmentTransaction, Product, InventoryUnit
+from im.models import InventoryAudit, AuditItem, AdjustmentTransaction, Product, InventoryUnit, ProductProvider
 from scm.models import Provider
 from django.db.models import Count, Q, Sum, Avg, F, Value
 from django.db.models import DecimalField
