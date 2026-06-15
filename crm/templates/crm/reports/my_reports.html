@@ -124,6 +124,8 @@
                                     <tr><th>ABC Class</th><td id="pAbc"></td></tr>
                                     <tr><th>ABC Revenue (30d)</th><td id="pAbcRevenue"></td></tr>
                                     <tr><th>Last Purchase</th><td id="pLastPurchase"></td></tr>
+                                    <tr><th>Stock at Last Purchase</th><td id="pStockAtPurchase"></td></tr>
+                                    <tr><th>Sold Since Last Purchase</th><td id="pSoldSincePurchase"></td></tr>
                                     <tr><th>Last Sale</th><td id="pLastSale"></td></tr>
                                 </table>
                             </div>
@@ -259,6 +261,8 @@ function lookupProduct() {
             document.getElementById('pAbc').textContent = p.abc;
             document.getElementById('pAbcRevenue').textContent = '$' + p.abc_revenue.toFixed(2);
             document.getElementById('pLastPurchase').textContent = p.last_purchase_date + ' (qty: ' + p.last_purchase_qty + ')';
+            document.getElementById('pStockAtPurchase').textContent = p.stock_at_purchase;
+            document.getElementById('pSoldSincePurchase').textContent = p.sold_since_purchase;
             document.getElementById('pLastSale').textContent = p.last_sale_date + ' (qty: ' + p.last_sale_qty + ')';
             document.getElementById('productResult').style.display = 'block';
 

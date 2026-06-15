@@ -9,7 +9,7 @@ from django.db.models.functions import Cast, TruncDate, Coalesce
 from django.db.models import DecimalField, Value
 from crm.models import Sale, saleItem
 from scm.models import PurchaseOrder, PurchaseOrderItem
-from im.models import Product, ProductABCMetrics
+from im.models import Product, ProductABCMetrics, InventoryUnit
 from crm.decorators import role_required
 
 
@@ -73,7 +73,6 @@ def my_reports_data(request):
         current += timedelta(days=1)
 
     # --- FIFO cost (financial): actual purchase_cost of InventoryUnits sold ---
-    from im.models import InventoryUnit
     fifo_data = (
         InventoryUnit.objects
         .filter(
@@ -159,6 +158,35 @@ def my_reports_data(request):
             .first()
         )
 
+        # Stock and sales since last purchase
+        stock_at_purchase = 0
+        sold_since_purchase = 0
+        last_purchase_date_display = 'N/A'
+        purchase_date = None
+
+        if last_purchase and last_purchase.purchase_order.completed_date:
+            purchase_date = last_purchase.purchase_order.completed_date
+            last_purchase_date_display = purchase_date.strftime('%Y-%m-%d %H:%M')
+
+            # Units in stock at the time of last purchase completion:
+            # units that existed (received) before that date, not yet sold or retired
+            stock_at_purchase = InventoryUnit.objects.filter(
+                product=product,
+                received_date__lte=purchase_date,
+                status__in=['ready_to_sale', 'sold'],
+            ).exclude(
+                sold_date__lt=purchase_date,
+            ).exclude(
+                retired_date__lt=purchase_date,
+            ).count()
+
+            # Units sold since last purchase
+            sold_since_purchase = InventoryUnit.objects.filter(
+                product=product,
+                status='sold',
+                sold_date__gte=purchase_date,
+            ).count()
+
         # Sale trend (last 30 days sales qty)
         sale_trend_data = (
             saleItem.objects
@@ -194,6 +222,9 @@ def my_reports_data(request):
             'last_purchase_qty': last_purchase.ordered_quantity if last_purchase else 0,
             'last_sale_date': last_sale.date_created.strftime('%Y-%m-%d %H:%M') if last_sale and last_sale.date_created else 'N/A',
             'last_sale_qty': int(last_sale.quantity) if last_sale else 0,
+            'stock_at_purchase': stock_at_purchase,
+            'sold_since_purchase': sold_since_purchase,
+            'last_purchase_date_full': last_purchase_date_display,
             'trend_labels': trend_labels,
             'trend_qty': trend_qty,
         }
