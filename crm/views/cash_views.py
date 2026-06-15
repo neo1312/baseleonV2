@@ -14,6 +14,14 @@ from crm.decorators import role_required
 def session_list(request):
     sessions = CashRegisterSession.objects.all().select_related('cashier', 'cash_count')
     open_session = sessions.filter(status='open').first()
+    for s in sessions:
+        cc = getattr(s, 'cash_count', None)
+        if cc:
+            s.net_expected = (cc.expected_cash_total + cc.expected_card_total + cc.expected_check_total) - s.opening_balance
+            s.net_delivered = cc.total_counted - s.opening_balance
+        else:
+            s.net_expected = None
+            s.net_delivered = None
     context = {
         'title': 'Cierre de Caja',
         'sessions': sessions,

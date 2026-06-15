@@ -47,22 +47,18 @@
                             <td>{{ s.effective_date|date:"d/m/Y"|default:"—" }}</td>
                             <td>${{ s.opening_balance|floatformat:2 }}</td>
                             <td>
-                                {% with cc=s.cash_count %}
-                                    {% if cc %}
-                                        ${{ cc.expected_cash_total|add:cc.expected_card_total|add:cc.expected_check_total|floatformat:2 }}
-                                    {% else %}
-                                        <span class="text-muted">—</span>
-                                    {% endif %}
-                                {% endwith %}
+                                {% if s.net_expected is not None %}
+                                    ${{ s.net_expected|floatformat:2 }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
                             </td>
                             <td>
-                                {% with cc=s.cash_count %}
-                                    {% if cc %}
-                                        ${{ cc.total_counted|floatformat:2 }}
-                                    {% else %}
-                                        <span class="text-muted">—</span>
-                                    {% endif %}
-                                {% endwith %}
+                                {% if s.net_delivered is not None %}
+                                    ${{ s.net_delivered|floatformat:2 }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
                             </td>
                             <td>
                                 {% with cc=s.cash_count %}
