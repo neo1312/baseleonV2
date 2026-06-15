@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods
 from django.db.models import Q
 from django.utils import timezone
 
-from im.models import InventoryAudit, AuditItem, Product, InventoryUnit, AdjustmentTransaction, ProductProvider
+from im.models import InventoryAudit, AuditItem, Product, InventoryUnit, AdjustmentTransaction
 from crm.decorators import role_required
 
 MINIMUM_PERCENTAGE = 80
@@ -21,18 +21,10 @@ MINIMUM_PERCENTAGE = 80
 @require_http_methods(["GET"])
 @role_required('Admin', 'Manager', 'Auditor')
 def audit_scan(request, audit_id):
-    """Mobile scan page for physical or provider inventory"""
-    audit = get_object_or_404(InventoryAudit, id=audit_id, audit_type__in=['physical', 'provider'])
+    """Mobile scan page for physical inventory"""
+    audit = get_object_or_404(InventoryAudit, id=audit_id, audit_type='physical')
     counted_items = audit.items.select_related('product', 'product__brand').all()
-
-    if audit.audit_type == 'provider' and audit.provider:
-        provider_product_ids = ProductProvider.objects.filter(
-            provider=audit.provider
-        ).values_list('product_id', flat=True)
-        total_active = Product.objects.filter(id__in=provider_product_ids, active=True).count()
-    else:
-        total_active = Product.objects.filter(active=True).count()
-
+    total_active = Product.objects.filter(active=True).count()
     counted_count = counted_items.count()
     percentage = math.floor(counted_count / total_active * 100) if total_active > 0 else 0
 
@@ -64,24 +56,14 @@ def audit_scan_lookup(request):
     if not q or not audit_id:
         return JsonResponse({'found': False, 'error': 'Parámetros insuficientes'})
 
-    audit = get_object_or_404(InventoryAudit, id=audit_id)
-
-    products = Product.objects.filter(
+    product = Product.objects.filter(
         Q(barcode=q) | Q(clave__iexact=q)
-    )
-
-    # For provider audits, restrict to products belonging to the provider
-    if audit.audit_type == 'provider' and audit.provider:
-        provider_product_ids = ProductProvider.objects.filter(
-            provider=audit.provider
-        ).values_list('product_id', flat=True)
-        products = products.filter(id__in=provider_product_ids)
-
-    product = products.first()
+    ).first()
 
     if not product:
         return JsonResponse({'found': False, 'error': 'Producto no encontrado'})
 
+    audit = get_object_or_404(InventoryAudit, id=audit_id)
     system_count = product.stock_ready_to_sale
 
     existing_item = AuditItem.objects.filter(audit=audit, product=product).first()
@@ -124,13 +106,7 @@ def audit_scan_save(request, audit_id):
         product.active = True
         product.save()
 
-    if audit.audit_type == 'provider' and audit.provider:
-        provider_product_ids = ProductProvider.objects.filter(
-            provider=audit.provider
-        ).values_list('product_id', flat=True)
-        total_active = Product.objects.filter(id__in=provider_product_ids, active=True).count()
-    else:
-        total_active = Product.objects.filter(active=True).count()
+    total_active = Product.objects.filter(active=True).count()
 
     try:
         item, created = AuditItem.objects.update_or_create(
@@ -202,17 +178,10 @@ def audit_scan_save(request, audit_id):
 @require_http_methods(["POST"])
 @role_required('Admin', 'Manager', 'Auditor')
 def audit_scan_finish(request, audit_id):
-    """Mark a physical/provider audit as complete (requires 80%+ coverage)"""
-    audit = get_object_or_404(InventoryAudit, id=audit_id, audit_type__in=['physical', 'provider'])
+    """Mark a physical audit as complete (requires 80%+ coverage)"""
+    audit = get_object_or_404(InventoryAudit, id=audit_id, audit_type='physical')
 
-    if audit.audit_type == 'provider' and audit.provider:
-        provider_product_ids = ProductProvider.objects.filter(
-            provider=audit.provider
-        ).values_list('product_id', flat=True)
-        total_active = Product.objects.filter(id__in=provider_product_ids, active=True).count()
-    else:
-        total_active = Product.objects.filter(active=True).count()
-
+    total_active = Product.objects.filter(active=True).count()
     counted_count = audit.items.count()
     percentage = math.floor(counted_count / total_active * 100) if total_active > 0 else 0
 

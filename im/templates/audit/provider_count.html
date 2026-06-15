@@ -1,0 +1,162 @@
+{% extends 'body.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-2 px-sm-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h1 class="h4 mb-0">{{ audit.provider.name }}</h1>
+                <a href="{% url 'im:audit_list' %}" class="btn btn-outline-secondary btn-sm">
+                    &larr; Volver
+                </a>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-muted small">
+                            Producto {{ current_index }} de {{ total_products }}
+                            {% if audit.title %} — {{ audit.title }}{% endif %}
+                        </span>
+                        <span class="small fw-bold">{{ percentage }}%</span>
+                    </div>
+                    <div class="progress" style="height:6px;">
+                        <div class="progress-bar bg-success" style="width:{{ percentage }}%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-box"></i> {{ product.name }}</h5>
+                    <span class="badge bg-light text-dark fs-6">#{{ product.id }}</span>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-3">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted" style="width:140px;">Marca</td>
+                                <td><strong>{% if product.brand %}{{ product.brand.name }}{% else %}—{% endif %}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Clave</td>
+                                <td><code>{% if product.clave %}{{ product.clave }}{% else %}—{% endif %}</code></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Código de Barras</td>
+                                <td><code>{% if product.barcode %}{{ product.barcode }}{% else %}—{% endif %}</code></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Categoría</td>
+                                <td>{% if product.category %}{{ product.category.name }}{% else %}—{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Costo</td>
+                                <td><strong>${{ product.costo|floatformat:2 }}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="alert {% if product.active %}alert-info{% else %}alert-warning{% endif %} d-flex align-items-center gap-3 py-2 px-3 mb-3">
+                        <div class="flex-grow-1">
+                            {% if product.active %}
+                                <i class="fas fa-check-circle text-success me-1"></i> Producto activo
+                            {% else %}
+                                <i class="fas fa-exclamation-triangle me-1"></i> Producto inactivo
+                            {% endif %}
+                        </div>
+                        {% if not product.active %}
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="activate" name="activate" checked>
+                            <label class="form-check-label small" for="activate">Activar</label>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <form method="post" id="count-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                        <input type="hidden" name="action" id="form-action" value="save">
+
+                        <div class="row align-items-end mb-4">
+                            <div class="col-12 col-sm-6 mb-3 mb-sm-0">
+                                <label class="form-label fw-bold">Stock en Sistema</label>
+                                <div class="display-6 fw-bold text-primary">{{ system_count }}</div>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label for="physical_count" class="form-label fw-bold">Cantidad Física <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control form-control-lg" id="physical_count"
+                                       name="physical_count" min="0" value="{{ system_count }}"
+                                       placeholder="Cantidad contada" inputmode="numeric" autofocus>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success flex-grow-1" id="btn-save">
+                                <i class="fas fa-check"></i> Guardar y Siguiente
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="btn-skip">
+                                <i class="fas fa-forward"></i> Saltar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between small text-muted">
+                        <span><i class="fas fa-check-circle text-success"></i> Procesados: <strong>{{ processed_count }}</strong></span>
+                        <span><i class="fas fa-clock text-warning"></i> Pendientes: <strong>{{ remaining_count }}</strong></span>
+                        <span><i class="fas fa-tag"></i> Total: <strong>{{ total_products }}</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascrip %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var form = document.getElementById('count-form');
+    var actionInput = document.getElementById('form-action');
+    var btnSave = document.getElementById('btn-save');
+    var btnSkip = document.getElementById('btn-skip');
+    var physInput = document.getElementById('physical_count');
+
+    btnSkip.addEventListener('click', function() {
+        actionInput.value = 'skip';
+        form.submit();
+    });
+
+    btnSave.addEventListener('click', function() {
+        actionInput.value = 'save';
+    });
+
+    physInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            actionInput.value = 'save';
+            form.submit();
+        }
+    });
+
+    physInput.focus();
+    physInput.select();
+});
+</script>
+
+<style>
+    .display-6 { font-size: 2.5rem; }
+    @media (max-width: 576px) {
+        .container-fluid { padding-left: 8px; padding-right: 8px; }
+        .display-6 { font-size: 2rem; }
+    }
+</style>
+{% endblock %}

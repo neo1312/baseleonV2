@@ -134,9 +134,14 @@
                                     <i class="fas fa-arrow-right"></i>
                                 </a>
                             {% endif %}
-                            {% if audit.audit_type == 'physical' and audit.status != 'completed' or audit.audit_type == 'provider' and audit.status != 'completed' %}
+                            {% if audit.audit_type == 'physical' and audit.status != 'completed' %}
                                 <a href="{% url 'im:audit_scan' audit.id %}" class="btn btn-outline-info" title="Escanear">
                                     <i class="fas fa-camera"></i>
+                                </a>
+                            {% endif %}
+                            {% if audit.audit_type == 'provider' and audit.status != 'completed' %}
+                                <a href="{% url 'im:audit_provider_count' audit.id %}" class="btn btn-outline-success" title="Contar">
+                                    <i class="fas fa-list"></i>
                                 </a>
                             {% endif %}
                             {% if audit.status != 'completed' and not audit.user_is_collaborator %}
@@ -235,9 +240,14 @@
                             <i class="fas fa-arrow-right"></i>
                         </a>
                     {% endif %}
-                    {% if audit.audit_type == 'physical' and audit.status != 'completed' or audit.audit_type == 'provider' and audit.status != 'completed' %}
+                    {% if audit.audit_type == 'physical' and audit.status != 'completed' %}
                         <a href="{% url 'im:audit_scan' audit.id %}" class="btn btn-sm btn-outline-info">
                             <i class="fas fa-camera"></i>
+                        </a>
+                    {% endif %}
+                    {% if audit.audit_type == 'provider' and audit.status != 'completed' %}
+                        <a href="{% url 'im:audit_provider_count' audit.id %}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-list"></i>
                         </a>
                     {% endif %}
                     {% if audit.status != 'completed' and not audit.user_is_collaborator %}

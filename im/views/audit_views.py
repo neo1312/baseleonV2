@@ -163,7 +163,7 @@ def audit_start(request):
             )
             audit.started_at = timezone.now()
             audit.save()
-            return redirect('im:audit_scan', audit_id=audit.id)
+            return redirect('im:audit_provider_count', audit_id=audit.id)
 
         notes = request.POST.get('notes', '')
         audit = InventoryAudit.objects.create(
@@ -844,3 +844,106 @@ def audit_join(request, audit_id):
     else:
         messages.error(request, 'Solo puedes unirte a auditorías en progreso')
     return redirect(request.META.get('HTTP_REFERER', 'im:audit_list'))
+
+
+@require_http_methods(["GET", "POST"])
+@role_required('Admin', 'Manager', 'Auditor')
+def audit_provider_count(request, audit_id):
+    """Step-through one-by-one product counting for provider audits"""
+    audit = get_object_or_404(InventoryAudit, id=audit_id, audit_type='provider', status='in_progress')
+
+    if not audit.provider:
+        messages.error(request, 'Esta auditoría no tiene un proveedor asignado')
+        return redirect('im:audit_list')
+
+    provider_product_ids = ProductProvider.objects.filter(
+        provider=audit.provider
+    ).values_list('product_id', flat=True)
+
+    total_products = Product.objects.filter(id__in=provider_product_ids).count()
+    processed_ids = audit.items.values_list('product_id', flat=True)
+
+    if request.method == 'POST':
+        product_id = request.POST.get('product_id')
+        action = request.POST.get('action')
+        product = get_object_or_404(Product, id=product_id)
+        system_count = product.stock_ready_to_sale
+
+        if action == 'save':
+            physical_count = request.POST.get('physical_count')
+            try:
+                physical_count = int(physical_count) if physical_count else system_count
+            except (ValueError, TypeError):
+                physical_count = system_count
+
+            activate = request.POST.get('activate') == 'on'
+            if activate and not product.active:
+                product.active = True
+                product.save()
+
+            AuditItem.objects.update_or_create(
+                audit=audit,
+                product=product,
+                defaults={
+                    'system_count': system_count,
+                    'physical_count': physical_count,
+                    'adjustment_status': 'pending',
+                    'counted_by': str(request.user),
+                }
+            )
+
+        elif action == 'skip':
+            AuditItem.objects.update_or_create(
+                audit=audit,
+                product=product,
+                defaults={
+                    'system_count': system_count,
+                    'physical_count': system_count,
+                    'adjustment_status': 'pending',
+                    'counted_by': str(request.user),
+                }
+            )
+
+        processed_ids = audit.items.values_list('product_id', flat=True)
+        remaining = total_products - len(processed_ids)
+
+        if remaining <= 0:
+            audit.status = 'under_review'
+            audit.save()
+            audit.update_stats()
+            messages.success(request, f'Auditoría completada — {len(processed_ids)} productos procesados')
+            return redirect('im:audit_review', audit_id=audit.id)
+
+        return redirect('im:audit_provider_count', audit_id=audit.id)
+
+    # GET: find first unprocessed product
+    unprocessed = Product.objects.filter(
+        id__in=provider_product_ids
+    ).exclude(
+        id__in=processed_ids
+    ).order_by('name').first()
+
+    if not unprocessed:
+        audit.status = 'under_review'
+        audit.save()
+        audit.update_stats()
+        messages.success(request, f'Auditoría completada — {len(processed_ids)} productos procesados')
+        return redirect('im:audit_review', audit_id=audit.id)
+
+    system_count = unprocessed.stock_ready_to_sale
+    processed_count = len(processed_ids)
+    remaining_count = total_products - processed_count
+    percentage = int(processed_count / total_products * 100) if total_products > 0 else 0
+
+    context = {
+        'title': f'Inventario por Proveedor — {audit.provider.name}',
+        'audit': audit,
+        'product': unprocessed,
+        'system_count': system_count,
+        'processed_count': processed_count,
+        'total_products': total_products,
+        'remaining_count': remaining_count,
+        'percentage': percentage,
+        'current_index': processed_count + 1,
+    }
+    return render(request, 'audit/provider_count.html', context)

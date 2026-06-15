@@ -393,7 +393,7 @@
 <div id="scan-app" style="display:flex;flex-direction:column;height:100vh;">
   <div class="scan-header">
     <a href="{% url 'im:audit_list' %}" class="back-btn">&larr;</a>
-    <span class="title">{% if audit.title %}{{ audit.title }}{% else %}Inv. Físico #{{ audit.id }}{% endif %}{% if audit.provider %} — <span style="color:#e94560;">{{ audit.provider.name }}</span>{% endif %}</span>
+    <span class="title">{% if audit.title %}{{ audit.title }}{% else %}Inv. Físico #{{ audit.id }}{% endif %}</span>
     <span class="count-badge" id="header-count">{{ counted_count }}</span>
   </div>
 
