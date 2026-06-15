@@ -268,7 +268,8 @@ function lookupProduct() {
             document.getElementById('pStockAtPurchase').textContent = p.stock_at_purchase;
             document.getElementById('pSoldSincePurchase').textContent = p.sold_since_purchase;
             document.getElementById('pAuditAdjustments').textContent = (p.audit_adjustments >= 0 ? '+' : '') + p.audit_adjustments;
-            var expected = p.stock_before_purchase + p.last_purchase_qty - p.sold_since_purchase + p.audit_adjustments;
+            var received_qty = p.stock_at_purchase - p.stock_before_purchase;
+            var expected = p.stock_at_purchase - p.sold_since_purchase + p.audit_adjustments;
             document.getElementById('pFormulaCheck').textContent = expected + ' (actual stock: ' + p.stock + ') ' + (expected === p.stock ? '✓' : '✗');
             document.getElementById('pLastSale').textContent = p.last_sale_date + ' (qty: ' + p.last_sale_qty + ')';
             document.getElementById('productResult').style.display = 'block';
