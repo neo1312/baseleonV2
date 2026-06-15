@@ -160,6 +160,7 @@ def my_reports_data(request):
 
         # Stock and sales since last purchase
         stock_at_purchase = 0
+        stock_before_purchase = 0
         sold_since_purchase = 0
         last_purchase_date_display = 'N/A'
         purchase_date = None
@@ -173,6 +174,17 @@ def my_reports_data(request):
             stock_at_purchase = InventoryUnit.objects.filter(
                 product=product,
                 received_date__lte=purchase_date,
+                status__in=['ready_to_sale', 'sold'],
+            ).exclude(
+                sold_date__lt=purchase_date,
+            ).exclude(
+                retired_date__lt=purchase_date,
+            ).count()
+
+            # Stock just before the purchase (excludes the units just received)
+            stock_before_purchase = InventoryUnit.objects.filter(
+                product=product,
+                received_date__lt=purchase_date,
                 status__in=['ready_to_sale', 'sold'],
             ).exclude(
                 sold_date__lt=purchase_date,
@@ -233,6 +245,7 @@ def my_reports_data(request):
             'last_sale_date': last_sale.date_created.strftime('%Y-%m-%d %H:%M') if last_sale and last_sale.date_created else 'N/A',
             'last_sale_qty': int(last_sale.quantity) if last_sale else 0,
             'stock_at_purchase': stock_at_purchase,
+            'stock_before_purchase': stock_before_purchase,
             'sold_since_purchase': sold_since_purchase,
             'last_purchase_date_full': last_purchase_date_display,
             'audit_adjustments': audit_adjustments,
