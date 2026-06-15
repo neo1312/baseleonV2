@@ -31,6 +31,9 @@
                             <th>Cierre</th>
                             <th>Fecha Efectiva</th>
                             <th>Fondo Inicial</th>
+                            <th>Esperado</th>
+                            <th>Entregado</th>
+                            <th>Sobrante/Faltante</th>
                             <th>Estado</th>
                         </tr>
                     </thead>
@@ -44,6 +47,37 @@
                             <td>{{ s.effective_date|date:"d/m/Y"|default:"—" }}</td>
                             <td>${{ s.opening_balance|floatformat:2 }}</td>
                             <td>
+                                {% with cc=s.cash_count %}
+                                    {% if cc %}
+                                        ${{ cc.expected_cash_total|add:cc.expected_card_total|add:cc.expected_check_total|floatformat:2 }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                {% with cc=s.cash_count %}
+                                    {% if cc %}
+                                        ${{ cc.total_counted|floatformat:2 }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                {% with cc=s.cash_count %}
+                                    {% if cc %}
+                                        {% if cc.total_difference >= 0 %}
+                                            <span class="text-success">+${{ cc.total_difference|floatformat:2 }}</span>
+                                        {% else %}
+                                            <span class="text-danger">-${{ cc.total_difference|floatformat:2|cut:"-" }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
                                 {% if s.status == 'open' %}
                                     <span class="badge bg-success">Abierta</span>
                                 {% else %}
@@ -52,7 +86,7 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="7" class="text-center text-muted py-4">No hay sesiones registradas</td></tr>
+                        <tr><td colspan="10" class="text-center text-muted py-4">No hay sesiones registradas</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

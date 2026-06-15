@@ -12,7 +12,7 @@ from crm.decorators import role_required
 @login_required
 @role_required('Admin', 'Cashier')
 def session_list(request):
-    sessions = CashRegisterSession.objects.all().select_related('cashier')
+    sessions = CashRegisterSession.objects.all().select_related('cashier', 'cash_count')
     open_session = sessions.filter(status='open').first()
     context = {
         'title': 'Cierre de Caja',
