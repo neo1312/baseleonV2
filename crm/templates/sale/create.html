@@ -36,3 +36,23 @@
     {% endfor %}
 {% endblock %}
 
+{% block javascrip %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-info btn-xs btn-flat';
+    btn.innerHTML = '<i class="fas fa-print"></i> Ticket';
+    btn.onclick = function() {
+        window.open('http://192.168.1.100:5000/print?sale_id={{ sale.id }}', '_blank', 'width=450,height=250');
+    };
+    btn.tabIndex = -1;
+    var guardar = document.getElementById('btnFactura');
+    if (guardar && guardar.parentNode) {
+        guardar.parentNode.insertBefore(btn, guardar.nextSibling);
+    }
+});
+</script>
+{% endblock %}
+
