@@ -52,8 +52,10 @@
                                         <th>Qty</th>
                                         <th>Description</th>
                                         <th>Cost/U</th>
+                                        <th>Cost/U + IVA</th>
                                         <th>IVA</th>
                                         <th>Total</th>
+                                        <th>Total + IVA</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
@@ -71,8 +73,12 @@
                                                 <strong id="total_items">0</strong>
                                             </div>
                                             <div class="d-flex justify-content-between">
-                                                <span>Total Cost:</span>
+                                                <span>Subtotal:</span>
                                                 <strong id="total_cost">$0.00</strong>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span>Total + IVA:</span>
+                                                <strong id="total_cost_iva">$0.00</strong>
                                             </div>
                                         </div>
                                     </div>
@@ -115,21 +121,8 @@
 <script>
 const items = [];
 
-function getCSRFToken() {
-    const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (tokenInput) return tokenInput.value;
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, 10) === 'csrftoken=') {
-                cookieValue = decodeURIComponent(cookie.substring(10));
-                break;
-            }
-        }
-    }
-    return cookieValue;
+function hasIva() {
+    return document.getElementById('hasIva').checked;
 }
 
 function addItem() {
@@ -157,6 +150,9 @@ function addItem() {
                 return;
             }
 
+            const rawCost = parseFloat(data.cost);
+            const baseCost = hasIva() ? rawCost / 1.16 : rawCost;
+
             const existingIndex = items.findIndex(item => item.pv1 === data.pv1);
             if (existingIndex !== -1) {
                 items[existingIndex].quantity += quantity;
@@ -165,7 +161,7 @@ function addItem() {
                     product_id: data.product_id,
                     pv1: data.pv1,
                     product_name: data.product_name,
-                    cost: data.cost,
+                    cost: baseCost,
                     quantity: quantity,
                 });
             }
@@ -182,40 +178,43 @@ function addItem() {
         });
 }
 
-function recalcItem(item) {
-    const cost = parseFloat(item.cost);
-    const hasIva = document.getElementById('hasIva').checked;
-    const displayCost = hasIva ? cost / 1.16 : cost;
-    const ivaAmount = hasIva ? cost - displayCost : 0;
-    return { displayCost, ivaAmount };
-}
-
 function renderItems() {
     const tbody = document.getElementById('items_tbody');
     tbody.innerHTML = '';
     let total_items = 0;
     let total_cost = 0;
+    let total_cost_iva = 0;
 
     items.forEach((item, index) => {
-        const { displayCost, ivaAmount } = recalcItem(item);
-        const item_total = displayCost * item.quantity;
+        const baseCost = parseFloat(item.cost);
+        const costConIva = hasIva() ? baseCost * 1.16 : baseCost;
+        const ivaAmount = costConIva - baseCost;
+        const lineTotal = baseCost * item.quantity;
+        const lineTotalIva = costConIva * item.quantity;
+
         total_items += item.quantity;
-        total_cost += item_total;
+        total_cost += lineTotal;
+        total_cost_iva += lineTotalIva;
 
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${item.pv1}</td>
             <td>
-                <div style="display: flex; gap: 5px; align-items: center;">
-                    <button type="button" class="btn btn-sm btn-danger" onclick="decrementItem(${index})">−</button>
-                    <input type="number" class="form-control form-control-sm text-center" value="${item.quantity}" min="1" style="width: 60px;" readonly>
-                    <button type="button" class="btn btn-sm btn-success" onclick="incrementItem(${index})">+</button>
-                </div>
+                <input type="number" name="quantity" class="form-control form-control-sm" value="${item.quantity}" min="1" step="1"
+                    data-index="${index}" onchange="updateQty(${index}, this.value)">
             </td>
             <td>${item.product_name}</td>
-            <td>$${displayCost.toFixed(2)}</td>
+            <td>
+                <input type="number" name="cost_base" class="form-control form-control-sm" value="${baseCost.toFixed(2)}" min="0" step="0.01"
+                    data-index="${index}" onchange="updateCostBase(${index}, this.value)">
+            </td>
+            <td>
+                <input type="number" name="cost_iva" class="form-control form-control-sm" value="${costConIva.toFixed(2)}" min="0" step="0.01"
+                    data-index="${index}" onchange="updateCostConIva(${index}, this.value)">
+            </td>
             <td>$${ivaAmount.toFixed(2)}</td>
-            <td>$${item_total.toFixed(2)}</td>
+            <td>$${lineTotal.toFixed(2)}</td>
+            <td>$${lineTotalIva.toFixed(2)}</td>
             <td><button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${index})"><i class="fas fa-trash"></i></button></td>
         `;
         tbody.appendChild(row);
@@ -223,14 +222,42 @@ function renderItems() {
 
     document.getElementById('total_items').textContent = total_items;
     document.getElementById('total_cost').textContent = `$${total_cost.toFixed(2)}`;
+    document.getElementById('total_cost_iva').textContent = `$${total_cost_iva.toFixed(2)}`;
 }
 
-function incrementItem(index) {
-    if (index >= 0 && index < items.length) { items[index].quantity += 1; renderItems(); }
+function updateQty(index, value) {
+    if (index >= 0 && index < items.length) {
+        if (value === '') { renderItems(); return; }
+        const parsed = parseInt(value);
+        if (!isNaN(parsed) && parsed >= 1) {
+            items[index].quantity = parsed;
+        }
+    }
+    renderItems();
 }
-function decrementItem(index) {
-    if (index >= 0 && index < items.length && items[index].quantity > 1) { items[index].quantity -= 1; renderItems(); }
+
+function updateCostBase(index, value) {
+    if (index >= 0 && index < items.length) {
+        if (value === '') { renderItems(); return; }
+        const parsed = parseFloat(value);
+        if (!isNaN(parsed) && parsed >= 0) {
+            items[index].cost = parsed;
+        }
+    }
+    renderItems();
 }
+
+function updateCostConIva(index, value) {
+    if (index >= 0 && index < items.length) {
+        if (value === '') { renderItems(); return; }
+        const parsed = parseFloat(value);
+        if (!isNaN(parsed) && parsed >= 0) {
+            items[index].cost = hasIva() ? parsed / 1.16 : parsed;
+        }
+    }
+    renderItems();
+}
+
 function removeItem(index) {
     if (index >= 0 && index < items.length && confirm(`Remove "${items[index].product_name}"?`)) {
         items.splice(index, 1);
@@ -240,8 +267,16 @@ function removeItem(index) {
 
 function calculateTotal() {
     return items.reduce((sum, item) => {
-        const { displayCost } = recalcItem(item);
-        return sum + (displayCost * item.quantity);
+        const baseCost = parseFloat(item.cost);
+        return sum + (baseCost * item.quantity);
+    }, 0);
+}
+
+function calculateTotalIva() {
+    return items.reduce((sum, item) => {
+        const baseCost = parseFloat(item.cost);
+        const costConIva = hasIva() ? baseCost * 1.16 : baseCost;
+        return sum + (costConIva * item.quantity);
     }, 0);
 }
 
@@ -251,7 +286,9 @@ document.getElementById('submit_btn').addEventListener('click', function() {
     if (!provider_id) { alert('Please select a provider'); return; }
     if (items.length === 0) { alert('Add at least one item'); return; }
 
-    if (!confirm(`Create instant order with ${items.length} item(s)?\n\nTotal: $${calculateTotal().toFixed(2)}\n\nAll items will be ready to sale immediately.`)) return;
+    const total = calculateTotal();
+    const totalIva = calculateTotalIva();
+    if (!confirm(`Create instant order with ${items.length} item(s)?\n\nSubtotal: $${total.toFixed(2)}\nTotal + IVA: $${totalIva.toFixed(2)}\n\nAll items will be ready to sale immediately.`)) return;
 
     const btn = this;
     btn.disabled = true;
@@ -260,7 +297,7 @@ document.getElementById('submit_btn').addEventListener('click', function() {
     const formData = new FormData();
     formData.append('provider_id', provider_id);
     formData.append('items', JSON.stringify(items));
-    formData.append('has_iva', document.getElementById('hasIva').checked ? '1' : '0');
+    formData.append('has_iva', hasIva() ? '1' : '0');
 
     fetch('/po/instant-full/submit/', {
         method: 'POST',

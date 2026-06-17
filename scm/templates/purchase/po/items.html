@@ -64,19 +64,17 @@
                                         <td>{{ item.pv1 }}</td>
                                         <td>
                                             <input type="hidden" name="product_id" value="{{ item.product.id }}">
-                                            <input type="number" name="quantity" class="form-control form-control-sm quantity-input" 
-                                                   value="{{ item.quantity }}" min="0" step="1" 
-                                                data-row-id="{{ item.product.id }}" data-cost-raw="{{ item.cost_per_unit }}"
-                                                   onchange="window.calculateRowTotal(this)"
-                                                   oninput="window.calculateRowTotal(this)">
+                                             <input type="number" name="quantity" class="form-control form-control-sm quantity-input" 
+                                                    value="{{ item.quantity }}" min="0" step="1" 
+                                                 data-row-id="{{ item.product.id }}" data-cost-raw="{{ item.cost_per_unit }}"
+                                                    onchange="window.calculateRowTotal(this)">
                                         </td>
                                         <td>{{ item.product.compose_name }}{% if pp_unidad > 1 %} <span class="badge badge-warning">EMPAQUE: {{ pp_unidad }}</span>{% endif %}</td>
                                         <td>
-                                        <input type="number" name="cost" class="form-control form-control-sm cost-input" 
-                                                value="{{ item.cost_per_unit }}" min="0" step="0.01"
-                                                data-row-id="{{ item.product.id }}" data-cost-raw="{{ item.cost_per_unit }}"
-                                                    onchange="window.calculateRowTotal(this)"
-                                                    oninput="window.calculateRowTotal(this)">
+                                         <input type="number" name="cost" class="form-control form-control-sm cost-input" 
+                                                 value="{{ item.cost_per_unit }}" min="0" step="0.01"
+                                                 data-row-id="{{ item.product.id }}" data-cost-raw="{{ item.cost_per_unit }}"
+                                                     onchange="window.calculateRowTotal(this)">
                                         </td>
                                         <td>
                                             <span class="iva-amount-cell" data-row-id="{{ item.product.id }}">{{ item.iva_amount|floatformat:2 }}</span>
@@ -280,7 +278,6 @@ window.addProductRow = function(p) {
     
     // Attach events to new inputs
     tr.querySelectorAll('.quantity-input, .cost-input').forEach(input => {
-        input.addEventListener('input', function() { window.calculateRowTotal(this); });
         input.addEventListener('change', function() { window.calculateRowTotal(this); });
     });
     tr.querySelector('.delete-row').addEventListener('click', function() { window.deleteRow(this); });
@@ -304,9 +301,7 @@ setTimeout(function() {
     window.toggleIva();
     
     document.querySelectorAll('.quantity-input, .cost-input').forEach(input => {
-        input.removeEventListener('input', window.calculateRowTotal);
         input.removeEventListener('change', window.calculateRowTotal);
-        input.addEventListener('input', function() { window.calculateRowTotal(this); });
         input.addEventListener('change', function() { window.calculateRowTotal(this); });
     });
     document.querySelectorAll('.delete-row').forEach(btn => {
