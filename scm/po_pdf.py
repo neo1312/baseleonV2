@@ -85,8 +85,18 @@ def generate_po_pdf(po):
     # Items table
     content.append(Paragraph("ORDER ITEMS", heading_style))
     
+    desc_style = ParagraphStyle(
+        'Desc',
+        parent=styles['Normal'],
+        fontSize=8,
+        leading=10,
+        spaceAfter=0,
+        spaceBefore=0,
+    )
+
     items_data = [
-        ['SKU', 'Product Description', 'Unidad Empaque', 'Qty to Order']
+        ['SKU', 'Product Description', 'Unidad', 'Qty'],
+        ['', '', 'Empaque', 'to Order'],
     ]
     
     def _sort_key(pv1):
@@ -101,31 +111,40 @@ def generate_po_pdf(po):
         qty = str(int(po_item.ordered_quantity / unidad_empaque)) if unidad_empaque > 1 else str(po_item.ordered_quantity)
         items_data.append([
             str(pv1) if pv1 else '',
-            str(po_item.product.compose_name),
+            Paragraph(str(po_item.product.compose_name), desc_style),
             str(unidad_empaque),
             qty
         ])
     
-    # Sort by SKU/pv1
-    items_data[1:] = sorted(items_data[1:], key=lambda x: _sort_key(x[0]))
+    # Sort by SKU/pv1 (skip 2 header rows)
+    items_data[2:] = sorted(items_data[2:], key=lambda x: _sort_key(x[0]))
     
-    items_table = Table(items_data, colWidths=[1.2*inch, 3.5*inch, 1.3*inch, 1.3*inch])
+    items_table = Table(items_data, colWidths=[1.1*inch, 4.8*inch, 0.8*inch, 0.8*inch])
     items_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f4788')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 11),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f9f9f9')),
+        # Header background spans 2 rows
+        ('BACKGROUND', (0, 0), (-1, 1), colors.HexColor('#1f4788')),
+        ('TEXTCOLOR', (0, 0), (-1, 1), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 1), 9),
+        # Merge SKU and Description across 2 header rows
+        ('SPAN', (0, 0), (0, 1)),
+        ('SPAN', (1, 0), (1, 1)),
+        # Data rows
+        ('BACKGROUND', (0, 2), (-1, -1), colors.HexColor('#f9f9f9')),
         ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#cccccc')),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 8),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        # Center all columns except description
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+        # Description left-aligned
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('FONTSIZE', (0, 2), (-1, -1), 9),
+        # Smaller font for description column
+        ('FONTSIZE', (1, 2), (1, -1), 8),
     ]))
     content.append(items_table)
     content.append(Spacer(1, 0.2*inch))
