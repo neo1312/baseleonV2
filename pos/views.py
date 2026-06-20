@@ -12,32 +12,16 @@ from django.utils import timezone
 from django.db import transaction
 from crm.decorators import role_required
 
-@login_required(login_url='/login/')
-def pos_index(request):
-    """Main POS interface"""
-    # NOTE: Using stock_ready_to_sale (from InventoryUnit) as single source of truth
-    # Product.stock field has been removed - use stock_ready_to_sale property instead
-    
-    # Get all active products
+def _get_pos_context(request):
+    """Shared helper to build POS context data."""
     all_products = list(Product.objects.filter(active=True)[:100])
-    
-    # Filter to only products with available stock (ready_to_sale InventoryUnits)
-    # and sort by availability
-    products = [
-        p for p in all_products 
-        if p.stock_ready_to_sale > 0
-    ]
+    products = [p for p in all_products if p.stock_ready_to_sale > 0]
     products.sort(key=lambda p: p.stock_ready_to_sale, reverse=True)
-    
-    # Get all clients
     clients = Client.objects.all()[:100]
-    
-    # Enrich products with price data - USE STOCK_READY_TO_SALE (correct field)
     products_data = []
     for p in products:
         granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
         available_stock = p.stock_ready_to_sale
-        
         products_data.append({
             'id': p.id,
             'barcode': p.barcode,
@@ -52,14 +36,29 @@ def pos_index(request):
             'Granel_Item': p.Granel_Item,
             'minimo': p.minimo,
         })
-    
-    context = {
-        'title': 'POS - Point of Sale',
+    return {
         'products': products_data,
         'clients': clients,
         'session_key': request.session.session_key,
     }
+
+@login_required(login_url='/login/')
+def pos_index(request):
+    """Main POS interface"""
+    context = {
+        'title': 'POS - Point of Sale',
+        **_get_pos_context(request),
+    }
     return render(request, 'pos/index.html', context)
+
+@login_required(login_url='/login/')
+def pos_index_touch(request):
+    """Touch-optimized POS interface for 10-inch tablets"""
+    context = {
+        'title': 'POS - Touch',
+        **_get_pos_context(request),
+    }
+    return render(request, 'pos/index_touch.html', context)
 
 @csrf_exempt
 def search_products(request):

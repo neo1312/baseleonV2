@@ -11,6 +11,7 @@ ROLE_FEATURES = {
                 'category': 'Point of Sale',
                 'items': [
                     {'title': 'POS System', 'description': 'Fast checkout & sales', 'icon': '💳', 'url': '/pos/', 'color': '#DC143C'},
+                    {'title': 'POS Touch', 'description': 'Touch-optimized for tablets 10"', 'icon': '📱', 'url': '/pos/touch/', 'color': '#FF4500'},
                     {'title': 'Customer Display', 'description': 'Customer-facing ticket', 'icon': '🖥️', 'url': '/pos/customer-display/', 'color': '#FF8C00'},
                     {'title': 'Cierre de Caja', 'description': 'Arqueo y sesiones de caja', 'icon': '💰', 'url': '/cash-register/', 'color': '#FF8C00'},
                 ]
@@ -108,6 +109,7 @@ ROLE_FEATURES = {
                 'category': 'Point of Sale',
                 'items': [
                     {'title': 'POS System', 'description': 'Fast & easy checkout', 'icon': '💳', 'url': '/pos/', 'color': '#DC143C'},
+                    {'title': 'POS Touch', 'description': 'Touch-optimized for tablets 10"', 'icon': '📱', 'url': '/pos/touch/', 'color': '#FF4500'},
                     {'title': 'Customer Display', 'description': 'Customer-facing ticket', 'icon': '🖥️', 'url': '/pos/customer-display/', 'color': '#FF8C00'},
                     {'title': 'Cierre de Caja', 'description': 'Abrir y realizar arqueo', 'icon': '💰', 'url': '/cash-register/', 'color': '#FF8C00'},
                 ]
