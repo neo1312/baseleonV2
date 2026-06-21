@@ -24,6 +24,7 @@ let saleStarted = false; // Flag to block adding products before sale setup
 const TAX_RATE = 0; // NO TAXES
 let cashInputDebounceTimer = null; // For debouncing cash input validation
 let searchDebounceTimer = null; // For debouncing live search input
+let currentDespieceConfig = null; // For despiece modal
 
 // Sync cart to server session (for customer display)
 function syncCartToSession(extra) {
@@ -62,6 +63,84 @@ function clearCheckoutState() {
     fetch('/pos/checkout/clear/', {
         method: 'POST',
     }).catch(err => console.error('Checkout state clear error:', err));
+}
+
+// CSRF TOKEN
+function getCSRFToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.getAttribute('content');
+    const cookies = document.cookie.split(';');
+    for (let c of cookies) {
+        if (c.trim().startsWith('csrftoken=')) return c.trim().substring('csrftoken='.length);
+    }
+    return '';
+}
+
+// DESPIECE MODAL
+function openDespieceModal(btn) {
+    const row = btn.closest('tr');
+    currentDespieceConfig = {
+        configId: row.dataset.despieceConfigId,
+        sourceName: row.dataset.despieceSourceName,
+        sourceStock: parseInt(row.dataset.despieceSourceStock) || 0,
+        unitsPer: parseFloat(row.dataset.despieceUnitsPer) || 1,
+    };
+    if (!currentDespieceConfig.configId) { alert('No despiece config'); return; }
+    document.getElementById('despiece-source-name').textContent = currentDespieceConfig.sourceName;
+    document.getElementById('despiece-source-stock').textContent = currentDespieceConfig.sourceStock + ' pz';
+    document.getElementById('despiece-qty').value = 1;
+    updateDespiecePreview();
+    document.getElementById('despiece-modal').classList.add('show');
+}
+
+function closeDespieceModal() {
+    document.getElementById('despiece-modal').classList.remove('show');
+    currentDespieceConfig = null;
+}
+
+function despieceQtyDelta(delta) {
+    const input = document.getElementById('despiece-qty');
+    let val = parseInt(input.value) + delta;
+    val = Math.max(1, Math.min(val, currentDespieceConfig?.sourceStock || 999));
+    input.value = val;
+    updateDespiecePreview();
+}
+
+function updateDespiecePreview() {
+    const qty = parseInt(document.getElementById('despiece-qty').value) || 0;
+    const dest = qty * (currentDespieceConfig?.unitsPer || 1);
+    document.getElementById('despiece-dest-qty').textContent = dest;
+}
+
+function confirmDespiece() {
+    const qty = parseInt(document.getElementById('despiece-qty').value) || 0;
+    if (qty <= 0) { alert('Enter a valid quantity'); return; }
+    if (qty > currentDespieceConfig.sourceStock) {
+        alert('Only ' + currentDespieceConfig.sourceStock + ' available'); return;
+    }
+
+    const url = '/im/product/despiece/' + currentDespieceConfig.configId + '/process/';
+    const formData = new FormData();
+    formData.append('source_quantity', qty);
+    formData.append('csrfmiddlewaretoken', getCSRFToken());
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.onload = function() {
+        var data = null;
+        try { data = JSON.parse(xhr.responseText); } catch (e) {}
+        if (xhr.status >= 200 && xhr.status < 300 && data && data.success) {
+            alert('✅ Despiece: ' + data.source_quantity + ' → ' + data.destination_quantity + ' units created');
+            closeDespieceModal();
+            location.reload();
+        } else {
+            alert('❌ URL=' + url + ' Status=' + xhr.status + ' Body=' + xhr.responseText.substring(0,200));
+        }
+    };
+    xhr.onerror = function() {
+        alert('❌ Network error URL=' + url);
+    };
+    xhr.send(formData);
 }
 
 // Initialize on page load
@@ -128,16 +207,27 @@ function searchProducts(query) {
                 row.dataset.productId = p.id;
                 row.dataset.priceGranel = p.price_granel || '';
                 row.dataset.minimo = p.minimo || '';
+                row.dataset.despieceConfigId = p.despiece_config_id || '';
+                row.dataset.despieceSourceName = p.despiece_source_name || '';
+                row.dataset.despieceSourceStock = p.despiece_source_stock || '';
+                row.dataset.despieceUnitsPer = p.despiece_units_per || '';
                 if (p.Granel_Item) row.classList.add('row-granel');
+                if (p.stock <= 0 && p.despiece_config_id) row.classList.add('zero-despiece');
+                const hasDespiece = p.despiece_config_id ? true : false;
+                let stockDisplay = p.stock;
+                if (p.stock <= 0 && hasDespiece && p.despiece_source_stock > 0) {
+                    stockDisplay = '0 · src: ' + p.despiece_source_stock;
+                }
                 row.innerHTML = `
                     <td class="barcode">${p.barcode}</td>
                     <td class="name">${p.compose_name || p.name}${p.Granel_Item ? ' <span class="badge-granel">GRANEL</span>' : ''}</td>
-                    <td class="stock">${p.stock}</td>
+                    <td class="stock">${stockDisplay}</td>
                     <td class="price-regular">$${parseFloat(p.price).toFixed(2)}</td>
                     <td class="price-mayoreo col-mayoreo">$${parseFloat(p.price_mayoreo).toFixed(2)}</td>
                     <td class="action">
                         <input type="number" class="qty-input" value="1" min="1" style="width: 50px;">
                         <button class="btn-add" onclick="addToCart(this)">+</button>
+                        ${hasDespiece ? '<button class="despiece-btn" onclick="openDespieceModal(this)" title="Despiece: ' + p.despiece_source_name + '">📦→</button>' : ''}
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -724,6 +814,9 @@ function reloadInventory() {
 // KEYBOARD SHORTCUTS
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+        if (document.getElementById('despiece-modal').classList.contains('show')) { closeDespieceModal(); return; }
+        if (document.getElementById('checkout-modal').classList.contains('show')) { closeCheckout(); return; }
+        if (document.getElementById('settings-modal').classList.contains('show')) { closeSettings(); return; }
         clearCart();
     }
 });

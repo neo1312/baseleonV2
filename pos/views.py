@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.contrib.sessions.models import Session
-from im.models import Product
+from im.models import Product, DespieceConfig
 from crm.models import Sale, saleItem, Client
 from django.utils import timezone
 from django.db import transaction
@@ -15,13 +15,25 @@ from crm.decorators import role_required
 def _get_pos_context(request):
     """Shared helper to build POS context data."""
     all_products = list(Product.objects.filter(active=True)[:100])
-    products = [p for p in all_products if p.stock_ready_to_sale > 0]
+
+    # Pre-load despiece configs keyed by destination product id
+    despiece_map = {}
+    for dc in DespieceConfig.objects.select_related('source_product').all():
+        despiece_map[dc.destination_product_id] = dc
+
+    # Include products with stock, granel items, or despiece-eligible (even at 0 stock)
+    products = [
+        p for p in all_products
+        if p.stock_ready_to_sale > 0 or p.Granel_Item or p.id in despiece_map
+    ]
     products.sort(key=lambda p: p.stock_ready_to_sale, reverse=True)
     clients = Client.objects.all()[:100]
+
     products_data = []
     for p in products:
         granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
         available_stock = p.stock_ready_to_sale
+        dc = despiece_map.get(p.id)
         products_data.append({
             'id': p.id,
             'barcode': p.barcode,
@@ -35,6 +47,11 @@ def _get_pos_context(request):
             'granel': p.granel,
             'Granel_Item': p.Granel_Item,
             'minimo': p.minimo,
+            'despiece_config_id': dc.id if dc else None,
+            'despiece_source_name': dc.source_product.compose_name if dc else None,
+            'despiece_source_id': dc.source_product.id if dc else None,
+            'despiece_source_stock': dc.source_product.stock_ready_to_sale if dc else None,
+            'despiece_units_per': float(dc.units_per_source) if dc else None,
         })
     return {
         'products': products_data,
@@ -82,10 +99,15 @@ def search_products(request):
             
             products = Product.objects.filter(active=True).filter(filters)[:50]
         
-        # Filter to only products with available stock and sort by availability
+        # Pre-load despiece configs
+        despiece_map = {}
+        for dc in DespieceConfig.objects.select_related('source_product').all():
+            despiece_map[dc.destination_product_id] = dc
+
+        # Include products with stock, granel items, or despiece-eligible (even at 0 stock)
         products_list = [
-            p for p in products 
-            if p.stock_ready_to_sale > 0
+            p for p in products
+            if p.stock_ready_to_sale > 0 or p.Granel_Item or p.id in despiece_map
         ]
         products_list.sort(key=lambda p: p.stock_ready_to_sale, reverse=True)
         
@@ -94,7 +116,7 @@ def search_products(request):
         for p in products_list:
             granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
             available_stock = p.stock_ready_to_sale
-            
+            dc = despiece_map.get(p.id)
             results.append({
                 'id': p.id,
                 'barcode': p.barcode,
@@ -108,6 +130,11 @@ def search_products(request):
                 'granel': p.granel,
                 'Granel_Item': p.Granel_Item,
                 'minimo': p.minimo,
+                'despiece_config_id': dc.id if dc else None,
+                'despiece_source_name': dc.source_product.compose_name if dc else None,
+                'despiece_source_id': dc.source_product.id if dc else None,
+                'despiece_source_stock': dc.source_product.stock_ready_to_sale if dc else None,
+                'despiece_units_per': float(dc.units_per_source) if dc else None,
             })
         
         return JsonResponse(results, safe=False)

@@ -620,6 +620,35 @@ textarea {
     background-color: #ffe69c !important;
 }
 
+/* DESPIECE BUTTON */
+.despiece-btn {
+    background: #ff9800;
+    color: #fff;
+    border: none;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 4px;
+    margin-left: 4px;
+}
+
+.despiece-btn:hover {
+    background: #e65100;
+}
+
+/* ZERO-DESPIECE ROW (dashed border) */
+tr.zero-despiece td {
+    border-bottom-style: dashed !important;
+    border-bottom-color: #ff9800 !important;
+}
+
+/* SOURCE STOCK HINT */
+td.stock .src-hint {
+    font-size: 10px;
+    color: #666;
+    font-weight: 400;
+}
+
 .badge-granel {
     display: inline-block;
     background: #dc3545;

@@ -4,10 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{{ title }}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/pos.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pos.css' %}?v=3">
 </head>
 <body class="pos-body">
     <div class="pos-container">
@@ -50,15 +51,16 @@
                         </thead>
                         <tbody id="products-tbody">
                             {% for product in products %}
-                            <tr data-product-id="{{ product.id }}" data-price-granel="{{ product.price_granel }}" data-minimo="{{ product.minimo }}" class="{% if product.Granel_Item %}row-granel{% endif %}">
+                            <tr data-product-id="{{ product.id }}" data-price-granel="{{ product.price_granel }}" data-minimo="{{ product.minimo }}" data-despiece-config-id="{{ product.despiece_config_id }}" data-despiece-source-name="{{ product.despiece_source_name|escapejs }}" data-despiece-source-stock="{{ product.despiece_source_stock }}" data-despiece-units-per="{{ product.despiece_units_per }}" class="{% if product.Granel_Item %}row-granel{% endif %}{% if product.stock == 0 and product.despiece_config_id %} zero-despiece{% endif %}">
                                 <td class="barcode">{{ product.barcode }}</td>
                                 <td class="name">{{ product.compose_name }}{% if product.Granel_Item %} <span class="badge-granel">GRANEL</span>{% endif %}</td>
-                                <td class="stock">{{ product.stock }}</td>
+                                <td class="stock">{% if product.stock > 0 %}{{ product.stock }}{% else %}{% if product.despiece_config_id and product.despiece_source_stock > 0 %}0 · src: {{ product.despiece_source_stock }}{% else %}0{% endif %}{% endif %}</td>
                                 <td class="price-regular">${{ product.price|floatformat:2 }}</td>
                                 <td class="price-mayoreo col-mayoreo">${{ product.price_mayoreo|floatformat:2 }}</td>
                                 <td class="action">
                                     <input type="number" class="qty-input" value="1" min="1" style="width: 50px;">
                                     <button class="btn-add" onclick="addToCart(this)">+</button>
+                                    {% if product.despiece_config_id %}<button class="despiece-btn" onclick="openDespieceModal(this)" title="Despiece: {{ product.despiece_source_name }}">📦→</button>{% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -188,6 +190,33 @@
         </div>
     </div>
 
+    <!-- DESPIECE MODAL -->
+    <div id="despiece-modal" class="modal">
+        <div class="modal-content" style="max-width:420px;">
+            <span class="close" onclick="closeDespieceModal()">&times;</span>
+            <h2>📦→ Despiece</h2>
+            <p style="font-size:14px;margin-bottom:15px;color:#666;">
+                Convertir desde: <strong id="despiece-source-name" style="color:#000;"></strong><br>
+                Disponible: <strong id="despiece-source-stock" style="color:#2e7d32;"></strong>
+            </p>
+            <div class="settings-group">
+                <label>Cantidad de origen:</label>
+                <div class="despiece-qty-row">
+                    <button class="qty-btn" onclick="despieceQtyDelta(-1)" style="width:36px;height:36px;font-size:20px;">−</button>
+                    <input type="number" id="despiece-qty" value="1" min="1" readonly style="width:80px;text-align:center;font-size:18px;font-weight:700;border:2px solid #000;border-radius:4px;padding:6px;">
+                    <button class="qty-btn" onclick="despieceQtyDelta(1)" style="width:36px;height:36px;font-size:20px;">+</button>
+                </div>
+            </div>
+            <div id="despiece-preview" class="despiece-preview" style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:4px;padding:10px 15px;text-align:center;font-size:15px;margin-bottom:10px;color:#2e7d32;">
+                → Se crearán <strong id="despiece-dest-qty">0</strong> unidades destino
+            </div>
+            <div style="display:flex;gap:10px;margin-top:10px;">
+                <button class="btn-cancel" onclick="closeDespieceModal()" style="flex:1;">Cancelar</button>
+                <button class="btn-confirm" onclick="confirmDespiece()" style="flex:1;">✓ Convertir</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <!-- DEBUG: Log initial product data -->
@@ -237,6 +266,6 @@
     }
     </script>
     
-    <script src="{% static 'js/pos.js' %}"></script>
+    <script src="{% static 'js/pos.js' %}?v=3"></script>
 </body>
 </html>

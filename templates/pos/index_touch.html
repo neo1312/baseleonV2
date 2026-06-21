@@ -6,8 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{{ title }} · Touch</title>
-    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}?v=3">
 </head>
 <body class="pos-touch">
     <div id="toast-container" style="position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
@@ -48,22 +49,31 @@
         <div class="pos-products-section">
             <div class="products-grid-header">
                 <span id="product-count">{{ products|length }}</span>
-                <span>products with stock</span>
+                <span>products</span>
             </div>
             <div class="products-grid" id="products-grid">
                 {% for product in products %}
-                <div class="product-card{% if product.Granel_Item %} granel{% endif %}"
+                <div class="product-card{% if product.Granel_Item %} granel{% endif %}{% if product.stock == 0 and product.despiece_config_id %} zero-despiece{% endif %}"
                      data-product-id="{{ product.id }}"
                      data-price-regular="{{ product.price }}"
                      data-price-mayoreo="{{ product.price_mayoreo }}"
                      data-price-granel="{{ product.price_granel }}"
-                     data-minimo="{{ product.minimo }}">
+                     data-minimo="{{ product.minimo }}"
+                     data-despiece-config-id="{{ product.despiece_config_id }}"
+                     data-despiece-source-name="{{ product.despiece_source_name|escapejs }}"
+                     data-despiece-source-stock="{{ product.despiece_source_stock }}"
+                     data-despiece-units-per="{{ product.despiece_units_per }}">
                     {% if product.Granel_Item %}<span class="card-badge">GRANEL</span>{% endif %}
+                    {% if product.despiece_config_id %}<button class="card-despiece-btn" title="Despiece: {{ product.despiece_source_name }}">📦→</button>{% endif %}
                     <div class="card-name">{{ product.compose_name }}</div>
                     <div class="card-details">
                         <span class="card-price">${{ product.price|floatformat:2 }}</span>
                         <span class="card-price-mayoreo col-mayoreo" style="display:none;">May: ${{ product.price_mayoreo|floatformat:2 }}</span>
-                        <span class="card-stock{% if product.stock < 5 %} low{% endif %}{% if product.stock == 0 %} out{% endif %}">{{ product.stock }} pz</span>
+                        {% if product.stock > 0 %}
+                        <span class="card-stock{% if product.stock < 5 %} low{% endif %}">{{ product.stock }} pz</span>
+                        {% else %}
+                        <span class="card-stock out">{% if product.despiece_config_id and product.despiece_source_stock > 0 %}Agotado · src: {{ product.despiece_source_stock }}{% else %}Agotado{% endif %}</span>
+                        {% endif %}
                     </div>
                     <div class="card-actions">
                         <div class="card-qty-row">
@@ -73,7 +83,7 @@
                     </div>
                 </div>
                 {% empty %}
-                <div class="no-results">No products with stock available</div>
+                <div class="no-results">No products found</div>
                 {% endfor %}
             </div>
         </div>
@@ -273,15 +283,41 @@
         </div>
     </div>
 
+    <!-- DESPIECE MODAL -->
+    <div id="despiece-modal" class="touch-modal">
+        <div class="touch-modal-content" style="max-width:420px;">
+            <h2>📦→ Despiece <button class="modal-close" onclick="closeDespieceModal()">✕</button></h2>
+            <p style="font-size:16px;margin-bottom:16px;color:var(--text-muted);">
+                Convertir desde: <strong id="despiece-source-name" style="color:var(--text);"></strong><br>
+                Disponible: <strong id="despiece-source-stock" style="color:var(--success);"></strong>
+            </p>
+            <div class="settings-group">
+                <label>Cantidad de origen:</label>
+                <div class="despiece-qty-row">
+                    <button class="qty-btn" onclick="despieceQtyDelta(-1)">−</button>
+                    <input type="number" id="despiece-qty" value="1" min="1" readonly>
+                    <button class="qty-btn" onclick="despieceQtyDelta(1)">+</button>
+                </div>
+            </div>
+            <div id="despiece-preview" class="despiece-preview">
+                → Se crearán <strong id="despiece-dest-qty">0</strong> unidades destino
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeDespieceModal()">Cancelar</button>
+                <button class="modal-btn primary" onclick="confirmDespiece()">✓ Convertir</button>
+            </div>
+        </div>
+    </div>
+
     <!-- DATA FOR JS -->
     <script>
     const initialProducts = [
         {% for product in products %}
-        {id: {{ product.id }}, name: '{{ product.compose_name|escapejs }}', stock: {{ product.stock }}, barcode: '{{ product.barcode|escapejs }}', price: {{ product.price }}, price_mayoreo: {{ product.price_mayoreo }}, Granel_Item: {{ product.Granel_Item|yesno:"true,false" }}, price_granel: '{{ product.price_granel|default:"" }}', minimo: '{{ product.minimo|default:"" }}'},
+        {id: {{ product.id }}, name: '{{ product.compose_name|escapejs }}', stock: {{ product.stock }}, barcode: '{{ product.barcode|escapejs }}', price: {{ product.price }}, price_mayoreo: {{ product.price_mayoreo }}, Granel_Item: {{ product.Granel_Item|yesno:"true,false" }}, price_granel: '{{ product.price_granel|default:"" }}', minimo: '{{ product.minimo|default:"" }}', despiece_config_id: {{ product.despiece_config_id|default:"null" }}, despiece_source_name: '{{ product.despiece_source_name|escapejs }}', despiece_source_stock: {{ product.despiece_source_stock|default:"null" }}, despiece_units_per: {{ product.despiece_units_per|default:"null" }}},
         {% endfor %}
     ];
     const DISPLAY_SESSION_KEY = '{{ session_key|escapejs }}';
     </script>
-    <script src="{% static 'js/pos_touch.js' %}"></script>
+    <script src="{% static 'js/pos_touch.js' %}?v=3"></script>
 </body>
 </html>

@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Q
+from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal, ROUND_HALF_UP
 from im.models import Product, DespieceConfig, DespieceLog
 
@@ -62,6 +63,7 @@ def _create_po_number():
         po_number = f'DESPIECE-{ts}'
     return po_number
 
+@csrf_exempt
 @transaction.atomic
 def despiece_process(request, pk):
     """
@@ -150,8 +152,9 @@ def despiece_process(request, pk):
     )
 
     # 3. Generate tracking IDs (find max numeric suffix to avoid collisions)
+    # Query by tracking_id prefix (global unique constraint) not just same product
     all_tracking = InventoryUnit.objects.filter(
-        product_id=config.destination_product_id
+        tracking_id__startswith=f'{config.destination_product_id}-'
     ).values_list('tracking_id', flat=True)
 
     max_num = 0

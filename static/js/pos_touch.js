@@ -13,6 +13,7 @@ let clientWallet = 0;
 let saleStarted = false;
 let sessionKey = '';
 let lastAddedId = null;
+let currentDespieceConfig = null;
 
 // Broadcast channel for customer display
 let posChannel = null;
@@ -61,6 +62,17 @@ function clearCheckoutState() {
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
+// --- CSRF TOKEN ---
+function getCSRFToken() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  if (meta) return meta.getAttribute('content');
+  const cookies = document.cookie.split(';');
+  for (let c of cookies) {
+    if (c.trim().startsWith('csrftoken=')) return c.trim().substring('csrftoken='.length);
+  }
+  return '';
+}
+
 // --- CARD EVENT HANDLERS ---
 function attachCardHandlers(card) {
   const addBtn = card.querySelector('.card-add-btn');
@@ -73,8 +85,16 @@ function attachCardHandlers(card) {
     });
   }
 
+  const despieceBtn = card.querySelector('.card-despiece-btn');
+  if (despieceBtn) {
+    despieceBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openDespieceModal(card.dataset);
+    });
+  }
+
   card.addEventListener('click', (e) => {
-    if (e.target.closest('.card-qty-row') || e.target.closest('.card-badge')) return;
+    if (e.target.closest('.card-qty-row') || e.target.closest('.card-badge') || e.target.closest('.card-despiece-btn')) return;
     addToCart(card.dataset.productId, 1, card);
   });
 }
@@ -183,17 +203,34 @@ function renderProductGrid(products) {
     card.dataset.priceMayoreo = p.price_mayoreo || 0;
     card.dataset.priceGranel = p.price_granel || '';
     card.dataset.minimo = p.minimo || '';
+    card.dataset.despieceConfigId = p.despiece_config_id || '';
+    card.dataset.despieceSourceName = p.despiece_source_name || '';
+    card.dataset.despieceSourceStock = p.despiece_source_stock || '';
+    card.dataset.despieceUnitsPer = p.despiece_units_per || '';
 
     const stockClass = p.stock <= 0 ? 'out' : p.stock < 5 ? 'low' : '';
     const mayoreoDisplay = document.body.dataset.mayoreo === 'true' ? '' : 'display:none;';
+    const hasDespiece = p.despiece_config_id ? true : false;
+    const isZeroDespiece = p.stock <= 0 && hasDespiece;
+    if (isZeroDespiece) card.classList.add('zero-despiece');
+
+    let stockHtml;
+    if (p.stock > 0) {
+      stockHtml = p.stock + ' pz';
+    } else if (hasDespiece && p.despiece_source_stock > 0) {
+      stockHtml = 'Agotado · src: ' + p.despiece_source_stock;
+    } else {
+      stockHtml = 'Agotado';
+    }
 
     card.innerHTML = `
       ${p.Granel_Item ? '<span class="card-badge">GRANEL</span>' : ''}
+      ${hasDespiece ? '<button class="card-despiece-btn" title="Despiece: ' + p.despiece_source_name + '">📦→</button>' : ''}
       <div class="card-name">${p.compose_name || p.name}</div>
       <div class="card-details">
         <span class="card-price">$${(parseFloat(p.price) || 0).toFixed(2)}</span>
         <span class="card-price-mayoreo col-mayoreo" style="${mayoreoDisplay}">May: $${(parseFloat(p.price_mayoreo) || 0).toFixed(2)}</span>
-        <span class="card-stock ${stockClass}">${p.stock > 0 ? p.stock + ' pz' : 'Agotado'}</span>
+        <span class="card-stock ${stockClass}">${stockHtml}</span>
       </div>
       <div class="card-actions">
         <div class="card-qty-row">
@@ -761,6 +798,75 @@ function closeQtyKeypad() {
   qtyKeypadCallback = null;
 }
 
+// --- DESPIECE MODAL ---
+function openDespieceModal(dataset) {
+  currentDespieceConfig = {
+    configId: dataset.despieceConfigId,
+    sourceName: dataset.despieceSourceName,
+    sourceStock: parseInt(dataset.despieceSourceStock) || 0,
+    unitsPer: parseFloat(dataset.despieceUnitsPer) || 1,
+  };
+  if (!currentDespieceConfig.configId) { showToast('No despiece config', 'error'); return; }
+  $('#despiece-source-name').textContent = currentDespieceConfig.sourceName;
+  $('#despiece-source-stock').textContent = currentDespieceConfig.sourceStock + ' pz';
+  $('#despiece-qty').value = 1;
+  updateDespiecePreview();
+  $('#despiece-modal').classList.add('show');
+}
+
+function closeDespieceModal() {
+  $('#despiece-modal').classList.remove('show');
+  currentDespieceConfig = null;
+}
+
+function despieceQtyDelta(delta) {
+  const input = $('#despiece-qty');
+  let val = parseInt(input.value) + delta;
+  val = Math.max(1, Math.min(val, currentDespieceConfig?.sourceStock || 999));
+  input.value = val;
+  updateDespiecePreview();
+}
+
+function updateDespiecePreview() {
+  const qty = parseInt($('#despiece-qty').value) || 0;
+  const dest = qty * (currentDespieceConfig?.unitsPer || 1);
+  $('#despiece-dest-qty').textContent = dest;
+}
+
+function confirmDespiece() {
+  const qty = parseInt($('#despiece-qty').value) || 0;
+  if (qty <= 0) { showToast('Enter a valid quantity', 'warning'); return; }
+  if (qty > currentDespieceConfig.sourceStock) {
+    showToast(`Only ${currentDespieceConfig.sourceStock} available`, 'error'); return;
+  }
+
+  showLoading(true);
+  const url = `/im/product/despiece/${currentDespieceConfig.configId}/process/`;
+  const formData = new FormData();
+  formData.append('source_quantity', qty);
+  formData.append('csrfmiddlewaretoken', getCSRFToken());
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', url, true);
+  xhr.onload = function() {
+    showLoading(false);
+    var data = null;
+    try { data = JSON.parse(xhr.responseText); } catch (e) {}
+    if (xhr.status >= 200 && xhr.status < 300 && data && data.success) {
+      showToast(`✅ Despiece: ${data.source_quantity} → ${data.destination_quantity} units created`, 'success');
+      closeDespieceModal();
+      reloadProducts();
+    } else {
+      showToast(`❌ URL=${url} Status=${xhr.status} Body=${xhr.responseText.substring(0,200)}`, 'error');
+    }
+  };
+  xhr.onerror = function() {
+    showLoading(false);
+    showToast(`❌ Network error URL=${url}`, 'error');
+  };
+  xhr.send(formData);
+}
+
 // --- CUSTOMER DISPLAY ---
 function openDisplayLink() {
   const baseUrl = window.location.origin + '/pos/customer-display/?sk=' + encodeURIComponent(sessionKey);
@@ -825,6 +931,7 @@ function showLoading(show) {
 // --- KEYBOARD SHORTCUTS ---
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
+    if ($('#despiece-modal.show')) { closeDespieceModal(); return; }
     if ($('#checkout-modal.show')) { closeCheckout(); return; }
     if ($('#settings-modal.show')) { closeSettings(); return; }
     if ($('#display-modal.show')) { closeDisplayLink(); return; }
