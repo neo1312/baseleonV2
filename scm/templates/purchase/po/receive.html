@@ -411,7 +411,7 @@ function toggleReceived(checkbox) {
 }
 
 // ==================== LINE TOTALS ====================
-function updateLineTotal(input) {
+function updateLineTotal(input, skipIvaSync) {
     const itemId = input.dataset.itemId;
     const row = document.querySelector(`#receiveForm tr[data-item-id="${itemId}"]`);
     if (!row) return;
@@ -446,8 +446,8 @@ function updateLineTotal(input) {
             ivaElement.textContent = '$' + iva.toFixed(2);
         }
         
-        // Sync Cost/Unit + IVA input when base cost changes
-        if (costWithIvaInput) {
+        // Sync Cost/Unit + IVA input when base cost changes (skip if editing IVA directly)
+        if (costWithIvaInput && !skipIvaSync) {
             const costWithIva = hasIva ? cost * 1.16 : cost;
             costWithIvaInput.value = costWithIva.toFixed(2);
         }
@@ -482,7 +482,8 @@ function updateFromCostWithIva(input) {
     costInput.value = cost.toFixed(2);
     
     // Trigger the full update (IVA, line total, summary, row status)
-    updateLineTotal(costInput);
+    // Pass skipIvaSync=true to preserve the user's typed Cost/U+IVA value
+    updateLineTotal(costInput, true);
 }
 
 function updateOrderTotal() {
