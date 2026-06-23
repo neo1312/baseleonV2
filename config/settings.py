@@ -130,5 +130,9 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Barcode scanner WebSocket bridge
-# WebSocket scanner bridge URL (used by scanner_ws.py)
-# WS_SCANNER_URL = os.getenv('WS_SCANNER_URL', 'ws://192.168.1.100:8765')
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'django_cache_table',
+    }
+}

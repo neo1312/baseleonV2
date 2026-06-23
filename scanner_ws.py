@@ -19,6 +19,7 @@ import signal
 import os
 import urllib.request
 import json
+import ssl
 
 try:
     from evdev import InputDevice, list_devices, ecodes
@@ -79,7 +80,8 @@ async def scan_loop(dev, stop, push_url):
                             req = urllib.request.Request(
                                 push_url, data=data,
                                 headers={'Content-Type': 'application/json'})
-                            urllib.request.urlopen(req, timeout=3)
+                            ctx = ssl._create_unverified_context()
+                            urllib.request.urlopen(req, timeout=3, context=ctx)
                         except Exception as e:
                             print(f"Push failed: {e}", flush=True)
                 code = []
