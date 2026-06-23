@@ -70,6 +70,11 @@ def pos_index(request):
     return render(request, 'pos/index.html', context)
 
 @login_required(login_url='/login/')
+def pos_landing(request):
+    """Landing/rest page with Ferre León branding"""
+    return render(request, 'pos/landing.html', {'title': 'Inicio'})
+
+@login_required(login_url='/login/')
 def pos_index_touch(request):
     """Touch-optimized POS interface for 10-inch tablets"""
     context = {

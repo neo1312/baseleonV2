@@ -1,6 +1,6 @@
 /**
- * TOUCH-OPTIMIZED POS - Manual Search + Cart
- * For 9" tablet - no camera, manual input + USB scanner fallback
+ * TOUCH-OPTIMIZED POS - Camera Scanner + Cart
+ * For 9" tablet - continuous barcode scanning
  */
 
 // --- STATE ---
@@ -13,7 +13,13 @@ let saleStarted = false;
 let sessionKey = '';
 let lastAddedId = null;
 let currentDespieceConfig = null;
+let qrScanner = null;
+let isScanning = false;
+let lastScannedCode = '';
+let lastScannedTime = 0;
+let scanDebounceMs = 1500;
 let pendingScanProduct = null;
+let cameraOn = true;
 
 // --- DOM REFS ---
 const $ = (sel) => document.querySelector(sel);
@@ -60,7 +66,75 @@ let posChannel = null;
 try { posChannel = new BroadcastChannel('pos-display'); } catch(e) {}
 function broadcastToDisplay(msg) { if (posChannel) posChannel.postMessage(msg); }
 
-// ==================== LOOKUP ====================
+// ==================== SCANNER ====================
+function initScanner() {
+  if (!window.Html5Qrcode) {
+    setTimeout(initScanner, 500);
+    return;
+  }
+  if (qrScanner) {
+    try { qrScanner.stop(); } catch(e) {}
+  }
+  qrScanner = new Html5Qrcode('scanner-viewfinder');
+  qrScanner.start(
+    { facingMode: 'environment' },
+    {
+      fps: 12,
+      qrbox: { width: 260, height: 70 },
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.ITF,
+      ],
+    },
+    onScanSuccess,
+    () => {}
+  ).then(() => { isScanning = true; })
+   .catch(err => console.error('Scanner start error:', err));
+}
+
+function toggleCamera() {
+  cameraOn = !cameraOn;
+  const btn = document.getElementById('cam-toggle');
+  const overlay = document.getElementById('cam-off-overlay');
+  if (cameraOn) {
+    if (overlay) overlay.style.display = 'none';
+    if (btn) {
+      btn.classList.remove('off');
+      btn.textContent = '📷';
+    }
+    initScanner();
+  } else {
+    isScanning = false;
+    if (qrScanner) {
+      qrScanner.stop().then(function() {
+        qrScanner = null;
+      }).catch(function() {});
+    }
+    if (overlay) overlay.style.display = 'flex';
+    if (btn) {
+      btn.classList.add('off');
+      btn.innerHTML = '📷 <span style="font-size:10px;opacity:0.8">OFF</span>';
+    }
+  }
+}
+
+function onScanSuccess(decodedText) {
+  const now = Date.now();
+  if (decodedText === lastScannedCode && now - lastScannedTime < scanDebounceMs) return;
+  lastScannedCode = decodedText;
+  lastScannedTime = now;
+  navigator.vibrate && navigator.vibrate(50);
+  flashViewfinder();
+  lookupBarcode(decodedText);
+}
+
+// --- BEEP SOUNDS (in-memory WAV, no AudioContext autoplay issues) ---
 let beepOkUrl = null;
 let beepFailUrl = null;
 let beepReady = false;
@@ -113,6 +187,13 @@ function playBeep(type) {
 }
 
 function initAudio() { initBeeps(); }
+
+function flashViewfinder() {
+  const el = $('#scanner-viewfinder');
+  el.style.outline = '3px solid #2e7d32';
+  el.style.outlineOffset = '-3px';
+  setTimeout(() => { el.style.outline = 'none'; }, 200);
+}
 
 function lookupBarcode(code) {
   fetch('/pos/scan/?q=' + encodeURIComponent(code))
@@ -718,7 +799,12 @@ function initScannerWS() {
 document.addEventListener('DOMContentLoaded', function() {
   sessionKey = DISPLAY_SESSION_KEY;
   initManualInput();
+  initScanner();
   initQtyNumpad();
   initScannerWS();
+  // Init audio context on user interaction (Chrome requires user gesture)
+  document.addEventListener('click', initAudio);
+  document.addEventListener('touchstart', initAudio);
+  // Show idle message
   $('#idle-msg').style.display = 'flex';
 });
