@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.contrib.sessions.models import Session
+from django.conf import settings
 from im.models import Product, DespieceConfig
 from crm.models import Sale, saleItem, Client
 from django.utils import timezone
@@ -73,6 +74,7 @@ def pos_index_touch(request):
     """Touch-optimized POS interface for 10-inch tablets"""
     context = {
         'title': 'POS - Touch',
+        'ws_scanner_url': getattr(settings, 'WS_SCANNER_URL', 'ws://192.168.1.100:8765'),
         **_get_pos_context(request),
     }
     return render(request, 'pos/index_touch.html', context)

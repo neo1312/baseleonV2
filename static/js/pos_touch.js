@@ -772,12 +772,28 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
+// ==================== WEBSOCKET SCANNER FALLBACK ====================
+let scannerWs = null;
+let wsReconnectTimer = null;
+
+function initScannerWS() {
+  try {
+    scannerWs = new WebSocket(typeof WS_SCANNER_URL !== 'undefined' ? WS_SCANNER_URL : 'ws://192.168.1.100:8765');
+    scannerWs.onmessage = (e) => lookupBarcode(e.data);
+    scannerWs.onclose = () => {
+      wsReconnectTimer = setTimeout(initScannerWS, 3000);
+    };
+    scannerWs.onerror = () => scannerWs && scannerWs.close();
+  } catch(e) { wsReconnectTimer = setTimeout(initScannerWS, 5000); }
+}
+
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', function() {
   sessionKey = DISPLAY_SESSION_KEY;
   initManualInput();
   initScanner();
   initQtyNumpad();
+  initScannerWS();
   // Init audio context on first user tap (Chrome requires user gesture)
   document.addEventListener('click', initAudio, { once: true });
   document.addEventListener('touchstart', initAudio, { once: true });
