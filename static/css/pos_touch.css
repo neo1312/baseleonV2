@@ -122,13 +122,12 @@ html, body {
   background: var(--accent-hover);
 }
 
-.top-btn.active {
-  background: #2e7d32;
-  color: #fff;
+.top-btn.off {
+  background: var(--accent);
 }
 
-.top-btn.active:active {
-  background: #1b5e20;
+.top-btn.off:active {
+  background: var(--accent-hover);
 }
 
 /* === SEARCH BAR === */
@@ -1214,33 +1213,6 @@ html, body {
 
 .cam-off-icon {
   font-size: 28px;
-}
-
-.cam-toggle-btn {
-  min-width: 44px;
-  min-height: 40px;
-  background: var(--primary);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius);
-  font-size: 18px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
-}
-
-.cam-toggle-btn:active {
-  background: var(--primary-hover);
-}
-
-.cam-toggle-btn.off {
-  background: var(--accent);
-}
-
-.cam-toggle-btn.off:active {
-  background: var(--accent-hover);
 }
 
 .viewfinder-wrap video {

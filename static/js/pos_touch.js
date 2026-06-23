@@ -19,7 +19,6 @@ let lastScannedCode = '';
 let lastScannedTime = 0;
 let scanDebounceMs = 1500;
 let pendingScanProduct = null;
-let lookupMode = false;
 let cameraOn = true;
 
 // --- DOM REFS ---
@@ -131,14 +130,21 @@ function onScanSuccess(decodedText) {
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 function playBeep(freq, durationMs, type) {
   try {
     initAudio();
     if (!audioCtx) return;
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    if (audioCtx.state === 'suspended') return;
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().then(() => playBeepNow(freq, durationMs, type));
+      return;
+    }
+    playBeepNow(freq, durationMs, type);
+  } catch(e) { /* audio not available */ }
+}
+function playBeepNow(freq, durationMs, type) {
+  try {
+    if (!audioCtx || audioCtx.state === 'suspended') return;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = type || 'sine';
@@ -150,7 +156,7 @@ function playBeep(freq, durationMs, type) {
     gain.connect(audioCtx.destination);
     osc.start(t);
     osc.stop(t + durationMs / 1000);
-  } catch(e) { /* audio not available */ }
+  } catch(e) {}
 }
 
 function flashViewfinder() {
@@ -170,28 +176,13 @@ function lookupBarcode(code) {
         return;
       }
       playBeep(880, 120, 'sine');
-      if (saleStarted && !lookupMode) {
+      if (saleStarted) {
         openQtyModal(data);
       } else {
         showProductInfo(data);
       }
     })
     .catch(() => showNotFound(code));
-}
-
-// --- LOOKUP MODE TOGGLE ---
-function toggleLookupMode() {
-  lookupMode = !lookupMode;
-  const btn = $('#lookup-toggle');
-  if (lookupMode) {
-    btn.classList.add('active');
-    btn.innerHTML = '🔍 Lookup ON';
-    showToast('Lookup mode: scans show info only', 'info');
-  } else {
-    btn.classList.remove('active');
-    btn.innerHTML = '🔍 Lookup';
-    showToast('Sale mode: scan to add to cart', 'info');
-  }
 }
 
 // --- INFO PANEL (IDLE MODE) ---
@@ -532,7 +523,7 @@ function selectSuggestion(data) {
     despiece_source_stock: data.despiece_source_stock ? parseInt(data.despiece_source_stock) : null,
     despiece_units_per: parseFloat(data.despiece_units_per) || null,
   };
-  if (saleStarted && !lookupMode) {
+  if (saleStarted) {
     openQtyModal(product);
   } else {
     showProductInfo(product);
@@ -794,9 +785,9 @@ document.addEventListener('DOMContentLoaded', function() {
   initScanner();
   initQtyNumpad();
   initScannerWS();
-  // Init audio context on first user tap (Chrome requires user gesture)
-  document.addEventListener('click', initAudio, { once: true });
-  document.addEventListener('touchstart', initAudio, { once: true });
+  // Init audio context on user interaction (Chrome requires user gesture)
+  document.addEventListener('click', initAudio);
+  document.addEventListener('touchstart', initAudio);
   // Show idle message
   $('#idle-msg').style.display = 'flex';
 });
