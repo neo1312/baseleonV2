@@ -20,6 +20,7 @@ let lastScannedTime = 0;
 let scanDebounceMs = 1500;
 let pendingScanProduct = null;
 let cameraOn = true;
+let scannerConnected = true;
 
 // --- DOM REFS ---
 const $ = (sel) => document.querySelector(sel);
@@ -784,6 +785,7 @@ document.addEventListener('keydown', function(e) {
 let scannerPollTimer = null;
 
 function initScannerPoll() {
+  if (!scannerConnected) return;
   if (scannerPollTimer) clearInterval(scannerPollTimer);
   scannerPollTimer = setInterval(function() {
     fetch('/pos/scanner-poll/')
@@ -795,6 +797,23 @@ function initScannerPoll() {
       })
       .catch(function() {});
   }, 1000);
+}
+
+function toggleScannerConnection() {
+  scannerConnected = !scannerConnected;
+  const btn = $('#scanner-toggle');
+  if (scannerConnected) {
+    btn.innerHTML = '🔗';
+    btn.style.opacity = '1';
+    initScannerPoll();
+  } else {
+    btn.innerHTML = '🔌';
+    btn.style.opacity = '0.5';
+    if (scannerPollTimer) {
+      clearInterval(scannerPollTimer);
+      scannerPollTimer = null;
+    }
+  }
 }
 
 // ==================== INIT ====================
