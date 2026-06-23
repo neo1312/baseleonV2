@@ -122,14 +122,6 @@ html, body {
   background: var(--accent-hover);
 }
 
-.top-btn.off {
-  background: var(--accent);
-}
-
-.top-btn.off:active {
-  background: var(--accent-hover);
-}
-
 /* === SEARCH BAR === */
 .pos-search-bar {
   padding: 8px 16px;
@@ -1169,10 +1161,10 @@ html, body {
 }
 
 /* =============================================
-   CAMERA SCANNER LAYOUT (new for 9" touch POS)
+   BRAND PANEL LAYOUT (replaced camera scanner)
    ============================================= */
 
-/* Scan area (viewfinder + info) */
+/* Scan area (brand panel + info) */
 .scan-area {
   flex-shrink: 0;
   background: #fff;
@@ -1187,43 +1179,59 @@ html, body {
   min-height: 130px;
 }
 
-.viewfinder-wrap {
+/* Ferre León brand panel (replaces camera viewfinder) */
+.ferre-panel {
   width: 260px;
   min-width: 260px;
   height: 120px;
-  background: #000;
   border-radius: var(--radius);
   overflow: hidden;
   position: relative;
-}
-
-.cam-off-overlay {
-  position: absolute;
-  inset: 0;
-  background: #222;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #999;
-  font-size: 12px;
-  gap: 4px;
-  z-index: 5;
+  gap: 2px;
+  border: 1px solid #333;
 }
 
-.cam-off-icon {
-  font-size: 28px;
+.ferre-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 20%, rgba(220,20,60,0.08) 0%, transparent 70%);
+  pointer-events: none;
 }
 
-.viewfinder-wrap video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.fp-hex {
+  font-size: 32px;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 2px;
+  filter: drop-shadow(0 0 6px rgba(220,20,60,0.3));
 }
 
-.viewfinder-wrap #scanner-viewfinder {
-  width: 100%;
-  height: 100%;
+.fp-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+.fp-highlight {
+  color: var(--accent);
+  font-size: 20px;
+  letter-spacing: 4px;
+}
+
+.fp-sub {
+  font-size: 10px;
+  color: #666;
+  letter-spacing: 1px;
+  margin-top: 4px;
+  text-transform: uppercase;
 }
 
 /* Product info panel */
@@ -1705,7 +1713,7 @@ html, body {
   .scan-row {
     min-height: auto;
   }
-  .viewfinder-wrap {
+  .ferre-panel {
     width: 220px;
     min-width: 220px;
     height: 100px;

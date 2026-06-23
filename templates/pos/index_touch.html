@@ -8,8 +8,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{{ title }} · Touch</title>
-    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}?v=6">
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}?v=7">
+    <!-- no html5-qrcode → camera replaced with branded panel -->
 </head>
 <body class="pos-touch">
     <div id="toast-container" style="position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
@@ -28,19 +28,18 @@
         <div class="top-actions">
             <button class="top-btn primary" onclick="openSettings()">📝 New Sale</button>
             <button class="top-btn" onclick="openDisplayLink()">🖥️ Display</button>
-            <button class="top-btn" id="cam-toggle" onclick="toggleCamera()" title="Encender/Apagar cámara">📷</button>
             <button class="top-btn" id="toggleMayoreoBtn">💰 Mayoreo</button>
         </div>
     </div>
 
-    <!-- SCANNER + INFO PANEL -->
+    <!-- BRAND PANEL + INFO -->
     <div class="scan-area">
         <div class="scan-row">
-            <div class="viewfinder-wrap" id="scanner-viewfinder">
-                <div class="cam-off-overlay" id="cam-off-overlay" style="display:none;">
-                    <span class="cam-off-icon">📷</span>
-                    <span>Cámara apagada</span>
-                </div>
+            <div class="ferre-panel" id="ferre-panel">
+                <div class="fp-hex">⬡</div>
+                <div class="fp-text">FERRETERÍA</div>
+                <div class="fp-text fp-highlight">LEÓN</div>
+                <div class="fp-sub">Punto de Venta</div>
             </div>
             <div class="product-info" id="product-info" style="display:none;">
                 <div class="pi-name" id="pi-name"></div>
@@ -56,7 +55,7 @@
         </div>
         <div class="manual-row">
             <div class="manual-wrap">
-                <input type="text" id="manual-barcode" placeholder="Código, descripción o clave..." autocomplete="off">
+                <input type="text" id="manual-barcode" placeholder="Buscar por código, descripción o clave..." autocomplete="off">
             </div>
             <button id="manual-lookup" title="Buscar">🔍</button>
         </div>
@@ -76,8 +75,8 @@
 
     <!-- IDLE MESSAGE (visible when no sale started) -->
     <div class="idle-msg" id="idle-msg">
-        <div class="idle-icon">📷</div>
-        <div>Escanea un código para ver precio e información</div>
+        <div class="idle-icon">🔍</div>
+        <div>Busca un producto por código, descripción o clave</div>
     </div>
 
     <!-- BOTTOM TOTALS + ACTIONS (only visible in RUNNING) -->
@@ -238,6 +237,6 @@
     const DISPLAY_SESSION_KEY = '{{ session_key|escapejs }}';
     const WS_SCANNER_URL = '{{ ws_scanner_url|default:"ws://192.168.1.100:8765" }}';
     </script>
-    <script src="{% static 'js/pos_touch.js' %}?v=5"></script>
+    <script src="{% static 'js/pos_touch.js' %}?v=6"></script>
 </body>
 </html>
