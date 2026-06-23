@@ -8,7 +8,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{{ title }} · Touch</title>
-    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}?v=4">
+    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}?v=5">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body class="pos-touch">
@@ -49,7 +49,9 @@
             </div>
         </div>
         <div class="manual-row">
-            <input type="text" id="manual-barcode" placeholder="Ingresa código manual..." inputmode="numeric" autocomplete="off">
+            <div class="manual-wrap">
+                <input type="text" id="manual-barcode" placeholder="Código, descripción o clave..." autocomplete="off">
+            </div>
             <button id="manual-lookup">🔍</button>
         </div>
     </div>
@@ -244,6 +246,6 @@
     <script>
     const DISPLAY_SESSION_KEY = '{{ session_key|escapejs }}';
     </script>
-    <script src="{% static 'js/pos_touch.js' %}?v=4"></script>
+    <script src="{% static 'js/pos_touch.js' %}?v=5"></script>
 </body>
 </html>

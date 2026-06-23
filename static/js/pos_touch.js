@@ -75,8 +75,8 @@ function initScanner() {
   qrScanner.start(
     { facingMode: 'environment' },
     {
-      fps: 15,
-      qrbox: { width: 240, height: 90 },
+      fps: 12,
+      qrbox: { width: 260, height: 70 },
       formatsToSupport: [
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
@@ -120,11 +120,7 @@ function lookupBarcode(code) {
         return;
       }
       if (saleStarted) {
-        pendingScanProduct = data;
-        $('#qty-modal-title').textContent = 'Cantidad para:';
-        $('#qm-product').textContent = data.compose_name || data.name;
-        $('#qm-display').textContent = '1';
-        $('#qty-modal').classList.add('show');
+        openQtyModal(data);
       } else {
         showProductInfo(data);
       }
@@ -169,6 +165,34 @@ function showNotFound(code) {
 }
 
 // ==================== QTY MODAL ====================
+let qtyNumpadValue = '1';
+
+function initQtyNumpad() {
+  const numpad = $('#qm-numpad');
+  if (!numpad) return;
+  numpad.querySelectorAll('.numpad-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.value;
+      if (val === 'clear') { qtyNumpadValue = '1'; }
+      else if (val === 'backspace') { qtyNumpadValue = qtyNumpadValue.length > 1 ? qtyNumpadValue.slice(0, -1) : '1'; }
+      else { 
+        const newVal = qtyNumpadValue === '1' ? val : qtyNumpadValue + val;
+        qtyNumpadValue = newVal.replace(/^0+/, '') || '1';
+      }
+      $('#qm-display').textContent = qtyNumpadValue;
+    });
+  });
+}
+
+function openQtyModal(product) {
+  pendingScanProduct = product;
+  qtyNumpadValue = '1';
+  $('#qty-modal-title').textContent = 'Cantidad para:';
+  $('#qm-product').textContent = product.compose_name || product.name;
+  $('#qm-display').textContent = '1';
+  $('#qty-modal').classList.add('show');
+}
+
 function closeQtyModal() {
   $('#qty-modal').classList.remove('show');
   pendingScanProduct = null;
@@ -326,20 +350,137 @@ function updateSaleTypeDisplay() {
   $('#client-display').textContent = clientName || 'General';
 }
 
-// --- MANUAL BARCODE INPUT ---
+// --- MANUAL INPUT + LIVE SUGGESTIONS ---
+let suggestDebounce = null;
+let suggestIndex = -1;
+
 function initManualInput() {
   const input = $('#manual-barcode');
   const btn = $('#manual-lookup');
+  const wrap = input.closest('.manual-wrap');
+
   btn.addEventListener('click', () => {
     const code = input.value.trim();
-    if (code) lookupBarcode(code);
+    if (code) { clearSuggestions(); lookupBarcode(code); }
   });
   input.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
+      const sel = wrap && wrap.querySelector('.sg-item.active');
+      if (sel) { selectSuggestion(sel.dataset); return; }
       const code = input.value.trim();
-      if (code) lookupBarcode(code);
+      if (code) { clearSuggestions(); lookupBarcode(code); }
     }
   });
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    if (q.length < 2) { clearSuggestions(); return; }
+    clearTimeout(suggestDebounce);
+    suggestDebounce = setTimeout(() => fetchSuggestions(q), 200);
+  });
+  input.addEventListener('blur', () => setTimeout(clearSuggestions, 250));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveSuggestion(1); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); moveSuggestion(-1); }
+    if (e.key === 'Escape') { clearSuggestions(); }
+  });
+}
+
+function fetchSuggestions(q) {
+  fetch('/pos/search/?q=' + encodeURIComponent(q))
+    .then(r => r.json())
+    .then(items => {
+      if (!items || !items.length) { clearSuggestions(); return; }
+      renderSuggestions(items.slice(0, 8));
+    })
+    .catch(() => clearSuggestions());
+}
+
+function renderSuggestions(items) {
+  const wrap = $('#manual-barcode').closest('.manual-wrap');
+  if (!wrap) return;
+  let existing = wrap.querySelector('.sg-dropdown');
+  if (!existing) {
+    existing = document.createElement('div');
+    existing.className = 'sg-dropdown';
+    wrap.appendChild(existing);
+  }
+  existing.innerHTML = '';
+  items.forEach((p, i) => {
+    const div = document.createElement('div');
+    div.className = 'sg-item' + (i === 0 ? ' active' : '');
+    div.dataset.id = p.id;
+    div.dataset.barcode = p.barcode || '';
+    div.dataset.clave = p.clave || '';
+    div.dataset.name = p.compose_name || p.name;
+    div.dataset.price = p.price || 0;
+    div.dataset.price_mayoreo = p.price_mayoreo || 0;
+    div.dataset.stock = p.stock || 0;
+    div.dataset.granel = p.granel || false;
+    div.dataset.Granel_Item = p.Granel_Item || false;
+    div.dataset.despiece_config_id = p.despiece_config_id || '';
+    div.dataset.despiece_source_name = p.despiece_source_name || '';
+    div.dataset.despiece_source_id = p.despiece_source_id || '';
+    div.dataset.despiece_source_stock = p.despiece_source_stock || 0;
+    div.dataset.despiece_units_per = p.despiece_units_per || 0;
+    div.innerHTML =
+      '<span class="sg-name">' + (p.compose_name || p.name) + '</span>' +
+      '<span class="sg-meta">' +
+        (p.clave ? '<span class="sg-clave">' + p.clave + '</span>' : '') +
+        '<span class="sg-price">$' + (parseFloat(p.price) || 0).toFixed(2) + '</span>' +
+        '<span class="sg-stock">' + (p.stock > 0 ? p.stock + ' pz' : 'Agotado') + '</span>' +
+      '</span>';
+    div.addEventListener('mousedown', (e) => { e.preventDefault(); selectSuggestion(div.dataset); });
+    div.addEventListener('touchstart', (e) => { e.preventDefault(); selectSuggestion(div.dataset); });
+    existing.appendChild(div);
+  });
+  suggestIndex = 0;
+}
+
+function moveSuggestion(dir) {
+  const wrap = $('#manual-barcode').closest('.manual-wrap');
+  if (!wrap) return;
+  const items = wrap.querySelectorAll('.sg-item');
+  if (!items.length) return;
+  items.forEach(el => el.classList.remove('active'));
+  suggestIndex = Math.max(0, Math.min(suggestIndex + dir, items.length - 1));
+  items[suggestIndex].classList.add('active');
+}
+
+function selectSuggestion(data) {
+  clearSuggestions();
+  // Convert data-* attributes to a product object like the scan response
+  const product = {
+    id: parseInt(data.id),
+    barcode: data.barcode,
+    clave: data.clave,
+    name: data.name,
+    compose_name: data.name,
+    price: parseFloat(data.price),
+    price_mayoreo: parseFloat(data.price_mayoreo),
+    stock: parseInt(data.stock),
+    granel: data.granel === 'true',
+    Granel_Item: data.Granel_Item === 'true',
+    despiece_config_id: data.despiece_config_id ? parseInt(data.despiece_config_id) : null,
+    despiece_source_name: data.despiece_source_name || null,
+    despiece_source_id: data.despiece_source_id ? parseInt(data.despiece_source_id) : null,
+    despiece_source_stock: data.despiece_source_stock ? parseInt(data.despiece_source_stock) : null,
+    despiece_units_per: parseFloat(data.despiece_units_per) || null,
+  };
+  if (saleStarted) {
+    openQtyModal(product);
+  } else {
+    showProductInfo(product);
+  }
+  $('#manual-barcode').value = '';
+}
+
+function clearSuggestions() {
+  const wrap = $('#manual-barcode').closest('.manual-wrap');
+  if (wrap) {
+    const dd = wrap.querySelector('.sg-dropdown');
+    if (dd) dd.remove();
+  }
+  suggestIndex = -1;
 }
 
 // ==================== CHECKOUT ====================
@@ -598,6 +739,7 @@ document.addEventListener('DOMContentLoaded', function() {
   sessionKey = DISPLAY_SESSION_KEY;
   initManualInput();
   initScanner();
+  initQtyNumpad();
   // Show idle message
   $('#idle-msg').style.display = 'flex';
 });

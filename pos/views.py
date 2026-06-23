@@ -120,6 +120,7 @@ def search_products(request):
             results.append({
                 'id': p.id,
                 'barcode': p.barcode,
+                'clave': p.clave or '',
                 'name': p.name,
                 'brand': p.brand.name if p.brand else '',
                 'compose_name': p.compose_name,
@@ -164,6 +165,7 @@ def scan_product(request):
         return JsonResponse({
             'id': product.id,
             'barcode': product.barcode,
+            'clave': product.clave or '',
             'name': product.name,
             'compose_name': product.compose_name,
             'price': float(product.priceLista),

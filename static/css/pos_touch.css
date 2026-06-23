@@ -38,6 +38,7 @@ html, body {
 
 .pos-touch {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -1091,9 +1092,9 @@ html, body {
 }
 
 .viewfinder-wrap {
-  width: 200px;
-  min-width: 200px;
-  height: 130px;
+  width: 260px;
+  min-width: 260px;
+  height: 120px;
   background: #000;
   border-radius: var(--radius);
   overflow: hidden;
@@ -1254,6 +1255,7 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   background: #fff;
+  padding-bottom: 72px;
 }
 
 .cart-rows-header {
@@ -1380,7 +1382,11 @@ html, body {
 
 /* Bottom totals + actions */
 .bottom-bar {
-  flex-shrink: 0;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
   display: flex;
   align-items: center;
   padding: 10px 16px;
@@ -1502,6 +1508,125 @@ html, body {
   background: #e3f2fd;
   color: #1565c0;
   border: 1px solid #bbdefb;
+}
+
+/* Suggestions dropdown for manual input */
+.manual-wrap {
+  position: relative;
+  flex: 1;
+}
+
+.sg-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 500;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.sg-item {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  min-height: 48px;
+  justify-content: center;
+}
+
+.sg-item:last-child {
+  border-bottom: none;
+}
+
+.sg-item.active,
+.sg-item:active {
+  background: #e8f0fe;
+}
+
+.sg-name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.sg-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  align-items: center;
+}
+
+.sg-clave {
+  background: #f0f0f0;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.sg-price {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.sg-stock {
+  color: var(--success);
+}
+
+/* Landscape: more compact scan area */
+@media (orientation: landscape) and (max-height: 800px) {
+  .scan-area {
+    padding: 4px 8px;
+  }
+  .scan-row {
+    min-height: auto;
+  }
+  .viewfinder-wrap {
+    width: 220px;
+    min-width: 220px;
+    height: 100px;
+  }
+  .manual-row {
+    margin-top: 4px;
+  }
+  .manual-row input {
+    min-height: 36px;
+    font-size: 14px;
+    padding: 4px 10px;
+  }
+  .manual-row button {
+    min-height: 36px;
+    min-width: 40px;
+    font-size: 16px;
+  }
+  .pi-name {
+    font-size: 15px;
+  }
+  .pi-price {
+    font-size: 20px;
+  }
+  .idle-icon {
+    font-size: 48px;
+  }
+  .idle-msg {
+    font-size: 15px;
+    padding: 20px;
+  }
+  .sg-dropdown {
+    max-height: 200px;
+  }
+  .sg-item {
+    min-height: 40px;
+    padding: 6px 10px;
+  }
 }
 
 /* Override pos-main since we don't use flex row anymore */
