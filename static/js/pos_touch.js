@@ -20,6 +20,7 @@ let lastScannedTime = 0;
 let scanDebounceMs = 1500;
 let pendingScanProduct = null;
 let lookupMode = false;
+let cameraOn = true;
 
 // --- DOM REFS ---
 const $ = (sel) => document.querySelector(sel);
@@ -72,6 +73,9 @@ function initScanner() {
     setTimeout(initScanner, 500);
     return;
   }
+  if (qrScanner) {
+    try { qrScanner.stop(); } catch(e) {}
+  }
   qrScanner = new Html5Qrcode('scanner-viewfinder');
   qrScanner.start(
     { facingMode: 'environment' },
@@ -95,6 +99,24 @@ function initScanner() {
    .catch(err => console.error('Scanner start error:', err));
 }
 
+function toggleCamera() {
+  const btn = $('#cam-toggle');
+  const camOverlay = $('#cam-off-overlay');
+  if (cameraOn) {
+    cameraOn = false;
+    if (qrScanner) { try { qrScanner.stop(); isScanning = false; } catch(e) {} }
+    btn.innerHTML = '📷';
+    btn.classList.add('off');
+    if (camOverlay) camOverlay.style.display = 'flex';
+  } else {
+    cameraOn = true;
+    if (camOverlay) camOverlay.style.display = 'none';
+    btn.innerHTML = '📷';
+    btn.classList.remove('off');
+    initScanner();
+  }
+}
+
 function onScanSuccess(decodedText) {
   const now = Date.now();
   if (decodedText === lastScannedCode && now - lastScannedTime < scanDebounceMs) return;
@@ -107,19 +129,27 @@ function onScanSuccess(decodedText) {
 
 // --- BEEP SOUNDS (Web Audio API, no files needed) ---
 let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
 function playBeep(freq, durationMs, type) {
   try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    initAudio();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (audioCtx.state === 'suspended') return;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = type || 'sine';
     osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + durationMs / 1000);
+    const t = audioCtx.currentTime;
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + Math.max(durationMs / 1000, 0.01));
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + durationMs / 1000);
+    osc.start(t);
+    osc.stop(t + durationMs / 1000);
   } catch(e) { /* audio not available */ }
 }
 
@@ -748,6 +778,9 @@ document.addEventListener('DOMContentLoaded', function() {
   initManualInput();
   initScanner();
   initQtyNumpad();
+  // Init audio context on first user tap (Chrome requires user gesture)
+  document.addEventListener('click', initAudio, { once: true });
+  document.addEventListener('touchstart', initAudio, { once: true });
   // Show idle message
   $('#idle-msg').style.display = 'flex';
 });

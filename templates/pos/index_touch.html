@@ -36,7 +36,13 @@
     <!-- SCANNER + INFO PANEL -->
     <div class="scan-area">
         <div class="scan-row">
-            <div class="viewfinder-wrap" id="scanner-viewfinder"></div>
+            <div class="viewfinder-wrap" id="scanner-viewfinder">
+                <button class="cam-toggle" id="cam-toggle" onclick="toggleCamera()">📷</button>
+                <div class="cam-off-overlay" id="cam-off-overlay" style="display:none;">
+                    <span class="cam-off-icon">📷</span>
+                    <span>Cámara apagada</span>
+                </div>
+            </div>
             <div class="product-info" id="product-info" style="display:none;">
                 <div class="pi-name" id="pi-name"></div>
                 <div class="pi-price" id="pi-price"></div>
