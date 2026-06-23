@@ -99,20 +99,18 @@ function initScanner() {
 }
 
 function toggleCamera() {
-  const btn = $('#cam-toggle');
-  const camOverlay = $('#cam-off-overlay');
+  cameraOn = !cameraOn;
+  const btn = document.getElementById('cam-toggle');
+  const overlay = document.getElementById('cam-off-overlay');
   if (cameraOn) {
-    cameraOn = false;
-    if (qrScanner) { try { qrScanner.stop(); isScanning = false; } catch(e) {} }
-    btn.innerHTML = '📷';
-    btn.classList.add('off');
-    if (camOverlay) camOverlay.style.display = 'flex';
-  } else {
-    cameraOn = true;
-    if (camOverlay) camOverlay.style.display = 'none';
-    btn.innerHTML = '📷';
-    btn.classList.remove('off');
+    if (overlay) overlay.style.display = 'none';
+    if (btn) { btn.classList.remove('off'); btn.textContent = '📷'; }
     initScanner();
+  } else {
+    if (qrScanner) { try { qrScanner.stop().catch(()=>{}); } catch(e) {} }
+    isScanning = false;
+    if (overlay) overlay.style.display = 'flex';
+    if (btn) { btn.classList.add('off'); btn.textContent = '📷'; }
   }
 }
 
@@ -129,22 +127,14 @@ function onScanSuccess(decodedText) {
 // --- BEEP SOUNDS (Web Audio API, no files needed) ---
 let audioCtx = null;
 function initAudio() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch(e) {}
 }
 function playBeep(freq, durationMs, type) {
   try {
-    initAudio();
-    if (!audioCtx) return;
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume().then(() => playBeepNow(freq, durationMs, type));
-      return;
-    }
-    playBeepNow(freq, durationMs, type);
-  } catch(e) { /* audio not available */ }
-}
-function playBeepNow(freq, durationMs, type) {
-  try {
-    if (!audioCtx || audioCtx.state === 'suspended') return;
+    if (!audioCtx || audioCtx.state !== 'running') return;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = type || 'sine';
@@ -407,105 +397,90 @@ function updateSaleTypeDisplay() {
   $('#client-display').textContent = clientName || 'General';
 }
 
-// --- MANUAL INPUT + LIVE SUGGESTIONS ---
-let suggestDebounce = null;
-let suggestIndex = -1;
+// --- MANUAL INPUT + SEARCH RESULTS ---
+let searchDebounce = null;
 
 function initManualInput() {
   const input = $('#manual-barcode');
   const btn = $('#manual-lookup');
-  const wrap = input.closest('.manual-wrap');
 
   btn.addEventListener('click', () => {
     const code = input.value.trim();
-    if (code) { clearSuggestions(); lookupBarcode(code); }
+    if (code) { clearSearchResults(); lookupBarcode(code); }
   });
   input.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-      const sel = wrap && wrap.querySelector('.sg-item.active');
-      if (sel) { selectSuggestion(sel.dataset); return; }
       const code = input.value.trim();
-      if (code) { clearSuggestions(); lookupBarcode(code); }
+      if (code) { clearSearchResults(); lookupBarcode(code); }
     }
   });
   input.addEventListener('input', () => {
     const q = input.value.trim();
-    if (q.length < 2) { clearSuggestions(); return; }
-    clearTimeout(suggestDebounce);
-    suggestDebounce = setTimeout(() => fetchSuggestions(q), 200);
+    if (q.length < 2) { clearSearchResults(); return; }
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => fetchSearchResults(q), 200);
   });
-  input.addEventListener('blur', () => setTimeout(clearSuggestions, 250));
+  input.addEventListener('blur', () => setTimeout(clearSearchResults, 300));
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); moveSuggestion(1); }
-    if (e.key === 'ArrowUp') { e.preventDefault(); moveSuggestion(-1); }
-    if (e.key === 'Escape') { clearSuggestions(); }
+    if (e.key === 'Escape') { clearSearchResults(); }
   });
 }
 
-function fetchSuggestions(q) {
+function fetchSearchResults(q) {
   fetch('/pos/search/?q=' + encodeURIComponent(q))
     .then(r => r.json())
     .then(items => {
-      if (!items || !items.length) { clearSuggestions(); return; }
-      renderSuggestions(items.slice(0, 8));
+      if (!items || !items.length) { clearSearchResults(); return; }
+      renderSearchResults(items);
     })
-    .catch(() => clearSuggestions());
+    .catch(() => clearSearchResults());
 }
 
-function renderSuggestions(items) {
-  const wrap = $('#manual-barcode').closest('.manual-wrap');
-  if (!wrap) return;
-  let existing = wrap.querySelector('.sg-dropdown');
-  if (!existing) {
-    existing = document.createElement('div');
-    existing.className = 'sg-dropdown';
-    wrap.appendChild(existing);
-  }
-  existing.innerHTML = '';
-  items.forEach((p, i) => {
-    const div = document.createElement('div');
-    div.className = 'sg-item' + (i === 0 ? ' active' : '');
-    div.dataset.id = p.id;
-    div.dataset.barcode = p.barcode || '';
-    div.dataset.clave = p.clave || '';
-    div.dataset.name = p.compose_name || p.name;
-    div.dataset.price = p.price || 0;
-    div.dataset.price_mayoreo = p.price_mayoreo || 0;
-    div.dataset.stock = p.stock || 0;
-    div.dataset.granel = p.granel || false;
-    div.dataset.Granel_Item = p.Granel_Item || false;
-    div.dataset.despiece_config_id = p.despiece_config_id || '';
-    div.dataset.despiece_source_name = p.despiece_source_name || '';
-    div.dataset.despiece_source_id = p.despiece_source_id || '';
-    div.dataset.despiece_source_stock = p.despiece_source_stock || 0;
-    div.dataset.despiece_units_per = p.despiece_units_per || 0;
-    div.innerHTML =
-      '<span class="sg-name">' + (p.compose_name || p.name) + '</span>' +
-      '<span class="sg-meta">' +
-        (p.clave ? '<span class="sg-clave">' + p.clave + '</span>' : '') +
-        '<span class="sg-price">$' + (parseFloat(p.price) || 0).toFixed(2) + '</span>' +
-        '<span class="sg-stock">' + (p.stock > 0 ? p.stock + ' pz' : 'Agotado') + '</span>' +
-      '</span>';
-    div.addEventListener('mousedown', (e) => { e.preventDefault(); selectSuggestion(div.dataset); });
-    div.addEventListener('touchstart', (e) => { e.preventDefault(); selectSuggestion(div.dataset); });
-    existing.appendChild(div);
+function renderSearchResults(items) {
+  const container = $('#search-results');
+  const wrap = $('#cart-rows-wrap');
+  const idle = $('#idle-msg');
+  if (!container) return;
+  container.style.display = 'flex';
+  wrap.style.display = 'none';
+  idle.style.display = 'none';
+  container.innerHTML = '';
+  items.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'sr-card';
+    card.dataset.id = p.id;
+    card.dataset.barcode = p.barcode || '';
+    card.dataset.clave = p.clave || '';
+    card.dataset.name = p.compose_name || p.name;
+    card.dataset.price = p.price || 0;
+    card.dataset.price_mayoreo = p.price_mayoreo || 0;
+    card.dataset.stock = p.stock || 0;
+    card.dataset.granel = p.granel || false;
+    card.dataset.Granel_Item = p.Granel_Item || false;
+    card.dataset.despiece_config_id = p.despiece_config_id || '';
+    card.dataset.despiece_source_name = p.despiece_source_name || '';
+    card.dataset.despiece_source_id = p.despiece_source_id || '';
+    card.dataset.despiece_source_stock = p.despiece_source_stock || 0;
+    card.dataset.despiece_units_per = p.despiece_units_per || 0;
+    const price = parseFloat(p.price) || 0;
+    const dprice = parseFloat(p.price_mayoreo) || 0;
+    card.innerHTML =
+      '<div class="sr-name">' + (p.compose_name || p.name) + '</div>' +
+      '<div class="sr-meta">' +
+        (p.clave ? '<span class="sr-clave">' + p.clave + '</span>' : '') +
+        '<span class="sr-price">$' + price.toFixed(2) + '</span>' +
+        (dprice > 0 && dprice !== price ? '<span class="sr-mayoreo">$' + dprice.toFixed(2) + '</span>' : '') +
+        '<span class="sr-stock' + (p.stock <= 0 ? ' out' : '') + '">' +
+          (p.stock > 0 ? p.stock + ' pz' : 'Agotado') +
+        '</span>' +
+      '</div>';
+    card.addEventListener('click', () => selectSearchItem(card.dataset));
+    container.appendChild(card);
   });
-  suggestIndex = 0;
 }
 
-function moveSuggestion(dir) {
-  const wrap = $('#manual-barcode').closest('.manual-wrap');
-  if (!wrap) return;
-  const items = wrap.querySelectorAll('.sg-item');
-  if (!items.length) return;
-  items.forEach(el => el.classList.remove('active'));
-  suggestIndex = Math.max(0, Math.min(suggestIndex + dir, items.length - 1));
-  items[suggestIndex].classList.add('active');
-}
-
-function selectSuggestion(data) {
-  clearSuggestions();
-  // Convert data-* attributes to a product object like the scan response
+function selectSearchItem(data) {
+  clearSearchResults();
   const product = {
     id: parseInt(data.id),
     barcode: data.barcode,
@@ -531,13 +506,16 @@ function selectSuggestion(data) {
   $('#manual-barcode').value = '';
 }
 
-function clearSuggestions() {
-  const wrap = $('#manual-barcode').closest('.manual-wrap');
-  if (wrap) {
-    const dd = wrap.querySelector('.sg-dropdown');
-    if (dd) dd.remove();
+function clearSearchResults() {
+  const container = $('#search-results');
+  const wrap = $('#cart-rows-wrap');
+  const idle = $('#idle-msg');
+  if (container) container.style.display = 'none';
+  if (saleStarted) {
+    wrap.style.display = 'flex';
+  } else {
+    idle.style.display = 'flex';
   }
-  suggestIndex = -1;
 }
 
 // ==================== CHECKOUT ====================
