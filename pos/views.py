@@ -142,6 +142,47 @@ def search_products(request):
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @csrf_exempt
+def scan_product(request):
+    """Lookup product by exact barcode match. Returns JSON or 404."""
+    if request.method == 'GET':
+        q = request.GET.get('q', '').strip()
+        if not q:
+            return JsonResponse({'error': 'No query'}, status=400)
+        
+        product = Product.objects.filter(barcode=q).first()
+        if not product:
+            return JsonResponse({'error': 'Not found'}, status=404)
+        
+        despiece_map = {}
+        for dc in DespieceConfig.objects.select_related('source_product').all():
+            despiece_map[dc.destination_product_id] = dc
+        dc = despiece_map.get(product.id)
+        
+        available_stock = product.stock_ready_to_sale
+        granel_price = product.priceListaGranel if product.priceListaGranel != 'N/A' else None
+        
+        return JsonResponse({
+            'id': product.id,
+            'barcode': product.barcode,
+            'name': product.name,
+            'compose_name': product.compose_name,
+            'price': float(product.priceLista),
+            'price_mayoreo': float(product.priceMayoreo),
+            'price_granel': float(granel_price) if granel_price else None,
+            'stock': available_stock,
+            'granel': product.granel,
+            'Granel_Item': product.Granel_Item,
+            'minimo': product.minimo,
+            'despiece_config_id': dc.id if dc else None,
+            'despiece_source_name': dc.source_product.compose_name if dc else None,
+            'despiece_source_id': dc.source_product.id if dc else None,
+            'despiece_source_stock': dc.source_product.stock_ready_to_sale if dc else None,
+            'despiece_units_per': float(dc.units_per_source) if dc else None,
+        })
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@csrf_exempt
 def debug_stock(request):
     """Debug endpoint - show all product stock from database (using stock_ready_to_sale)"""
     if request.method == 'GET':

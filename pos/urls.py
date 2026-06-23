@@ -18,5 +18,6 @@ urlpatterns = [
     path('checkout/save/', views.checkout_save, name='checkout_save'),
     path('checkout/clear/', views.checkout_clear, name='checkout_clear'),
     path('reset-display/', views.reset_display, name='reset_display'),
+    path('scan/', views.scan_product, name='scan'),
 ]
 

@@ -8,21 +8,19 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{{ title }} · Touch</title>
-    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}?v=3">
+    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}?v=4">
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body class="pos-touch">
     <div id="toast-container" style="position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
-    <!-- LOADING OVERLAY -->
     <div id="loading-overlay" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(255,255,255,0.7);align-items:center;justify-content:center;">
         <div style="font-size:40px;animation:pulse 1s infinite;">⏳</div>
     </div>
 
     <!-- TOP BAR -->
     <div class="pos-top-bar">
-        <div class="brand">
-            <span>⬡</span> FERRETERÍA <span>LEÓN</span>
-        </div>
+        <div class="brand"><span>⬡</span> FERRETERÍA <span>LEÓN</span></div>
         <div class="sale-info-bar">
             <span class="sale-badge" id="sale-type-display">Sale: -</span>
             <span class="sale-badge" id="client-display">Client: -</span>
@@ -34,87 +32,78 @@
         </div>
     </div>
 
-    <!-- SEARCH -->
-    <div class="pos-search-bar">
-        <div class="search-wrapper">
-            <span class="search-icon">🔍</span>
-            <input type="search" id="search-input" placeholder="Search products..." autofocus inputmode="search" autocomplete="off">
+    <!-- SCANNER + INFO PANEL -->
+    <div class="scan-area">
+        <div class="scan-row">
+            <div class="viewfinder-wrap" id="scanner-viewfinder"></div>
+            <div class="product-info" id="product-info" style="display:none;">
+                <div class="pi-name" id="pi-name"></div>
+                <div class="pi-price" id="pi-price"></div>
+                <div class="pi-details" id="pi-details"></div>
+                <div class="pi-stock" id="pi-stock"></div>
+            </div>
+            <div class="scan-notfound" id="scan-notfound" style="display:none;">
+                <div class="nf-icon">❌</div>
+                <div class="nf-text">No encontrado</div>
+                <div class="nf-sub">Escanea otro código o ingrésalo manualmente</div>
+            </div>
         </div>
-        <button class="search-btn" id="search-clear">✕</button>
+        <div class="manual-row">
+            <input type="text" id="manual-barcode" placeholder="Ingresa código manual..." inputmode="numeric" autocomplete="off">
+            <button id="manual-lookup">🔍</button>
+        </div>
     </div>
 
-    <!-- MAIN CONTENT -->
-    <div class="pos-main">
-        <!-- LEFT: PRODUCT GRID -->
-        <div class="pos-products-section">
-            <div class="products-grid-header">
-                <span id="product-count">{{ products|length }}</span>
-                <span>products</span>
-            </div>
-            <div class="products-grid" id="products-grid">
-                {% for product in products %}
-                <div class="product-card{% if product.Granel_Item %} granel{% endif %}{% if product.stock == 0 and product.despiece_config_id %} zero-despiece{% endif %}"
-                     data-product-id="{{ product.id }}"
-                     data-price-regular="{{ product.price }}"
-                     data-price-mayoreo="{{ product.price_mayoreo }}"
-                     data-price-granel="{{ product.price_granel }}"
-                     data-minimo="{{ product.minimo }}"
-                     data-despiece-config-id="{{ product.despiece_config_id }}"
-                     data-despiece-source-name="{{ product.despiece_source_name|escapejs }}"
-                     data-despiece-source-stock="{{ product.despiece_source_stock }}"
-                     data-despiece-units-per="{{ product.despiece_units_per }}">
-                    {% if product.Granel_Item %}<span class="card-badge">GRANEL</span>{% endif %}
-                    {% if product.despiece_config_id %}<button class="card-despiece-btn" title="Despiece: {{ product.despiece_source_name }}">📦→</button>{% endif %}
-                    <div class="card-name">{{ product.compose_name }}</div>
-                    <div class="card-details">
-                        <span class="card-price">${{ product.price|floatformat:2 }}</span>
-                        <span class="card-price-mayoreo col-mayoreo" style="display:none;">May: ${{ product.price_mayoreo|floatformat:2 }}</span>
-                        {% if product.stock > 0 %}
-                        <span class="card-stock{% if product.stock < 5 %} low{% endif %}">{{ product.stock }} pz</span>
-                        {% else %}
-                        <span class="card-stock out">{% if product.despiece_config_id and product.despiece_source_stock > 0 %}Agotado · src: {{ product.despiece_source_stock }}{% else %}Agotado{% endif %}</span>
-                        {% endif %}
-                    </div>
-                    <div class="card-actions">
-                        <div class="card-qty-row">
-                            <input type="number" class="card-qty" value="1" min="1" inputmode="numeric" pattern="[0-9]*">
-                            <button class="card-add-btn">+</button>
-                        </div>
-                    </div>
-                </div>
-                {% empty %}
-                <div class="no-results">No products found</div>
-                {% endfor %}
-            </div>
+    <!-- CART ROWS (only visible in RUNNING mode) -->
+    <div class="cart-rows-wrap" id="cart-rows-wrap" style="display:none;">
+        <div class="cart-rows-header">
+            <span>🛒 Carrito</span>
+            <span id="cart-rows-count">0 items</span>
         </div>
+        <div class="cart-rows" id="cart-rows"></div>
+    </div>
 
-        <!-- RIGHT: CART -->
-        <div class="pos-cart-section">
-            <div class="cart-header">
-                <h2>🛒 Cart <span class="cart-count" id="cart-count">0</span></h2>
-            </div>
-            <div class="cart-items" id="cart-items">
-                <div class="empty-cart">🛒 Cart is empty</div>
-            </div>
+    <!-- IDLE MESSAGE (visible when no sale started) -->
+    <div class="idle-msg" id="idle-msg">
+        <div class="idle-icon">📷</div>
+        <div>Escanea un código para ver precio e información</div>
+    </div>
 
-            <div class="cart-totals">
-                <div class="total-row">
-                    <span>Items:</span>
-                    <span id="total-items">0</span>
-                </div>
-                <div class="total-row">
-                    <span>Subtotal:</span>
-                    <span id="subtotal">$0.00</span>
-                </div>
-                <div class="total-row grand-total">
-                    <span>TOTAL:</span>
-                    <span class="amount" id="total">$0.00</span>
-                </div>
-            </div>
+    <!-- BOTTOM TOTALS + ACTIONS (only visible in RUNNING) -->
+    <div class="bottom-bar" id="bottom-bar" style="display:none;">
+        <div class="bottom-totals">
+            <span class="bt-label">TOTAL</span>
+            <span class="bt-amount" id="bt-total">$0.00</span>
+        </div>
+        <div class="bottom-actions">
+            <button class="ba-btn clear" onclick="clearCart()">🗑️</button>
+            <button class="ba-btn checkout" onclick="proceedCheckout()">💳 CHECKOUT</button>
+        </div>
+    </div>
 
-            <div class="cart-actions">
-                <button class="cart-action-btn clear" onclick="clearCart()">🗑️ Clear</button>
-                <button class="cart-action-btn checkout" onclick="proceedCheckout()">💳 CHECKOUT</button>
+    <!-- QTY NUMPAD MODAL (when product scanned during RUNNING) -->
+    <div id="qty-modal" class="touch-modal">
+        <div class="touch-modal-content" style="max-width:380px;">
+            <h2 id="qty-modal-title">Cantidad <button class="modal-close" onclick="closeQtyModal()">✕</button></h2>
+            <div class="qm-product" id="qm-product"></div>
+            <div class="qm-display" id="qm-display">1</div>
+            <div class="numpad" id="qm-numpad">
+                <button class="numpad-btn" data-value="1">1</button>
+                <button class="numpad-btn" data-value="2">2</button>
+                <button class="numpad-btn" data-value="3">3</button>
+                <button class="numpad-btn" data-value="4">4</button>
+                <button class="numpad-btn" data-value="5">5</button>
+                <button class="numpad-btn" data-value="6">6</button>
+                <button class="numpad-btn" data-value="7">7</button>
+                <button class="numpad-btn" data-value="8">8</button>
+                <button class="numpad-btn" data-value="9">9</button>
+                <button class="numpad-btn" data-value="clear">C</button>
+                <button class="numpad-btn" data-value="0">0</button>
+                <button class="numpad-btn action" data-value="backspace">⌫</button>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeQtyModal()">Cancelar</button>
+                <button class="modal-btn primary" onclick="confirmQtyModal()">✓ Agregar</button>
             </div>
         </div>
     </div>
@@ -123,7 +112,6 @@
     <div id="settings-modal" class="touch-modal">
         <div class="touch-modal-content">
             <h2>New Sale <button class="modal-close" onclick="closeSettings()">✕</button></h2>
-
             <div class="settings-group">
                 <label>Sale Type</label>
                 <select id="sale-type-select">
@@ -131,7 +119,6 @@
                     <option value="mayoreo">Mayoreo (Wholesale)</option>
                 </select>
             </div>
-
             <div class="settings-group">
                 <label>Client</label>
                 <select id="client-select">
@@ -141,7 +128,6 @@
                     {% endfor %}
                 </select>
             </div>
-
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeSettings()">Cancel</button>
                 <button class="modal-btn primary" onclick="saveSettings()">✓ Start Sale</button>
@@ -153,55 +139,29 @@
     <div id="checkout-modal" class="touch-modal">
         <div class="touch-modal-content full">
             <h2>Complete Sale <button class="modal-close" onclick="closeCheckout()">✕</button></h2>
-
             <div class="checkout-summary">
-                <div class="summary-row">
-                    <span class="label">Type:</span>
-                    <span class="value" id="chk-tipo">Menudeo</span>
-                </div>
-                <div class="summary-row">
-                    <span class="label">Client:</span>
-                    <span class="value" id="chk-client">General</span>
-                </div>
-                <div class="summary-row">
-                    <span class="label">Items:</span>
-                    <span class="value" id="chk-items">0</span>
-                </div>
-                <div class="summary-row total">
-                    <span>TOTAL:</span>
-                    <span class="value" id="chk-total">$0.00</span>
-                </div>
+                <div class="summary-row"><span class="label">Type:</span><span class="value" id="chk-tipo">Menudeo</span></div>
+                <div class="summary-row"><span class="label">Client:</span><span class="value" id="chk-client">General</span></div>
+                <div class="summary-row"><span class="label">Items:</span><span class="value" id="chk-items">0</span></div>
+                <div class="summary-row total"><span>TOTAL:</span><span class="value" id="chk-total">$0.00</span></div>
             </div>
-
-            <!-- Wallet -->
             <div id="wallet-info" class="wallet-info" style="display:none;">
                 <span>💰 Wallet balance:</span>
                 <span class="wallet-amount" id="wallet-amount-display">$0.00</span>
                 <button class="apply-btn" onclick="applyWalletDiscount()">Apply</button>
             </div>
-
-            <!-- Payment Method -->
             <div class="pm-label">Payment Method</div>
             <div class="payment-methods">
-                <button class="payment-method-btn" data-method="cash">
-                    <span class="pm-icon">💵</span> Cash
-                </button>
-                <button class="payment-method-btn" data-method="card">
-                    <span class="pm-icon">💳</span> Card
-                </button>
-                <button class="payment-method-btn" data-method="check">
-                    <span class="pm-icon">📝</span> Check
-                </button>
+                <button class="payment-method-btn" data-method="cash"><span class="pm-icon">💵</span> Cash</button>
+                <button class="payment-method-btn" data-method="card"><span class="pm-icon">💳</span> Card</button>
+                <button class="payment-method-btn" data-method="check"><span class="pm-icon">📝</span> Check</button>
             </div>
-
-            <!-- Cash Input -->
             <div id="cash-payment-area">
                 <div class="cash-input-area">
                     <label>Amount Received</label>
                     <div class="cash-amount-display" id="cash-amount-display">$0.00</div>
                     <div class="change-display" id="change-display" style="display:none;"></div>
                 </div>
-
                 <div class="numpad" id="cash-numpad">
                     <button class="numpad-btn" data-value="1">1</button>
                     <button class="numpad-btn" data-value="2">2</button>
@@ -218,13 +178,10 @@
                     <button class="numpad-btn action wide" data-value="clear">Clear</button>
                 </div>
             </div>
-
-            <!-- Notes -->
             <div class="settings-group">
                 <label>Notes (optional)</label>
                 <textarea id="checkout-notes" class="checkout-notes" rows="2"></textarea>
             </div>
-
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeCheckout()">Cancel</button>
                 <button class="modal-btn primary" onclick="confirmCheckout()">✓ CONFIRM & COMPLETE</button>
@@ -241,32 +198,6 @@
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeDisplayLink()">Close</button>
                 <button class="modal-btn primary" onclick="copyDisplayLink()">📋 Copy Link</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- NUMERIC KEYPAD MODAL -->
-    <div id="keypad-modal" class="touch-modal">
-        <div class="touch-modal-content" style="max-width:380px;">
-            <h2 id="keypad-title">Enter Quantity <button class="modal-close" onclick="closeQtyKeypad()">✕</button></h2>
-            <div style="font-size:48px;font-weight:700;text-align:center;padding:16px;margin-bottom:10px;border-bottom:2px solid var(--border);" id="keypad-display">0</div>
-            <div class="numpad" id="keypad-numpad">
-                <button class="numpad-btn" data-value="1">1</button>
-                <button class="numpad-btn" data-value="2">2</button>
-                <button class="numpad-btn" data-value="3">3</button>
-                <button class="numpad-btn" data-value="4">4</button>
-                <button class="numpad-btn" data-value="5">5</button>
-                <button class="numpad-btn" data-value="6">6</button>
-                <button class="numpad-btn" data-value="7">7</button>
-                <button class="numpad-btn" data-value="8">8</button>
-                <button class="numpad-btn" data-value="9">9</button>
-                <button class="numpad-btn" data-value="clear">C</button>
-                <button class="numpad-btn" data-value="0">0</button>
-                <button class="numpad-btn action" data-value="backspace">⌫</button>
-            </div>
-            <div class="modal-actions">
-                <button class="modal-btn secondary" id="keypad-cancel">Cancel</button>
-                <button class="modal-btn primary" id="keypad-confirm">✓ OK</button>
             </div>
         </div>
     </div>
@@ -309,15 +240,10 @@
         </div>
     </div>
 
-    <!-- DATA FOR JS -->
+    <!-- DATA -->
     <script>
-    const initialProducts = [
-        {% for product in products %}
-        {id: {{ product.id }}, name: '{{ product.compose_name|escapejs }}', stock: {{ product.stock }}, barcode: '{{ product.barcode|escapejs }}', price: {{ product.price }}, price_mayoreo: {{ product.price_mayoreo }}, Granel_Item: {{ product.Granel_Item|yesno:"true,false" }}, price_granel: '{{ product.price_granel|default:"" }}', minimo: '{{ product.minimo|default:"" }}', despiece_config_id: {{ product.despiece_config_id|default:"null" }}, despiece_source_name: '{{ product.despiece_source_name|escapejs }}', despiece_source_stock: {{ product.despiece_source_stock|default:"null" }}, despiece_units_per: {{ product.despiece_units_per|default:"null" }}},
-        {% endfor %}
-    ];
     const DISPLAY_SESSION_KEY = '{{ session_key|escapejs }}';
     </script>
-    <script src="{% static 'js/pos_touch.js' %}?v=3"></script>
+    <script src="{% static 'js/pos_touch.js' %}?v=4"></script>
 </body>
 </html>
