@@ -105,6 +105,24 @@ function onScanSuccess(decodedText) {
   lookupBarcode(decodedText);
 }
 
+// --- BEEP SOUNDS (Web Audio API, no files needed) ---
+let audioCtx = null;
+function playBeep(freq, durationMs, type) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + durationMs / 1000);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + durationMs / 1000);
+  } catch(e) { /* audio not available */ }
+}
+
 function flashViewfinder() {
   const el = $('#scanner-viewfinder');
   el.style.outline = '3px solid #2e7d32';
@@ -117,9 +135,11 @@ function lookupBarcode(code) {
     .then(r => r.json().catch(() => null))
     .then(data => {
       if (!data || data.error) {
+        playBeep(300, 300, 'square');
         showNotFound(code);
         return;
       }
+      playBeep(880, 120, 'sine');
       if (saleStarted && !lookupMode) {
         openQtyModal(data);
       } else {
