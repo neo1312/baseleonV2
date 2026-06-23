@@ -16,6 +16,9 @@ import asyncio
 import argparse
 import sys
 import signal
+import os
+import urllib.request
+import json
 
 try:
     from evdev import InputDevice, list_devices, ecodes
@@ -40,7 +43,7 @@ def find_scanner():
     for path in list_devices():
         dev = InputDevice(path)
         name = dev.name.lower()
-        if 'bar' in name or 'scanner' in name or 'handheld' in name:
+        if 'bar' in name or 'scanner' in name or 'handheld' in name or 'scn' in name:
             return dev
     return None
 
@@ -52,10 +55,43 @@ async def handler(ws):
     finally:
         connected.discard(ws)
 
+async def scan_loop(dev, stop, push_url):
+    code = []
+    ait = dev.async_read_loop().__aiter__()
+    while not stop.is_set():
+        try:
+            event = await asyncio.wait_for(ait.__anext__(), timeout=0.5)
+        except asyncio.TimeoutError:
+            continue
+        except StopAsyncIteration:
+            break
+        if event.type == ecodes.EV_KEY and event.value == 1:
+            key_name = ecodes.KEY.get(event.code, '')
+            if key_name == 'KEY_ENTER':
+                if code:
+                    barcode = ''.join(code)
+                    print(f"Scan: {barcode}", flush=True)
+                    if connected:
+                        websockets.broadcast(connected, barcode)
+                    if push_url:
+                        try:
+                            data = json.dumps({'barcode': barcode}).encode()
+                            req = urllib.request.Request(
+                                push_url, data=data,
+                                headers={'Content-Type': 'application/json'})
+                            urllib.request.urlopen(req, timeout=3)
+                        except Exception as e:
+                            print(f"Push failed: {e}", flush=True)
+                code = []
+            elif key_name in KEY_MAP:
+                code.append(KEY_MAP[key_name])
+
 async def main():
     parser = argparse.ArgumentParser(description='Barcode scanner WebSocket bridge')
     parser.add_argument('--port', type=int, default=8765, help='WebSocket port (default: 8765)')
     parser.add_argument('--device', type=str, default=None, help='Input device path (auto-detect if omitted)')
+    parser.add_argument('--push-url', type=str, default=os.environ.get('SCANNER_PUSH_URL', ''),
+                        help='HTTP endpoint to POST barcodes to (for cross-network setups)')
     args = parser.parse_args()
 
     if args.device:
@@ -70,34 +106,23 @@ async def main():
                 print(f"  {p}  ({d.name})")
             sys.exit(1)
 
-    print(f"Scanner: {dev.name} ({dev.path})")
-    print(f"WebSocket server on ws://0.0.0.0:{args.port}")
-    print("Waiting for connections...")
+    print(f"Scanner: {dev.name} ({dev.path})", flush=True)
+    print(f"WebSocket server on ws://0.0.0.0:{args.port}", flush=True)
+    print("Waiting for connections...", flush=True)
 
-    code = []
-    stop = asyncio.Future()
+    stop = asyncio.Event()
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
-            asyncio.get_event_loop().add_signal_handler(sig, lambda: stop.set_result(True))
+            asyncio.get_event_loop().add_signal_handler(sig, lambda: stop.set())
         except NotImplementedError:
             pass
 
+    if args.push_url:
+        print(f"Push URL: {args.push_url}", flush=True)
+
     async with websockets.serve(handler, "0.0.0.0", args.port):
-        async for event in dev.async_read_loop():
-            if stop.done():
-                break
-            if event.type == ecodes.EV_KEY and event.value == 1:
-                key_name = ecodes.KEY.get(event.code, '')
-                if key_name == 'KEY_ENTER':
-                    if code:
-                        barcode = ''.join(code)
-                        print(f"Scan: {barcode}")
-                        if connected:
-                            websockets.broadcast(connected, barcode)
-                    code = []
-                elif key_name in KEY_MAP:
-                    code.append(KEY_MAP[key_name])
+        await scan_loop(dev, stop, args.push_url)
 
 if __name__ == '__main__':
     asyncio.run(main())

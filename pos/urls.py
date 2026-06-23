@@ -20,5 +20,7 @@ urlpatterns = [
     path('checkout/clear/', views.checkout_clear, name='checkout_clear'),
     path('reset-display/', views.reset_display, name='reset_display'),
     path('scan/', views.scan_product, name='scan'),
+    path('scanner-push/', views.scanner_push, name='scanner_push'),
+    path('scanner-poll/', views.scanner_poll, name='scanner_poll'),
 ]
 

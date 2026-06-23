@@ -780,19 +780,21 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// ==================== WEBSOCKET SCANNER FALLBACK ====================
-let scannerWs = null;
-let wsReconnectTimer = null;
+// ==================== SCANNER POLLING FALLBACK ====================
+let scannerPollTimer = null;
 
-function initScannerWS() {
-  try {
-    scannerWs = new WebSocket(typeof WS_SCANNER_URL !== 'undefined' ? WS_SCANNER_URL : 'ws://192.168.1.100:8765');
-    scannerWs.onmessage = (e) => lookupBarcode(e.data);
-    scannerWs.onclose = () => {
-      wsReconnectTimer = setTimeout(initScannerWS, 3000);
-    };
-    scannerWs.onerror = () => scannerWs && scannerWs.close();
-  } catch(e) { wsReconnectTimer = setTimeout(initScannerWS, 5000); }
+function initScannerPoll() {
+  if (scannerPollTimer) clearInterval(scannerPollTimer);
+  scannerPollTimer = setInterval(function() {
+    fetch('/pos/scanner-poll/')
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.barcode) {
+          lookupBarcode(data.barcode);
+        }
+      })
+      .catch(function() {});
+  }, 1000);
 }
 
 // ==================== INIT ====================
@@ -801,7 +803,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initManualInput();
   initScanner();
   initQtyNumpad();
-  initScannerWS();
+  initScannerPoll();
   // Init audio context on user interaction (Chrome requires user gesture)
   document.addEventListener('click', initAudio);
   document.addEventListener('touchstart', initAudio);

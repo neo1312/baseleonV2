@@ -1,0 +1,15 @@
+[Unit]
+Description=Barcode scanner WebSocket bridge
+After=network.target
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/scanner-bridge/scanner_ws.py --device /dev/input/event10 --push-url https://5.75.162.179/pos/scanner-push/
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.sessions.models import Session
 from django.conf import settings
 from im.models import Product, DespieceConfig
+from django.core.cache import cache
 from crm.models import Sale, saleItem, Client
 from django.utils import timezone
 from django.db import transaction
@@ -79,7 +80,6 @@ def pos_index_touch(request):
     """Touch-optimized POS interface for 10-inch tablets"""
     context = {
         'title': 'POS - Touch',
-        'ws_scanner_url': getattr(settings, 'WS_SCANNER_URL', 'ws://192.168.1.100:8765'),
         **_get_pos_context(request),
     }
     return render(request, 'pos/index_touch.html', context)
@@ -612,6 +612,28 @@ def reset_display(request):
         request.session['pos_sale_type'] = 'menudeo'
         return JsonResponse({'success': True, 'message': 'Display reset'})
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+@csrf_exempt
+def scanner_push(request):
+    """Receive barcode from scanner server via HTTP POST (cross-network fallback)."""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            barcode = data.get('barcode')
+            if barcode:
+                cache.set('scanner_barcode', barcode, 30)
+                return JsonResponse({'ok': True})
+        except (json.JSONDecodeError, AttributeError):
+            pass
+    return JsonResponse({'ok': False}, status=400)
+
+def scanner_poll(request):
+    """Return pending scanner barcode and clear it."""
+    barcode = cache.get('scanner_barcode')
+    if barcode:
+        cache.delete('scanner_barcode')
+    return JsonResponse({'barcode': barcode})
 
 
 @login_required(login_url='/login/')
