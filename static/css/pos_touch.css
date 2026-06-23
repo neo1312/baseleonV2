@@ -122,6 +122,15 @@ html, body {
   background: var(--accent-hover);
 }
 
+.top-btn.active {
+  background: #2e7d32;
+  color: #fff;
+}
+
+.top-btn.active:active {
+  background: #1b5e20;
+}
+
 /* === SEARCH BAR === */
 .pos-search-bar {
   padding: 8px 16px;
@@ -919,6 +928,94 @@ html, body {
 
 .modal-btn.primary:active {
   background: var(--accent-hover);
+}
+
+/* Compact checkout modal */
+.compact-checkout {
+  padding: 12px 16px;
+  max-width: 380px;
+}
+
+.compact-checkout h2 {
+  font-size: 16px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+}
+
+.chk-big-total {
+  font-size: 36px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--primary);
+  padding: 4px 0 8px;
+  border-bottom: 2px solid var(--primary);
+  margin-bottom: 8px;
+}
+
+.payment-methods.compact {
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.payment-method-btn.sm {
+  min-height: 44px;
+  font-size: 13px;
+  gap: 2px;
+}
+
+.payment-method-btn.sm .pm-icon {
+  font-size: 20px;
+}
+
+#cash-payment-area .cash-input-area {
+  padding: 0;
+  margin: 0;
+  background: none;
+}
+
+#cash-payment-area .cash-input-area label {
+  display: none;
+}
+
+#cash-payment-area .cash-amount-display {
+  font-size: 28px;
+  padding: 4px;
+  min-height: 36px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+#cash-payment-area .change-display {
+  font-size: 16px;
+  padding: 4px;
+  margin-bottom: 4px;
+}
+
+#cash-payment-area .numpad.compact {
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+#cash-payment-area .numpad-btn.sm {
+  min-height: 40px;
+  font-size: 18px;
+}
+
+.compact-checkout .modal-actions {
+  margin-top: 4px;
+  gap: 6px;
+}
+
+.compact-checkout .modal-btn {
+  min-height: 44px;
+  font-size: 15px;
+}
+
+.compact-checkout .pm-label {
+  font-size: 12px;
+  margin-bottom: 4px;
+  text-align: center;
+  color: var(--text-muted);
 }
 
 /* Wallet Discount */

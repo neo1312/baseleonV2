@@ -28,6 +28,7 @@
         <div class="top-actions">
             <button class="top-btn primary" onclick="openSettings()">📝 New Sale</button>
             <button class="top-btn" onclick="openDisplayLink()">🖥️ Display</button>
+            <button class="top-btn" id="lookup-toggle" onclick="toggleLookupMode()">🔍 Lookup</button>
             <button class="top-btn" id="toggleMayoreoBtn">💰 Mayoreo</button>
         </div>
     </div>
@@ -137,56 +138,38 @@
         </div>
     </div>
 
-    <!-- CHECKOUT MODAL -->
+    <!-- CHECKOUT MODAL (compact) -->
     <div id="checkout-modal" class="touch-modal">
-        <div class="touch-modal-content full">
-            <h2>Complete Sale <button class="modal-close" onclick="closeCheckout()">✕</button></h2>
-            <div class="checkout-summary">
-                <div class="summary-row"><span class="label">Type:</span><span class="value" id="chk-tipo">Menudeo</span></div>
-                <div class="summary-row"><span class="label">Client:</span><span class="value" id="chk-client">General</span></div>
-                <div class="summary-row"><span class="label">Items:</span><span class="value" id="chk-items">0</span></div>
-                <div class="summary-row total"><span>TOTAL:</span><span class="value" id="chk-total">$0.00</span></div>
-            </div>
-            <div id="wallet-info" class="wallet-info" style="display:none;">
-                <span>💰 Wallet balance:</span>
-                <span class="wallet-amount" id="wallet-amount-display">$0.00</span>
-                <button class="apply-btn" onclick="applyWalletDiscount()">Apply</button>
-            </div>
-            <div class="pm-label">Payment Method</div>
-            <div class="payment-methods">
-                <button class="payment-method-btn" data-method="cash"><span class="pm-icon">💵</span> Cash</button>
-                <button class="payment-method-btn" data-method="card"><span class="pm-icon">💳</span> Card</button>
-                <button class="payment-method-btn" data-method="check"><span class="pm-icon">📝</span> Check</button>
+        <div class="touch-modal-content compact-checkout">
+            <div class="chk-big-total" id="chk-total">$0.00</div>
+            <div class="pm-label">Método de pago</div>
+            <div class="payment-methods compact">
+                <button class="payment-method-btn sm" data-method="cash"><span class="pm-icon">💵</span> Efectivo</button>
+                <button class="payment-method-btn sm" data-method="card"><span class="pm-icon">💳</span> Tarjeta</button>
+                <button class="payment-method-btn sm" data-method="check"><span class="pm-icon">📝</span> Cheque</button>
             </div>
             <div id="cash-payment-area">
-                <div class="cash-input-area">
-                    <label>Amount Received</label>
-                    <div class="cash-amount-display" id="cash-amount-display">$0.00</div>
-                    <div class="change-display" id="change-display" style="display:none;"></div>
+                <div class="cash-amount-display" id="cash-amount-display">$0.00</div>
+                <div class="change-display" id="change-display" style="display:none;"></div>
+                <div class="numpad compact" id="cash-numpad">
+                    <button class="numpad-btn sm" data-value="1">1</button>
+                    <button class="numpad-btn sm" data-value="2">2</button>
+                    <button class="numpad-btn sm" data-value="3">3</button>
+                    <button class="numpad-btn sm" data-value="4">4</button>
+                    <button class="numpad-btn sm" data-value="5">5</button>
+                    <button class="numpad-btn sm" data-value="6">6</button>
+                    <button class="numpad-btn sm" data-value="7">7</button>
+                    <button class="numpad-btn sm" data-value="8">8</button>
+                    <button class="numpad-btn sm" data-value="9">9</button>
+                    <button class="numpad-btn sm" data-value=".">.</button>
+                    <button class="numpad-btn sm" data-value="0">0</button>
+                    <button class="numpad-btn sm" data-value="clear">C</button>
+                    <button class="numpad-btn sm action" data-value="backspace">⌫</button>
                 </div>
-                <div class="numpad" id="cash-numpad">
-                    <button class="numpad-btn" data-value="1">1</button>
-                    <button class="numpad-btn" data-value="2">2</button>
-                    <button class="numpad-btn" data-value="3">3</button>
-                    <button class="numpad-btn" data-value="4">4</button>
-                    <button class="numpad-btn" data-value="5">5</button>
-                    <button class="numpad-btn" data-value="6">6</button>
-                    <button class="numpad-btn" data-value="7">7</button>
-                    <button class="numpad-btn" data-value="8">8</button>
-                    <button class="numpad-btn" data-value="9">9</button>
-                    <button class="numpad-btn" data-value=".">.</button>
-                    <button class="numpad-btn" data-value="0">0</button>
-                    <button class="numpad-btn action" data-value="backspace">⌫</button>
-                    <button class="numpad-btn action wide" data-value="clear">Clear</button>
-                </div>
-            </div>
-            <div class="settings-group">
-                <label>Notes (optional)</label>
-                <textarea id="checkout-notes" class="checkout-notes" rows="2"></textarea>
             </div>
             <div class="modal-actions">
-                <button class="modal-btn secondary" onclick="closeCheckout()">Cancel</button>
-                <button class="modal-btn primary" onclick="confirmCheckout()">✓ CONFIRM & COMPLETE</button>
+                <button class="modal-btn secondary" onclick="closeCheckout()">Cancelar</button>
+                <button class="modal-btn primary" onclick="confirmCheckout()">✓ Cobrar</button>
             </div>
         </div>
     </div>

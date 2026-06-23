@@ -19,6 +19,7 @@ let lastScannedCode = '';
 let lastScannedTime = 0;
 let scanDebounceMs = 1500;
 let pendingScanProduct = null;
+let lookupMode = false;
 
 // --- DOM REFS ---
 const $ = (sel) => document.querySelector(sel);
@@ -119,13 +120,28 @@ function lookupBarcode(code) {
         showNotFound(code);
         return;
       }
-      if (saleStarted) {
+      if (saleStarted && !lookupMode) {
         openQtyModal(data);
       } else {
         showProductInfo(data);
       }
     })
     .catch(() => showNotFound(code));
+}
+
+// --- LOOKUP MODE TOGGLE ---
+function toggleLookupMode() {
+  lookupMode = !lookupMode;
+  const btn = $('#lookup-toggle');
+  if (lookupMode) {
+    btn.classList.add('active');
+    btn.innerHTML = '🔍 Lookup ON';
+    showToast('Lookup mode: scans show info only', 'info');
+  } else {
+    btn.classList.remove('active');
+    btn.innerHTML = '🔍 Lookup';
+    showToast('Sale mode: scan to add to cart', 'info');
+  }
 }
 
 // --- INFO PANEL (IDLE MODE) ---
@@ -466,7 +482,7 @@ function selectSuggestion(data) {
     despiece_source_stock: data.despiece_source_stock ? parseInt(data.despiece_source_stock) : null,
     despiece_units_per: parseFloat(data.despiece_units_per) || null,
   };
-  if (saleStarted) {
+  if (saleStarted && !lookupMode) {
     openQtyModal(product);
   } else {
     showProductInfo(product);
@@ -509,15 +525,10 @@ function proceedCheckout() {
 
 function openCheckoutModal() {
   $('#checkout-modal').classList.add('show');
-  let totalItems = 0, totalAmount = 0;
-  Object.values(cart).forEach(item => { totalItems += item.qty; totalAmount += item.qty * item.price; });
-  $('#chk-tipo').textContent = saleType === 'mayoreo' ? 'Mayoreo' : 'Menudeo';
-  $('#chk-client').textContent = clientName || 'General';
-  $('#chk-items').textContent = totalItems;
+  let totalAmount = 0;
+  Object.values(cart).forEach(item => { totalAmount += item.qty * item.price; });
   $('#chk-total').textContent = '$' + totalAmount.toFixed(2);
   window.currentTotal = totalAmount;
-  window.walletDiscount = 0;
-  window.walletApplied = false;
   $$('.payment-method-btn').forEach(btn => {
     btn.addEventListener('click', () => selectPaymentMethod(btn.dataset.method));
   });
@@ -535,8 +546,6 @@ function openCheckoutModal() {
   });
   $('#cash-amount-display').textContent = '$0.00';
   $('#change-display').style.display = 'none';
-  updateWalletDisplay();
-  $('#checkout-notes').value = '';
 }
 
 function closeCheckout() {
@@ -568,41 +577,20 @@ function setupNumpad(numpadId, displayId, onValueChange) {
   });
 }
 
-function updateWalletDisplay() {
-  const el = $('#wallet-info');
-  if (clientId && clientWallet > 0) {
-    el.style.display = 'flex';
-    $('#wallet-amount-display').textContent = '$' + clientWallet.toFixed(2);
-  } else { el.style.display = 'none'; }
-}
-
-function applyWalletDiscount() {
-  if (!clientId || clientWallet <= 0) return;
-  const discount = Math.min(clientWallet, window.currentTotal);
-  window.walletDiscount = discount;
-  window.walletApplied = true;
-  const finalTotal = window.currentTotal - discount;
-  $('#chk-total').textContent = '$' + finalTotal.toFixed(2);
-  $('#wallet-info').innerHTML = '<span>✅ Wallet applied</span><span class="wallet-amount" style="color:var(--success);">-$' + discount.toFixed(2) + '</span>';
-}
-
 function confirmCheckout() {
   const paymentMethod = window.selectedPayment || 'cash';
-  const notes = $('#checkout-notes').value;
-  let totalAmount = window.currentTotal;
-  let walletDiscount = window.walletDiscount || 0;
+  const totalAmount = window.currentTotal;
   if (paymentMethod === 'cash') {
     const cashText = $('#cash-amount-display').textContent.replace('$', '');
     const cashAmount = parseFloat(cashText) || 0;
     if (cashAmount <= 0) { showToast('Enter the cash amount received', 'warning'); return; }
-    if (cashAmount < totalAmount - walletDiscount) {
-      showToast('Insufficient payment! Need $' + (totalAmount - walletDiscount - cashAmount).toFixed(2) + ' more', 'error');
+    if (cashAmount < totalAmount) {
+      showToast('Insufficient payment! Need $' + (totalAmount - cashAmount).toFixed(2) + ' more', 'error');
       return;
     }
   }
-  const finalTotal = totalAmount - walletDiscount;
   const items = Object.values(cart).map(item => ({ product_id: item.id, quantity: item.qty, price: item.price }));
-  const saleData = { items, tipo: saleType, payment_method: paymentMethod, client_id: clientId || null, notes, wallet_discount: walletDiscount, total_amount: finalTotal };
+  const saleData = { items, tipo: saleType, payment_method: paymentMethod, client_id: clientId || null, total_amount: totalAmount };
   showLoading(true);
   fetch('/pos/complete-sale/', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
