@@ -104,13 +104,23 @@ function toggleCamera() {
   const overlay = document.getElementById('cam-off-overlay');
   if (cameraOn) {
     if (overlay) overlay.style.display = 'none';
-    if (btn) { btn.classList.remove('off'); btn.textContent = '📷'; }
+    if (btn) {
+      btn.classList.remove('off');
+      btn.textContent = '📷';
+    }
     initScanner();
   } else {
-    if (qrScanner) { try { qrScanner.stop().catch(()=>{}); } catch(e) {} }
     isScanning = false;
+    if (qrScanner) {
+      qrScanner.stop().then(function() {
+        qrScanner = null;
+      }).catch(function() {});
+    }
     if (overlay) overlay.style.display = 'flex';
-    if (btn) { btn.classList.add('off'); btn.textContent = '📷'; }
+    if (btn) {
+      btn.classList.add('off');
+      btn.innerHTML = '📷 <span style="font-size:10px;opacity:0.8">OFF</span>';
+    }
   }
 }
 
@@ -124,30 +134,59 @@ function onScanSuccess(decodedText) {
   lookupBarcode(decodedText);
 }
 
-// --- BEEP SOUNDS (Web Audio API, no files needed) ---
-let audioCtx = null;
-function initAudio() {
+// --- BEEP SOUNDS (in-memory WAV, no AudioContext autoplay issues) ---
+let beepOkUrl = null;
+let beepFailUrl = null;
+let beepReady = false;
+
+function initBeeps() {
+  if (beepReady) return;
+  beepReady = true;
+  beepOkUrl = createBeepWav(880, 0.12, 'sine');
+  beepFailUrl = createBeepWav(300, 0.3, 'square');
+}
+
+function createBeepWav(freq, durationSec, type) {
   try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const sr = 44100;
+    const numSamples = Math.floor(sr * durationSec);
+    const buf = new ArrayBuffer(44 + numSamples * 2);
+    const v = new DataView(buf);
+    function w(str, off) { for (let i = 0; i < str.length; i++) v.setUint8(off + i, str.charCodeAt(i)); }
+    w('RIFF', 0); v.setUint32(4, 36 + numSamples * 2, true);
+    w('WAVE', 8); w('fmt ', 12); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w('data', 36); v.setUint32(40, numSamples * 2, true);
+    for (let i = 0; i < numSamples; i++) {
+      const t = i / sr;
+      const envelope = Math.max(0, 1 - t / durationSec);
+      let sample;
+      if (type === 'square') {
+        sample = Math.sin(2 * Math.PI * freq * t) >= 0 ? 0.5 : -0.5;
+      } else {
+        sample = Math.sin(2 * Math.PI * freq * t) * 0.5;
+      }
+      v.setInt16(44 + i * 2, sample * envelope * 32767, true);
+    }
+    const blob = new Blob([buf], { type: 'audio/wav' });
+    return URL.createObjectURL(blob);
+  } catch(e) { return null; }
+}
+
+function playBeep(type) {
+  try {
+    initBeeps();
+    const url = type === 'fail' ? beepFailUrl : beepOkUrl;
+    if (!url) return;
+    const a = new Audio(url);
+    a.volume = 0.6;
+    a.play().catch(function() {});
   } catch(e) {}
 }
-function playBeep(freq, durationMs, type) {
-  try {
-    if (!audioCtx || audioCtx.state !== 'running') return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = type || 'sine';
-    osc.frequency.value = freq;
-    const t = audioCtx.currentTime;
-    gain.gain.setValueAtTime(0.3, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + Math.max(durationMs / 1000, 0.01));
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start(t);
-    osc.stop(t + durationMs / 1000);
-  } catch(e) {}
-}
+
+function initAudio() { initBeeps(); }
 
 function flashViewfinder() {
   const el = $('#scanner-viewfinder');
@@ -161,11 +200,11 @@ function lookupBarcode(code) {
     .then(r => r.json().catch(() => null))
     .then(data => {
       if (!data || data.error) {
-        playBeep(300, 300, 'square');
+        playBeep('fail');
         showNotFound(code);
         return;
       }
-      playBeep(880, 120, 'sine');
+      playBeep('ok');
       if (saleStarted) {
         openQtyModal(data);
       } else {
