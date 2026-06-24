@@ -811,7 +811,7 @@ class DemandForecast(models.Model):
         verbose_name='Trend Component'
     )
     mape = models.DecimalField(
-        max_digits=5,
+        max_digits=8,
         decimal_places=4,
         default=Decimal('0.00'),
         verbose_name='Mean Absolute % Error'

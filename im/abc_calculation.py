@@ -2,7 +2,8 @@
 ABC Inventory Classification System
 Uses Pareto principle (80/20) to classify products based on sales revenue
 """
-from django.db.models import Sum, F, Q, DecimalField
+from django.db.models import Sum, F, Q, DecimalField, IntegerField
+from django.db.models.functions import Cast
 from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
@@ -33,10 +34,10 @@ def get_sales_revenue_data(days=30):
         product__isnull=False
     ).values('product_id').annotate(
         total_revenue=Sum(
-            F('price') * F('quantity'),
-            output_field=DecimalField()
+            F('price') * Cast(F('quantity'), output_field=DecimalField(max_digits=12, decimal_places=2)),
+            output_field=DecimalField(max_digits=12, decimal_places=2)
         ),
-        units_sold=Sum(F('quantity'))
+        units_sold=Sum(Cast(F('quantity'), output_field=IntegerField()))
     )
     
     return {item['product_id']: {

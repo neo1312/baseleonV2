@@ -51,7 +51,8 @@ def calculate_exponential_smoothing(sales_data, alpha=0.3, beta=0.1):
         return {
             'forecast': sum(qty for _, qty in sales_data) / len(sales_data) if sales_data else 0,
             'trend': 0,
-            'confidence': 0
+            'confidence': 0,
+            'mape': 0
         }
     
     # Initialize
@@ -104,6 +105,7 @@ def get_product_sales_data(product_id, days=90):
     """
     from crm.models import saleItem
     from django.db.models import IntegerField
+    from django.db.models.functions import Cast
     
     cutoff_date = timezone.now() - timedelta(days=days)
     
@@ -111,7 +113,7 @@ def get_product_sales_data(product_id, days=90):
         product_id=product_id,
         date_created__gte=cutoff_date
     ).values('date_created').annotate(
-        total_qty=Sum('quantity', output_field=IntegerField())
+        total_qty=Sum(Cast('quantity', output_field=IntegerField()))
     ).order_by('date_created')
     
     # Group by date (day)
@@ -207,10 +209,13 @@ def forecast_demand(product_id, days_ahead=30, alpha=0.3, beta=0.1, include_seas
         return {
             'product_id': product_id,
             'forecast': 0,
+            'forecast_daily': 0,
             'days_ahead': days_ahead,
+            'trend': 0,
             'confidence': 0,
             'lower_bound': 0,
             'upper_bound': 0,
+            'mape': 0,
             'status': 'insufficient_data'
         }
     
