@@ -1,5 +1,6 @@
 import json
 import time
+import os
 from decimal import Decimal
 
 import requests
@@ -616,6 +617,8 @@ def reset_display(request):
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
+SCANNER_FILE = os.path.join(getattr(settings, 'BASE_DIR', '/tmp'), '.scanner_barcode')
+
 @csrf_exempt
 def scanner_push(request):
     """Receive barcode from scanner server via HTTP POST (cross-network fallback)."""
@@ -624,31 +627,26 @@ def scanner_push(request):
             data = json.loads(request.body)
             barcode = data.get('barcode')
             if barcode:
-                job_id = 'scan_{}_{}'.format(int(time.time()), barcode)
-                cache.set(job_id, {'barcode': barcode}, 30)
-                pending = cache.get('print_pending', [])
-                pending.append(job_id)
-                cache.set('print_pending', pending, 30)
+                with open(SCANNER_FILE, 'w') as f:
+                    json.dump({'barcode': barcode, 'ts': time.time()}, f)
                 return JsonResponse({'ok': True})
-        except (json.JSONDecodeError, AttributeError):
+        except (json.JSONDecodeError, AttributeError, OSError):
             pass
     return JsonResponse({'ok': False}, status=400)
 
 def scanner_poll(request):
-    """Return pending scanner barcode (reads from shared print_pending cache)."""
-    pending = cache.get('print_pending', [])
-    for job_id in list(pending):
-        if job_id.startswith('scan_'):
-            job = cache.get(job_id)
-            if job:
-                barcode = job.get('barcode')
-                pending.remove(job_id)
-                cache.set('print_pending', pending, 120)
-                cache.delete(job_id)
-                return JsonResponse({'barcode': barcode})
-            else:
-                pending.remove(job_id)
-                cache.set('print_pending', pending, 120)
+    """Return pending scanner barcode (file-based, works across all workers)."""
+    try:
+        with open(SCANNER_FILE) as f:
+            data = json.load(f)
+        if time.time() - data.get('ts', 0) < 30:
+            try:
+                os.remove(SCANNER_FILE)
+            except OSError:
+                pass
+            return JsonResponse({'barcode': data.get('barcode')})
+    except (OSError, json.JSONDecodeError):
+        pass
     return JsonResponse({'barcode': None})
 
 
