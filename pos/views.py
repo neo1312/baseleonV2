@@ -730,5 +730,9 @@ def ack_print(request, job_id):
 def pending_auto_prints(request):
     """Return completed sales after a given ID. Polled by the local printer server."""
     after = int(request.GET.get('after', 0))
-    sales = Sale.objects.filter(status='completed', id__gt=after).values('id', 'total_amount').order_by('id')
-    return JsonResponse(list(sales), safe=False)
+    if after == 0:
+        latest = Sale.objects.filter(status='completed').last()
+        if latest:
+            after = latest.id
+    sales = list(Sale.objects.filter(status='completed', id__gt=after)[:3].values('id').order_by('id'))
+    return JsonResponse(sales, safe=False)
