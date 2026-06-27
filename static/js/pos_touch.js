@@ -829,9 +829,26 @@ function finishSale() {
 
 function doPrintTicket() {
   $('#print-modal').classList.remove('show');
-  window.open('http://192.168.1.100:5000/print?sale_id=' + window.lastSaleId + '&ticket_type=sale', '_blank', 'width=420,height=300,menubar=no,toolbar=no,location=no,status=no');
-  showToast('🖶 Ticket sent to printer', 'success');
-  finishSale();
+  showLoading(true);
+  fetch('/pos/queue-print/', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ sale_id: window.lastSaleId, ticket_type: 'sale' }),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    showLoading(false);
+    if (data.success) {
+      showToast('🖶 Ticket queued for printing', 'success');
+    } else {
+      showToast('Print error: ' + (data.error || 'unknown'), 'error');
+    }
+    finishSale();
+  })
+  .catch(function() {
+    showLoading(false);
+    showToast('Print queue failed', 'error');
+    finishSale();
+  });
 }
 
 function skipPrint() {

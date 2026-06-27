@@ -23,5 +23,8 @@ urlpatterns = [
     path('scanner-push/', views.scanner_push, name='scanner_push'),
     path('scanner-poll/', views.scanner_poll, name='scanner_poll'),
     path('print-ticket/', views.print_ticket, name='print_ticket'),
+    path('queue-print/', views.queue_print, name='queue_print'),
+    path('get-pending-prints/', views.get_pending_prints, name='get_pending_prints'),
+    path('ack-print/<str:job_id>/', views.ack_print, name='ack_print'),
 ]
 

@@ -679,3 +679,49 @@ def print_ticket(request):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Invalid method'}, status=405)
+
+@csrf_exempt
+def queue_print(request):
+    """Queue a print job. Browser calls this (same-origin, no CORS issues)."""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            sale_id = data.get('sale_id')
+            ticket_type = data.get('ticket_type', 'sale')
+            if not sale_id:
+                return JsonResponse({'error': 'sale_id required'}, status=400)
+            job_id = 'print_{}_{}'.format(int(time.time()), sale_id)
+            cache.set(job_id, {'sale_id': sale_id, 'ticket_type': ticket_type}, 120)
+            pending = cache.get('print_pending', [])
+            pending.append(job_id)
+            cache.set('print_pending', pending, 120)
+            return JsonResponse({'success': True, 'job_id': job_id})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid method'}, status=405)
+
+def get_pending_prints(request):
+    """Return pending print jobs. Polled by the local printer server."""
+    pending = cache.get('print_pending', [])
+    jobs = []
+    for job_id in list(pending):
+        job = cache.get(job_id)
+        if job:
+            job['job_id'] = job_id
+            jobs.append(job)
+        else:
+            pending.remove(job_id)
+    cache.set('print_pending', pending, 120)
+    return JsonResponse(jobs, safe=False)
+
+@csrf_exempt
+def ack_print(request, job_id):
+    """Mark a print job as completed. Called by the printer server."""
+    if request.method == 'POST':
+        pending = cache.get('print_pending', [])
+        if job_id in pending:
+            pending.remove(job_id)
+            cache.set('print_pending', pending, 120)
+            cache.delete(job_id)
+        return JsonResponse({'success': True})
+    return JsonResponse({'error': 'Invalid method'}, status=405)
