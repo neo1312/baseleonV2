@@ -830,21 +830,17 @@ function finishSale() {
 function doPrintTicket() {
   $('#print-modal').classList.remove('show');
   showLoading(true);
-  fetch('/pos/print-ticket/', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
+  fetch('http://192.168.1.100:5000/print', {
+    method: 'POST', mode: 'no-cors',
+    headers: {'Content-Type': 'text/plain'},
     body: JSON.stringify({ sale_id: window.lastSaleId, ticket_type: 'sale' }),
   })
-  .then(r => r.json())
-  .then(data => {
+  .then(function() {
     showLoading(false);
-    if (data.success) {
-      showToast('🖶 Ticket printed', 'success');
-    } else {
-      showToast('Print error: ' + (data.error || 'unknown'), 'error');
-    }
+    showToast('🖶 Ticket sent to printer', 'success');
     finishSale();
   })
-  .catch(() => {
+  .catch(function() {
     showLoading(false);
     showToast('Print connection failed', 'error');
     finishSale();
