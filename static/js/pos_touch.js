@@ -182,6 +182,13 @@ function initKeyboard() {
 function handleKeyPress(key) {
   const now = Date.now();
 
+  // Space always goes to search, never barcode buffer
+  if (key === ' ') {
+    if (keyboardMode === 'search') handleSearchKey(key);
+    else handleQuantityKey(key);
+    return;
+  }
+
   // Barcode detection: rapid keystrokes (USB wedge scanner)
   if (key.length === 1 && barcodeBufTimer > 0 && now - barcodeBufTimer < 100) {
     barcodeBuf += key;

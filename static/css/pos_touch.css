@@ -742,6 +742,13 @@ html, body {
   font-size: 20px;
 }
 
+.kb-key.kb-space {
+  flex: 2;
+  max-width: 120px;
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+
 .kb-key.kb-enter:active {
   background: var(--accent-hover);
 }
