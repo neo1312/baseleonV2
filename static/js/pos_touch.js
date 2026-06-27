@@ -1093,4 +1093,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Cart always visible, render empty state
   renderCart();
+
+  // Enter fullscreen by default
+  const el = document.documentElement;
+  if (el.requestFullscreen) {
+    el.requestFullscreen();
+  } else if (el.webkitRequestFullscreen) {
+    el.webkitRequestFullscreen();
+  }
 });
