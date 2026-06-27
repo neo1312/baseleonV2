@@ -1,6 +1,8 @@
 import json
 import time
 from decimal import Decimal
+
+import requests
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -664,3 +666,16 @@ def customer_display(request):
         'client_name': client_name,
         'sk': sk or '',
     })
+
+@csrf_exempt
+def print_ticket(request):
+    """Proxy print request to the local thermal printer server."""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            printer_url = 'http://192.168.1.100:5000/print'
+            resp = requests.post(printer_url, json=data, timeout=10)
+            return JsonResponse(resp.json())
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid method'}, status=405)

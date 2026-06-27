@@ -30,6 +30,7 @@
             <button class="top-btn" id="scanner-toggle" onclick="toggleScannerConnection()" title="Conectar/Desconectar escáner USB">🔗</button>
             <button class="top-btn" id="toggleMayoreoBtn">💰 Mayoreo</button>
             <button class="top-btn" onclick="openDisplayLink()">🖥️ Display</button>
+            <button class="top-btn" id="fullscreen-btn" onclick="toggleFullscreen()">⛶</button>
         </div>
     </div>
 
@@ -73,10 +74,11 @@
         </div>
     </div>
 
-    <!-- BOTTOM KEYBOARD / ACTIONS PANEL -->
+    <!-- BOTTOM KEYBOARD PANEL -->
     <div class="bottom-panel" id="bottom-panel">
-        <button class="kb-toggle" id="kb-toggle" onclick="toggleKeyboard()">🔽</button>
-
+        <div class="kb-handle">
+            <button class="kb-toggle" id="kb-toggle" onclick="toggleKeyboard()">🔽</button>
+        </div>
         <div class="keyboard-section" id="keyboard-section">
             <div class="kb-row">
                 <button class="kb-key" data-key="1">1</button>
@@ -134,15 +136,6 @@
                     Cant: <strong id="kb-qty-value">1</strong>
                 </span>
             </div>
-        </div>
-
-        <div class="actions-section" id="actions-section" style="display:none;">
-            <button class="action-btn" onclick="showKeyboard()">🔤 Teclado</button>
-            <button class="action-btn" onclick="openSettings()">📝 Nueva Venta</button>
-            <button class="action-btn" onclick="focusSearch()">🔍 Buscar</button>
-            <button class="action-btn" onclick="toggleScannerConnection()">🔗 Escáner</button>
-            <button class="action-btn" id="toggleMayoreoBtn2">💰 Mayoreo</button>
-            <button class="action-btn" onclick="openDisplayLink()">🖥️ Display</button>
         </div>
     </div>
 
@@ -256,6 +249,18 @@
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeDespieceModal()">Cancelar</button>
                 <button class="modal-btn primary" onclick="confirmDespiece()">✓ Convertir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRINT MODAL -->
+    <div id="print-modal" class="touch-modal">
+        <div class="touch-modal-content" style="text-align:center;">
+            <h2 style="margin-bottom:8px;">✅ Sale Completed</h2>
+            <p id="print-sale-info" style="font-size:1.1rem;margin-bottom:16px;color:var(--text-muted);"></p>
+            <div class="modal-actions" style="justify-content:center;gap:12px;">
+                <button class="modal-btn primary" onclick="doPrintTicket()">🖶 Print Ticket</button>
+                <button class="modal-btn secondary" onclick="skipPrint()">Skip</button>
             </div>
         </div>
     </div>

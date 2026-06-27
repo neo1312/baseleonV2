@@ -293,12 +293,6 @@ function toggleKeyboard() {
   }
 }
 
-function showKeyboard() {
-  keyboardVisible = true;
-  $('#bottom-panel').classList.remove('keyboard-hidden');
-  $('#kb-toggle').textContent = '🔽';
-}
-
 // ==================== SEARCH & PRODUCTS LIST ====================
 function initSearch() {
   const clearBtn = $('#search-clear');
@@ -336,7 +330,7 @@ function renderSearchResults(items) {
   container.innerHTML = '';
   items.forEach(p => {
     const div = document.createElement('div');
-    div.className = 'pl-item';
+    div.className = 'pl-item' + (p.Granel_Item ? ' granel' : '');
     div.dataset.id = p.id;
     div.dataset.barcode = p.barcode || '';
     div.dataset.name = p.compose_name || p.name;
@@ -354,28 +348,47 @@ function renderSearchResults(items) {
     const mayoreo = parseFloat(p.price_mayoreo) || 0;
     const isSelected = String(p.id) === selectedProductId;
 
-    let badgeHtml = '';
-    if (p.Granel_Item) badgeHtml = '<span class="pl-item-badge">📦 Granel</span>';
-
     let qtyHtml = '';
     if (isSelected) {
       qtyHtml = '<div class="pl-item-qty-wrap"><span class="qty-icon">✏️</span><span class="qty-value pl-item-qty-value">' + qtyValue + '</span></div>';
     }
 
+    const despieceBtn = p.despiece_config_id
+      ? '<button class="pl-item-despiece" data-despiece=\'' + JSON.stringify({
+          configId: p.despiece_config_id,
+          sourceName: p.despiece_source_name,
+          sourceStock: p.despiece_source_stock,
+          unitsPer: p.despiece_units_per,
+        }) + '\'>📦→</button>'
+      : '';
+
+    const granelTag = p.Granel_Item ? '<span class="pl-item-meta-badge granel">📦 Granel</span>' : '';
+
     div.innerHTML =
-      badgeHtml +
       '<div class="pl-item-info">' +
         '<div class="pl-item-name">' + (p.compose_name || p.name) + '</div>' +
         '<div class="pl-item-meta">' +
           (p.clave ? '<span class="pl-item-clave">' + p.clave + '</span>' : '') +
+          granelTag +
           (mayoreo > 0 && mayoreo !== price ? '<span class="pl-item-mayoreo">May: $' + mayoreo.toFixed(2) + '</span>' : '') +
           '<span class="pl-item-stock' + (p.stock <= 0 ? ' out' : '') + '">' +
             (p.stock > 0 ? p.stock + ' pz' : 'Agotado') +
           '</span>' +
         '</div>' +
       '</div>' +
+      despieceBtn +
       '<div class="pl-item-price">$' + price.toFixed(2) + '</div>' +
       qtyHtml;
+
+    // Despiece button handler
+    const dpBtn = div.querySelector('.pl-item-despiece');
+    if (dpBtn) {
+      dpBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const config = JSON.parse(this.dataset.despiece);
+        openDespieceModal(config);
+      });
+    }
 
     if (isSelected) div.classList.add('selected');
 
@@ -459,13 +472,26 @@ function selectProduct(productData) {
   updateQtyDisplay();
 }
 
+function autoStartSale() {
+  if (saleStarted) return;
+  saleType = 'menudeo';
+  clientId = null;
+  clientName = 'General';
+  clientWallet = 0;
+  activateSale();
+}
+
+function activateSale() {
+  saleStarted = true;
+  updateSaleTypeDisplay();
+  syncCartToSession();
+  broadcastToDisplay('sale_started');
+  renderCart();
+}
+
 function addSelectedToCart() {
   if (!selectedProductData) return;
-  if (!saleStarted) {
-    showToast('Inicia una venta primero', 'warning');
-    clearSelection();
-    return;
-  }
+  if (!saleStarted) autoStartSale();
   const qty = parseInt(qtyValue) || 1;
   addScannedToCart(selectedProductData, qty);
   clearSelection();
@@ -676,16 +702,8 @@ function saveSettings() {
   clientName = opt ? opt.text : 'General';
   clientWallet = parseFloat(opt?.dataset?.wallet) || 0;
   if (!saleType) { showToast('Select a sale type', 'warning'); return; }
-  saleStarted = true;
-  updateSaleTypeDisplay();
   closeSettings();
-  syncCartToSession();
-  broadcastToDisplay('sale_started');
-  // Show cart panel
-  $('#pos-cart-section').style.display = 'flex';
-  // Clear idle state in products
-  clearSearchResults();
-  renderCart();
+  activateSale();
 }
 
 function updateSaleTypeDisplay() {
@@ -795,21 +813,56 @@ function confirmCheckout() {
     showLoading(false);
     if (data.success) {
       showToast('✅ Sale #' + data.sale_id + ' completed! $' + data.total, 'success');
-      clearCheckoutState();
-      syncCartToSession({ saleCompleted: { message: 'Gracias por su compra', timestamp: Date.now() / 1000 } })
-        .then(() => { closeCheckout(); broadcastToDisplay('sale_completed'); setTimeout(() => location.reload(), 300); });
+      window.lastSaleId = data.sale_id;
+      $('#print-sale-info').textContent = 'Sale #' + data.sale_id + ' — Total: $' + data.total.toFixed(2);
+      $('#print-modal').classList.add('show');
     } else { showToast('Error: ' + data.error, 'error'); }
   })
   .catch(() => { showLoading(false); showToast('Failed to complete sale', 'error'); });
 }
 
+function finishSale() {
+  clearCheckoutState();
+  syncCartToSession({ saleCompleted: { message: 'Gracias por su compra', timestamp: Date.now() / 1000 } })
+    .then(() => { closeCheckout(); broadcastToDisplay('sale_completed'); setTimeout(() => location.reload(), 300); });
+}
+
+function doPrintTicket() {
+  $('#print-modal').classList.remove('show');
+  showLoading(true);
+  fetch('/pos/print-ticket/', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ sale_id: window.lastSaleId, ticket_type: 'sale' }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    showLoading(false);
+    if (data.success) {
+      showToast('🖶 Ticket printed', 'success');
+    } else {
+      showToast('Print error: ' + (data.error || 'unknown'), 'error');
+    }
+    finishSale();
+  })
+  .catch(() => {
+    showLoading(false);
+    showToast('Print connection failed', 'error');
+    finishSale();
+  });
+}
+
+function skipPrint() {
+  $('#print-modal').classList.remove('show');
+  finishSale();
+}
+
 // ==================== DESPIECE ====================
-function openDespieceModal(dataset) {
+function openDespieceModal(config) {
   currentDespieceConfig = {
-    configId: dataset.despieceConfigId,
-    sourceName: dataset.despieceSourceName,
-    sourceStock: parseInt(dataset.despieceSourceStock) || 0,
-    unitsPer: parseFloat(dataset.despieceUnitsPer) || 1,
+    configId: config.configId || config.despieceConfigId,
+    sourceName: config.sourceName || config.despieceSourceName || '',
+    sourceStock: parseInt(config.sourceStock || config.despieceSourceStock) || 0,
+    unitsPer: parseFloat(config.unitsPer || config.despieceUnitsPer) || 1,
   };
   if (!currentDespieceConfig.configId) { showToast('No despiece config', 'error'); return; }
   $('#despiece-source-name').textContent = currentDespieceConfig.sourceName;
@@ -905,6 +958,7 @@ function showLoading(show) { $('#loading-overlay').style.display = show ? 'flex'
 
 // ==================== GLOBAL ESCAPE ====================
 function handleGlobalEscape() {
+  if ($('#print-modal.show')) { $('#print-modal').classList.remove('show'); return; }
   if ($('#confirm-modal.show')) { $('#confirm-modal').classList.remove('show'); return; }
   if ($('#despiece-modal.show')) { closeDespieceModal(); return; }
   if ($('#checkout-modal.show')) { closeCheckout(); return; }
@@ -947,24 +1001,39 @@ function toggleScannerConnection() {
   }
 }
 
-// ==================== HELPERS ====================
-function focusSearch() {
-  if (!keyboardVisible) showKeyboard();
-  if (selectedProductId) clearSelection();
-  const input = $('#search-input');
-  if (input) input.focus();
+// ==================== FULLSCREEN ====================
+function toggleFullscreen() {
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    const el = document.documentElement;
+    if (el.requestFullscreen) {
+      el.requestFullscreen();
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+    }
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    }
+  }
+}
+
+document.addEventListener('fullscreenchange', updateFullscreenIcon);
+document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+function updateFullscreenIcon() {
+  const btn = $('#fullscreen-btn');
+  if (!btn) return;
+  btn.textContent = !!(document.fullscreenElement || document.webkitFullscreenElement) ? '⛶' : '⛶';
 }
 
 // ==================== MAYOREO TOGGLE ====================
-function initMayoreoButtons() {
-  const btn1 = $('#toggleMayoreoBtn');
-  const btn2 = $('#toggleMayoreoBtn2');
-  if (!btn1) return;
+function initMayoreoButton() {
+  const btn = $('#toggleMayoreoBtn');
+  if (!btn) return;
 
   function syncMayoreo() {
-    const isMayoreo = saleType === 'mayoreo';
-    btn1.textContent = isMayoreo ? '💰 Menudeo' : '💰 Mayoreo';
-    if (btn2) btn2.textContent = isMayoreo ? '💰 Menudeo' : '💰 Mayoreo';
+    btn.textContent = saleType === 'mayoreo' ? '💰 Menudeo' : '💰 Mayoreo';
   }
   function toggleMayoreo() {
     saleType = saleType === 'mayoreo' ? 'menudeo' : 'mayoreo';
@@ -973,8 +1042,7 @@ function initMayoreoButtons() {
     syncCartToSession();
     showToast('Modo: ' + (saleType === 'mayoreo' ? 'Mayoreo' : 'Menudeo'), 'info');
   }
-  btn1.addEventListener('click', toggleMayoreo);
-  if (btn2) btn2.addEventListener('click', toggleMayoreo);
+  btn.addEventListener('click', toggleMayoreo);
 }
 
 // ==================== INIT ====================
@@ -990,8 +1058,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Init scanner polling
   initScannerPoll();
 
-  // Init mayoreo toggle buttons
-  initMayoreoButtons();
+  // Init mayoreo toggle button
+  initMayoreoButton();
 
   // Init audio on user interaction
   document.addEventListener('click', initBeeps);

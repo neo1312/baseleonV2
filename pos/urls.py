@@ -22,5 +22,6 @@ urlpatterns = [
     path('scan/', views.scan_product, name='scan'),
     path('scanner-push/', views.scanner_push, name='scanner_push'),
     path('scanner-poll/', views.scanner_poll, name='scanner_poll'),
+    path('print-ticket/', views.print_ticket, name='print_ticket'),
 ]
 
