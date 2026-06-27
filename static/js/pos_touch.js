@@ -794,15 +794,15 @@ function setMode(mode) {
   updateSearchInput();
 
   // Update checkout button text
-  const ciCheckout = $('.ci-checkout');
+  const checkoutBtn = $('#checkout-btn');
   if (mode === 'devolucion') {
-    if (ciCheckout) ciCheckout.textContent = '✓ Devolver';
+    if (checkoutBtn) checkoutBtn.textContent = '🔄 DEVOLVER';
     showReturnLookup();
   } else if (mode === 'cotizacion') {
-    if (ciCheckout) ciCheckout.textContent = '✓ Cotizar';
+    if (checkoutBtn) checkoutBtn.textContent = '📄 COTIZAR';
     hideReturnLookup();
   } else {
-    if (ciCheckout) ciCheckout.textContent = '✓ Cobrar';
+    if (checkoutBtn) checkoutBtn.textContent = '💳 COBRAR';
     hideReturnLookup();
     returnSaleData = null;
   }
@@ -971,9 +971,9 @@ function openCheckoutModal() {
     // Hide payment methods, show confirm button with mode label
     $$('.payment-methods').forEach(el => el.style.display = 'none');
     const confirmBtn = $('.modal-actions .primary');
-    if (currentMode === 'devolucion') confirmBtn.textContent = '✓ Devolver';
-    else if (currentMode === 'cotizacion') confirmBtn.textContent = '✓ Cotizar';
-    else confirmBtn.textContent = '✓ Cobrar';
+    if (currentMode === 'devolucion') confirmBtn.textContent = '🔄 Devolver';
+    else if (currentMode === 'cotizacion') confirmBtn.textContent = '📄 Cotizar';
+    else confirmBtn.textContent = '💳 Cobrar';
     return;
   }
 

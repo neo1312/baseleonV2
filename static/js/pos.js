@@ -483,15 +483,15 @@ function setMode(mode) {
     document.body.className = document.body.className.replace(/mode-\w+/g, '').trim() + ' mode-' + mode;
     document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
 
-    const checkoutBtn = document.getElementById('checkout-btn');
+    const checkoutBtn = document.getElementById('pos-checkout-btn');
     if (mode === 'devolucion') {
-        checkoutBtn.textContent = '✓ PROCESAR DEVOLUCIÓN';
+        if (checkoutBtn) checkoutBtn.textContent = '🔄 DEVOLVER';
         showReturnLookup();
     } else if (mode === 'cotizacion') {
-        checkoutBtn.textContent = '✓ GENERAR COTIZACIÓN';
+        if (checkoutBtn) checkoutBtn.textContent = '📄 COTIZAR';
         hideReturnLookup();
     } else {
-        checkoutBtn.textContent = '✓ CHECKOUT';
+        if (checkoutBtn) checkoutBtn.textContent = '💳 COBRAR';
         hideReturnLookup();
         returnSaleData = null;
     }
@@ -669,10 +669,14 @@ function proceedCheckoutModal() {
     if (isNonSaleMode()) {
         const confirmBtn = document.getElementById('checkout-confirm-btn');
         if (confirmBtn) {
-            confirmBtn.textContent = currentMode === 'devolucion' ? '✓ CONFIRMAR DEVOLUCIÓN' : '✓ GENERAR COTIZACIÓN';
+            confirmBtn.textContent = currentMode === 'devolucion' ? '🔄 CONFIRMAR DEVOLUCIÓN' : '📄 GENERAR COTIZACIÓN';
         }
         return;
     }
+
+    // Reset confirm button for sale mode
+    const confirmBtn = document.getElementById('checkout-confirm-btn');
+    if (confirmBtn) confirmBtn.textContent = '💳 COBRAR';
 
     // Setup payment method listeners
     setupPaymentMethodListeners();
