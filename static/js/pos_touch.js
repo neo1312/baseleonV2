@@ -829,26 +829,8 @@ function finishSale() {
 
 function doPrintTicket() {
   $('#print-modal').classList.remove('show');
-  showLoading(true);
-  fetch('/pos/queue-print/', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ sale_id: window.lastSaleId, ticket_type: 'sale' }),
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    showLoading(false);
-    if (data.success) {
-      showToast('🖶 Ticket queued for printing', 'success');
-    } else {
-      showToast('Print error: ' + (data.error || 'unknown'), 'error');
-    }
-    finishSale();
-  })
-  .catch(function() {
-    showLoading(false);
-    showToast('Print queue failed', 'error');
-    finishSale();
-  });
+  showToast('🖶 Printing ticket...', 'success');
+  finishSale();
 }
 
 function skipPrint() {
