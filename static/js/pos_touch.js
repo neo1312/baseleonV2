@@ -578,10 +578,10 @@ function lookupBarcode(code) {
       if (saleStarted) {
         // Scanner: auto-add to cart with qty 1 (fast path)
         addScannedToCart(data, 1);
-        showToast('✓ ' + (data.compose_name || data.name), 'success');
+        showToast('✓ ' + code, 'success');
       } else {
         // No sale: just show info in search area
-        searchQuery = data.compose_name || data.name;
+        searchQuery = code;
         updateSearchInput();
         fetchSearchResults(searchQuery);
       }
