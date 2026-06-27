@@ -725,3 +725,10 @@ def ack_print(request, job_id):
             cache.delete(job_id)
         return JsonResponse({'success': True})
     return JsonResponse({'error': 'Invalid method'}, status=405)
+
+
+def pending_auto_prints(request):
+    """Return completed sales after a given ID. Polled by the local printer server."""
+    after = int(request.GET.get('after', 0))
+    sales = Sale.objects.filter(status='completed', id__gt=after).values('id', 'total_amount').order_by('id')
+    return JsonResponse(list(sales), safe=False)
