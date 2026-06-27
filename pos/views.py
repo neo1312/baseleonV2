@@ -399,12 +399,12 @@ def complete_sale(request):
                     sale_item_id = item_data.get('sale_item_id')
                     
                     price = Decimal(str(item_data.get('price', 0)))
-                    
+
                     d_item = devolutionItem.objects.create(
                         product=product,
                         devolution=devolution,
                         quantity=quantity,
-                        cost=str(product.costo),
+                        cost=str(price),
                         margen='0',
                         sale_item_id=sale_item_id,
                         purchase_with_iva=item_data.get('sat', False),
@@ -448,8 +448,8 @@ def complete_sale(request):
                         product=product,
                         quote=quote,
                         quantity=quantity,
-                        cost=str(product.costo),
-                        margen=str(product.margen),
+                        cost=str(price),
+                        margen='0',
                     )
                     
                     item_total = price * Decimal(str(quantity))

@@ -1032,10 +1032,12 @@ function openCheckoutModal() {
   if (currentMode !== 'sale') {
     // Hide payment methods, show confirm button with mode label
     $$('.payment-methods').forEach(el => el.style.display = 'none');
-    const confirmBtn = $('.modal-actions .primary');
-    if (currentMode === 'devolucion') confirmBtn.textContent = '🔄 Devolver';
-    else if (currentMode === 'cotizacion') confirmBtn.textContent = '📄 Cotizar';
-    else confirmBtn.textContent = '💳 Cobrar';
+    const confirmBtn = $('#confirm-checkout-btn');
+    if (confirmBtn) {
+      if (currentMode === 'devolucion') confirmBtn.textContent = '🔄 Devolver';
+      else if (currentMode === 'cotizacion') confirmBtn.textContent = '📄 Cotizar';
+      else confirmBtn.textContent = '💳 Cobrar';
+    }
     return;
   }
 
