@@ -6,6 +6,8 @@
 
 // Global state
 let cart = {}; // {product_id: {id, barcode, name, qty, price, tipo}}
+let currentMode = 'sale'; // 'sale' | 'devolucion' | 'cotizacion'
+let returnSaleData = null;
 
 // Broadcast channel to notify customer display (if same browser)
 try {
@@ -151,7 +153,15 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('sale-type-select').addEventListener('change', updateSaleTypeDisplay);
     document.getElementById('toggleMayoreoBtn').addEventListener('click', toggleMayoreoColumn);
     applyMayoreoVisibility();
-    
+
+    // Init mode buttons
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            setMode(this.dataset.mode);
+        });
+    });
+
     // Enable search immediately (browse products without starting a sale)
     enableSearch();
 });
@@ -467,13 +477,133 @@ function applyMayoreoVisibility() {
     });
 }
 
+// ==================== MODE SWITCHING ====================
+function setMode(mode) {
+    currentMode = mode;
+    document.body.className = document.body.className.replace(/mode-\w+/g, '').trim() + ' mode-' + mode;
+    document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+
+    const checkoutBtn = document.getElementById('checkout-btn');
+    if (mode === 'devolucion') {
+        checkoutBtn.textContent = '✓ PROCESAR DEVOLUCIÓN';
+        showReturnLookup();
+    } else if (mode === 'cotizacion') {
+        checkoutBtn.textContent = '✓ GENERAR COTIZACIÓN';
+        hideReturnLookup();
+    } else {
+        checkoutBtn.textContent = '✓ CHECKOUT';
+        hideReturnLookup();
+        returnSaleData = null;
+    }
+}
+
+function showReturnLookup() {
+    const cartSection = document.querySelector('.pos-cart-section');
+    if (!cartSection) return;
+    let lookup = document.getElementById('return-lookup');
+    if (lookup) { lookup.style.display = 'flex'; return; }
+    const div = document.createElement('div');
+    div.id = 'return-lookup';
+    div.className = 'return-lookup';
+    div.innerHTML = '<input type="text" id="return-ticket-input" placeholder="Ticket # original..." autocomplete="off">' +
+        '<button onclick="lookupReturnSale()">🔍 Buscar</button>';
+    const cartItems = document.querySelector('.cart-items');
+    cartSection.insertBefore(div, cartItems || cartSection.lastChild);
+}
+
+function hideReturnLookup() {
+    const el = document.getElementById('return-lookup');
+    if (el) el.style.display = 'none';
+    document.querySelectorAll('.return-item-row').forEach(el => el.remove());
+    document.querySelectorAll('.return-add-btn-container').forEach(el => el.remove());
+}
+
+function lookupReturnSale() {
+    const saleId = document.getElementById('return-ticket-input').value.trim();
+    if (!saleId || isNaN(saleId)) { showToast('Enter a valid ticket number', 'warning'); return; }
+    showLoading(true);
+    fetch('/pos/get-sale-for-return/' + saleId + '/')
+        .then(r => r.json())
+        .then(data => {
+            showLoading(false);
+            if (data.error) { alert(data.error); return; }
+            returnSaleData = data;
+            showReturnItems(data);
+        })
+        .catch(() => { showLoading(false); alert('Sale not found'); });
+}
+
+function showReturnItems(data) {
+    document.querySelectorAll('.return-item-row').forEach(el => el.remove());
+    document.querySelectorAll('.return-add-btn-container').forEach(el => el.remove());
+    const cartSection = document.querySelector('.pos-cart-section');
+    data.items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'return-item-row';
+        row.innerHTML = '<input type="checkbox" class="return-chk" data-sale-item-id="' + item.sale_item_id + '" checked>' +
+            '<span style="flex:1;">' + item.name + '</span>' +
+            '<span style="color:#888;font-size:11px;margin-right:4px;">SAT:' + (item.sat ? 'Sí' : 'No') + '</span>' +
+            '<input type="number" class="return-qty" value="' + item.quantity + '" min="1" max="' + item.quantity + '" style="width:50px;">' +
+            '<span style="margin-left:4px;">$' + item.price.toFixed(2) + '</span>';
+        cartSection.appendChild(row);
+    });
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'return-add-btn-container';
+    btnContainer.style.cssText = 'padding:8px;text-align:center;';
+    btnContainer.innerHTML = '<button class="btn btn-danger" onclick="addSelectedReturns()">➕ Agregar seleccionados a devolución</button>';
+    cartSection.appendChild(btnContainer);
+}
+
+function addSelectedReturns() {
+    const checkboxes = document.querySelectorAll('.return-chk:checked');
+    if (checkboxes.length === 0) { alert('Select items to return'); return; }
+    checkboxes.forEach(chk => {
+        const saleItemId = chk.dataset.saleItemId;
+        const row = chk.closest('.return-item-row');
+        const qtyInput = row.querySelector('.return-qty');
+        const qty = parseInt(qtyInput.value) || 1;
+        const item = returnSaleData.items.find(i => i.sale_item_id == saleItemId);
+        if (!item) return;
+        const pid = item.product_id;
+        if (cart[pid]) {
+            cart[pid].qty += qty;
+        } else {
+            cart[pid] = { id: pid, qty: qty, price: item.price, name: item.name, is_return: true, sale_item_id: saleItemId, sat: item.sat };
+        }
+    });
+    alert(checkboxes.length + ' item(s) added to return');
+    renderCart();
+    hideReturnLookup();
+}
+
+function showToast(msg) {
+    // Simple fallback for normal POS (no toast system)
+    console.log(msg);
+}
+
+function showLoading(v) {
+    const el = document.getElementById('loading-overlay');
+    if (el) el.style.display = v ? 'flex' : 'none';
+}
+
+// Helper to check if we're in a non-sale mode
+function isNonSaleMode() {
+    return currentMode === 'devolucion' || currentMode === 'cotizacion';
+}
+
 // CHECKOUT - WITH BACKEND STOCK VALIDATION
 function proceedCheckout() {
     if (Object.keys(cart).length === 0) {
         alert('⚠️ Cart is empty!');
         return;
     }
-    
+
+    // Skip stock validation for devolucion and cotizacion
+    if (isNonSaleMode()) {
+        proceedCheckoutModal();
+        return;
+    }
+
     // Prepare items for validation
     const cartItems = Object.values(cart).map(item => ({
         product_id: item.id,
@@ -512,27 +642,41 @@ function proceedCheckoutModal() {
     console.log('proceedCheckoutModal called');
     // Open checkout modal
     document.getElementById('checkout-modal').classList.add('show');
-    
+
     // Update checkout summary
     document.getElementById('checkout-tipo').textContent = saleType === 'mayoreo' ? 'Mayoreo' : 'Menudeo';
     document.getElementById('checkout-client').textContent = clientName;
-    
+
     let totalItems = 0;
     let totalAmount = 0;
     Object.values(cart).forEach(item => {
         totalItems += item.qty;
         totalAmount += item.qty * item.price;
     });
-    
+
     document.getElementById('checkout-items').textContent = totalItems;
     document.getElementById('checkout-total').textContent = '$' + totalAmount.toFixed(2);
-    
+
     // Store total for cash payment calculation
     window.currentTotal = totalAmount;
-    
+
+    // Show/hide payment section based on mode
+    const paymentGroup = document.querySelector('.checkout-group');
+    if (paymentGroup) {
+        paymentGroup.style.display = isNonSaleMode() ? 'none' : 'block';
+    }
+
+    if (isNonSaleMode()) {
+        const confirmBtn = document.getElementById('checkout-confirm-btn');
+        if (confirmBtn) {
+            confirmBtn.textContent = currentMode === 'devolucion' ? '✓ CONFIRMAR DEVOLUCIÓN' : '✓ GENERAR COTIZACIÓN';
+        }
+        return;
+    }
+
     // Setup payment method listeners
     setupPaymentMethodListeners();
-    
+
     // Sync checkout state for customer display
     syncCheckoutState({
         active: true,
@@ -541,7 +685,7 @@ function proceedCheckoutModal() {
         cash_received: 0,
         change: 0,
     });
-    
+
     // Reset cash amount input
     const cashAmountInput = document.getElementById('cash-amount-input');
     if (cashAmountInput) {
@@ -672,46 +816,40 @@ function confirmCheckout() {
         clearTimeout(cashInputDebounceTimer);
         cashInputDebounceTimer = null;
     }
-    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
-    const notes = document.getElementById('notes').value;
-    
-    // Calculate total
-    let totalAmount = 0;
-    Object.values(cart).forEach(item => {
-        totalAmount += item.qty * item.price;
-    });
-    
-    // Validate cash payment
-    if (paymentMethod === 'cash') {
-        const cashInput = document.getElementById('cash-amount-input');
-        const cashAmount = parseFloat(cashInput.value) || 0;
-        
-        if (cashAmount <= 0) {
-            alert('⚠️ Please enter the cash amount received');
-            return;
-        }
-        
-        if (cashAmount < totalAmount) {
-            alert(`⚠️ Insufficient payment!\nTotal: $${totalAmount.toFixed(2)}\nReceived: $${cashAmount.toFixed(2)}\nNeed: $${(totalAmount - cashAmount).toFixed(2)} more`);
-            return;
+    const totalAmount = window.currentTotal || 0;
+
+    // For sale mode: validate payment
+    if (currentMode === 'sale') {
+        const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+        const notes = document.getElementById('notes').value;
+        window._paymentMethod = paymentMethod;
+        window._notes = notes;
+
+        if (paymentMethod === 'cash') {
+            const cashInput = document.getElementById('cash-amount-input');
+            const cashAmount = parseFloat(cashInput.value) || 0;
+            if (cashAmount <= 0) {
+                alert('⚠️ Please enter the cash amount received');
+                return;
+            }
+            if (cashAmount < totalAmount) {
+                alert(`⚠️ Insufficient payment!\nTotal: $${totalAmount.toFixed(2)}\nReceived: $${cashAmount.toFixed(2)}\nNeed: $${(totalAmount - cashAmount).toFixed(2)} more`);
+                return;
+            }
         }
     }
-    
-    // Check for wallet discount
+
+    // Check for wallet discount (sale only)
     let walletDiscount = 0;
     let finalTotal = totalAmount;
-    
-    if (clientId && clientWallet > 0) {
+    if (currentMode === 'sale' && clientId && clientWallet > 0) {
         walletDiscount = Math.min(clientWallet, totalAmount);
-        
-        // Ask user to accept wallet discount
         const useWallet = confirm(
             `Client has $${clientWallet.toFixed(2)} in wallet.\n\n` +
             `Apply $${walletDiscount.toFixed(2)} discount?\n\n` +
             `Original: $${totalAmount.toFixed(2)}\n` +
             `With Wallet: $${(totalAmount - walletDiscount).toFixed(2)}`
         );
-        
         if (!useWallet) {
             walletDiscount = 0;
             finalTotal = totalAmount;
@@ -719,24 +857,33 @@ function confirmCheckout() {
             finalTotal = totalAmount - walletDiscount;
         }
     }
-    
+
     // Prepare sale data
     const items = Object.values(cart).map(item => ({
         product_id: item.id,
         quantity: item.qty,
         price: item.price,
+        sale_item_id: item.sale_item_id || null,
+        sat: item.sat || false,
     }));
-    
+
     const saleData = {
         items: items,
         tipo: saleType,
-        payment_method: paymentMethod,
         client_id: clientId || null,
-        notes: notes,
-        wallet_discount: walletDiscount,
+        mode: currentMode,
         total_amount: finalTotal,
     };
-    
+
+    if (currentMode === 'sale') {
+        saleData.payment_method = window._paymentMethod || 'cash';
+        saleData.notes = window._notes || '';
+        saleData.wallet_discount = walletDiscount;
+    }
+    if (currentMode === 'devolucion' && returnSaleData) {
+        saleData.original_sale_id = returnSaleData.sale_id;
+    }
+
     // Submit to server
     fetch('/pos/complete-sale/', {
         method: 'POST',
@@ -746,28 +893,36 @@ function confirmCheckout() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            // Calculate change for cash payments
-            let cashChange = 0;
-            if (paymentMethod === 'cash') {
-                const cashAmount = parseFloat(document.getElementById('cash-amount-input').value);
-                cashChange = cashAmount - finalTotal;
-            }
-            
-            let msg = `✅ Sale completed!\nSale ID: ${data.sale_id}\nTotal: $${data.total}`;
-            if (walletDiscount > 0) {
-                msg += `\n💰 Wallet Discount: $${walletDiscount.toFixed(2)}`;
-            }
-            if (paymentMethod === 'cash') {
-                msg += `\n\n💵 Cash Received: $${document.getElementById('cash-amount-input').value}`;
-                msg += `\n🔄 Change: $${cashChange.toFixed(2)}`;
+            const labels = { sale: 'Sale', devolucion: 'Devolución', cotizacion: 'Cotización' };
+            const label = labels[currentMode] || 'Sale';
+
+            // Queue print job for all modes
+            const ticketTypeMap = { sale: 'sale', devolucion: 'devolution', cotizacion: 'quote' };
+            fetch('/pos/queue-print/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({sale_id: data.sale_id, ticket_type: ticketTypeMap[currentMode] || 'sale'})
+            });
+
+            let msg = `✅ ${label} #${data.sale_id} completed!\nTotal: $${data.total}`;
+            if (currentMode === 'sale') {
+                if (walletDiscount > 0) {
+                    msg += `\n💰 Wallet Discount: $${walletDiscount.toFixed(2)}`;
+                }
+                if (window._paymentMethod === 'cash') {
+                    const cashAmount = parseFloat(document.getElementById('cash-amount-input')?.value) || 0;
+                    msg += `\n\n💵 Cash Received: $${cashAmount.toFixed(2)}`;
+                    msg += `\n🔄 Change: $${(cashAmount - finalTotal).toFixed(2)}`;
+                }
             }
             alert(msg);
-            
+
             clearCheckoutState();
 
-            const saleMsg = 'Gracias por su compra, vuelva pronto';
-            
-            // Sync sale completion to server then reload for clean state
+            const saleMsg = currentMode === 'devolucion' ? 'Devolución procesada' :
+                currentMode === 'cotizacion' ? 'Cotización generada' :
+                'Gracias por su compra, vuelva pronto';
+
             syncCartToSession({
                 saleCompleted: {
                     message: saleMsg,
@@ -779,12 +934,12 @@ function confirmCheckout() {
                 setTimeout(() => location.reload(), 300);
             });
         } else {
-            alert(`❌ Error: ${data.error}`);
+            alert('❌ Error: ' + data.error);
         }
     })
     .catch(err => {
-        console.error('Checkout error:', err);
-        alert('❌ Failed to complete sale');
+        console.error('Error completing:', err);
+        alert('❌ Failed to complete: ' + err.message);
     });
 }
 

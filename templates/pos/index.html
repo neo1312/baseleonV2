@@ -21,6 +21,11 @@
                     <span id="client-display">Client: -</span>
                 </div>
             </div>
+            <div class="mode-toggle">
+                <button class="mode-btn active" data-mode="sale">Venta</button>
+                <button class="mode-btn" data-mode="devolucion">Devolución</button>
+                <button class="mode-btn" data-mode="cotizacion">Cotización</button>
+            </div>
             <button class="btn-config" onclick="openSettings()" title="Start New Sale">📝 NUEVA VENTA</button>
             <button class="btn-config" onclick="openDisplayLink()" title="Customer Display Link" style="margin-left:8px;">🖥️ Pantalla</button>
             <button id="toggleMayoreoBtn" class="btn-config" title="Show/hide wholesale price" style="margin-left:8px;">💰 Mayoreo</button>
@@ -171,7 +176,7 @@
 
             <div class="checkout-actions">
                 <button class="btn-cancel" onclick="closeCheckout()">Cancel</button>
-                <button class="btn-confirm" onclick="confirmCheckout()">CONFIRM & COMPLETE</button>
+                <button class="btn-confirm" id="checkout-confirm-btn" onclick="confirmCheckout()">CONFIRM & COMPLETE</button>
             </div>
         </div>
     </div>

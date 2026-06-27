@@ -23,6 +23,11 @@
         <div class="sale-info-bar">
             <span class="sale-badge" id="sale-type-display">Sale: -</span>
             <span class="sale-badge" id="client-display">Client: -</span>
+            <div class="mode-toggle">
+                <button class="mode-btn active" data-mode="sale">Venta</button>
+                <button class="mode-btn" data-mode="devolucion">Devolución</button>
+                <button class="mode-btn" data-mode="cotizacion">Cotización</button>
+            </div>
         </div>
         <div class="top-actions">
             <a href="{% url 'pos:landing' %}" class="top-btn" style="text-decoration:none;">🏠</a>

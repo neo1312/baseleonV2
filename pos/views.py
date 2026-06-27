@@ -12,7 +12,7 @@ from django.contrib.sessions.models import Session
 from django.conf import settings
 from im.models import Product, DespieceConfig
 from django.core.cache import cache
-from crm.models import Sale, saleItem, Client
+from crm.models import Sale, saleItem, Client, Devolution, devolutionItem, Quote, quoteItem
 from django.utils import timezone
 from django.db import transaction
 from crm.decorators import role_required
@@ -326,105 +326,201 @@ def get_product(request):
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @csrf_exempt
+def get_sale_for_return(request, sale_id):
+    """Return original sale data for processing a return."""
+    try:
+        sale = Sale.objects.get(id=sale_id, status='completed')
+        items = []
+        for si in sale.saleitem_set.all():
+            items.append({
+                'product_id': si.product.id if si.product else None,
+                'name': si.product.compose_name if si.product else 'Deleted Product',
+                'barcode': si.product.barcode if si.product else '',
+                'quantity': int(float(si.quantity)),
+                'price': float(si.price),
+                'item_total': float(si.price * Decimal(str(si.quantity))),
+                'sat': si.sat,
+                'sale_item_id': si.id,
+            })
+        return JsonResponse({
+            'sale_id': sale.id,
+            'client': sale.client.name if sale.client else 'Público en general',
+            'client_id': sale.client.id if sale.client else None,
+            'tipo': sale.tipo,
+            'payment_method': sale.payment_method,
+            'date': sale.date_created,
+            'items': items,
+            'total': float(sale.total_amount),
+        })
+    except Sale.DoesNotExist:
+        return JsonResponse({'error': 'Sale not found'}, status=404)
+
+
+@csrf_exempt
 @transaction.atomic
 def complete_sale(request):
-    """Complete a sale"""
+    """Complete a sale, devolution, or quote based on mode."""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             
-            # Validate required fields
+            mode = data.get('mode', 'sale')
             items = data.get('items', [])
             if not items:
                 return JsonResponse({'error': 'No items in cart'}, status=400)
             
-            payment_method = data.get('payment_method', 'cash')
             client_id = data.get('client_id')
-            wallet_discount = Decimal(str(data.get('wallet_discount', 0)))
             
             # Get or create client
             if client_id:
                 client = Client.objects.get(id=client_id)
             else:
-                # Use default "mostrador" client for walk-in customers
                 client, _ = Client.objects.get_or_create(
                     name='mostrador',
                     defaults={'phoneNumber': '0000', 'tipo': 'menudeo'}
                 )
             
-            # Create sale
-            tipo = data.get('tipo', 'menudeo')  # menudeo or mayoreo
-            
-            sale = Sale.objects.create(
-                client=client,
-                payment_method=payment_method,
-                tipo=tipo,
-                date_created=timezone.now(),
-                status='completed',
-            )
-            
-            # Add items to sale and calculate total from actual backend prices
+            tipo = data.get('tipo', 'menudeo')
             total_quantity = 0
-            total_amount = Decimal('0')  # Calculate on backend based on actual prices
-            for item_data in items:
-                product = Product.objects.get(id=item_data['product_id'])
-                quantity = int(item_data['quantity'])
-                
-                # Calculate price based on sale type and granel rules
-                if tipo == 'mayoreo':
-                    price = Decimal(str(product.priceMayoreo))
-                else:  # menudeo
-                    # For menudeo, check granel quantity rules
-                    if product.granel and quantity < int(product.minimo):
-                        # Below minimum, use granel price (higher)
-                        granel_price = product.priceListaGranel
-                        price = Decimal(str(granel_price)) if granel_price != 'N/A' else Decimal(str(product.priceLista))
-                    else:
-                        # Normal price
-                        price = Decimal(str(product.priceLista))
-                
-                # Validate stock (InventoryUnit ready_to_sale)
-                if product.stock_ready_to_sale < quantity:
-                    raise ValueError(f"Insufficient stock for {product.compose_name}")
-                
-                # Create sale item
-                sale_item = saleItem.objects.create(
-                    sale=sale,
-                    product=product,
-                    quantity=quantity,
-                    price=price,
-                    sat=product.sat,
+            total_amount = Decimal('0')
+            
+            if mode == 'devolucion':
+                # Process return: create Devolution + devolutionItems
+                original_sale_id = data.get('original_sale_id')
+                devolution = Devolution.objects.create(
+                    client=client,
+                    tipo=tipo,
+                    date_created=timezone.now(),
                 )
                 
-                # NOTE: InventoryUnit signal handlers automatically manage inventory status changes
-                # When saleItem is created, signals mark InventoryUnit records as 'sold'
-                # Product.stock_ready_to_sale count decreases automatically
+                for item_data in items:
+                    product = Product.objects.get(id=item_data['product_id'])
+                    quantity = int(item_data['quantity'])
+                    sale_item_id = item_data.get('sale_item_id')
+                    
+                    price = Decimal(str(item_data.get('price', 0)))
+                    
+                    d_item = devolutionItem.objects.create(
+                        product=product,
+                        devolution=devolution,
+                        quantity=quantity,
+                        cost=str(product.costo),
+                        margen='0',
+                        sale_item_id=sale_item_id,
+                        purchase_with_iva=item_data.get('sat', False),
+                    )
+                    
+                    item_total = price * Decimal(str(quantity))
+                    total_amount += item_total
+                    total_quantity += quantity
                 
-                # Calculate item total (price * quantity) for accurate backend total
-                item_total = price * Decimal(str(quantity))
-                total_amount += item_total
-                total_quantity += quantity
+                devolution.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'sale_id': devolution.id,
+                    'message': f'Devolución #{devolution.id} completada',
+                    'total': float(total_amount),
+                })
             
-            # Handle wallet discount if applied
-            if wallet_discount > 0 and client_id:
-                # Deduct from client's wallet
-                if hasattr(client, 'monedero'):
-                    client.monedero = Decimal(str(client.monedero or 0)) - wallet_discount
-                    client.save()
-                # Apply wallet discount to final total
-                total_amount -= wallet_discount
+            elif mode == 'cotizacion':
+                # Process quote: create Quote + quoteItems (no inventory change)
+                quote = Quote.objects.create(
+                    client=client,
+                    tipo=tipo,
+                    date_created=timezone.now(),
+                )
+                
+                for item_data in items:
+                    product = Product.objects.get(id=item_data['product_id'])
+                    quantity = int(item_data['quantity'])
+                    
+                    if tipo == 'mayoreo':
+                        price = Decimal(str(product.priceMayoreo))
+                    else:
+                        if product.granel and quantity < int(product.minimo):
+                            granel_price = product.priceListaGranel
+                            price = Decimal(str(granel_price)) if granel_price != 'N/A' else Decimal(str(product.priceLista))
+                        else:
+                            price = Decimal(str(product.priceLista))
+                    
+                    q_item = quoteItem.objects.create(
+                        product=product,
+                        quote=quote,
+                        quantity=quantity,
+                        cost=str(product.costo),
+                        margen=str(product.margen),
+                    )
+                    
+                    item_total = price * Decimal(str(quantity))
+                    total_amount += item_total
+                    total_quantity += quantity
+                
+                quote.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'sale_id': quote.id,
+                    'message': f'Cotización #{quote.id} completada',
+                    'total': float(total_amount),
+                })
             
-            # Update sale totals with accurately calculated amounts
-            sale.total_items = total_quantity
-            sale.total_amount = total_amount
-            sale.save()
-            
-            return JsonResponse({
-                'success': True,
-                'sale_id': sale.id,
-                'message': f'Sale completed! Sale ID: {sale.id}',
-                'total': float(total_amount),
-            })
+            else:  # mode == 'sale' (default)
+                payment_method = data.get('payment_method', 'cash')
+                wallet_discount = Decimal(str(data.get('wallet_discount', 0)))
+                
+                sale = Sale.objects.create(
+                    client=client,
+                    payment_method=payment_method,
+                    tipo=tipo,
+                    date_created=timezone.now(),
+                    status='completed',
+                )
+                
+                for item_data in items:
+                    product = Product.objects.get(id=item_data['product_id'])
+                    quantity = int(item_data['quantity'])
+                    
+                    if tipo == 'mayoreo':
+                        price = Decimal(str(product.priceMayoreo))
+                    else:
+                        if product.granel and quantity < int(product.minimo):
+                            granel_price = product.priceListaGranel
+                            price = Decimal(str(granel_price)) if granel_price != 'N/A' else Decimal(str(product.priceLista))
+                        else:
+                            price = Decimal(str(product.priceLista))
+                    
+                    if product.stock_ready_to_sale < quantity:
+                        raise ValueError(f"Insufficient stock for {product.compose_name}")
+                    
+                    sale_item = saleItem.objects.create(
+                        sale=sale,
+                        product=product,
+                        quantity=quantity,
+                        price=price,
+                        sat=product.sat,
+                    )
+                    
+                    item_total = price * Decimal(str(quantity))
+                    total_amount += item_total
+                    total_quantity += quantity
+                
+                if wallet_discount > 0 and client_id:
+                    if hasattr(client, 'monedero'):
+                        client.monedero = Decimal(str(client.monedero or 0)) - wallet_discount
+                        client.save()
+                    total_amount -= wallet_discount
+                
+                sale.total_items = total_quantity
+                sale.total_amount = total_amount
+                sale.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'sale_id': sale.id,
+                    'message': f'Venta #{sale.id} completada',
+                    'total': float(total_amount),
+                })
             
         except Product.DoesNotExist:
             return JsonResponse({'error': 'Product not found'}, status=404)

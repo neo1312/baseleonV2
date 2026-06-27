@@ -15,6 +15,10 @@ let lastAddedId = null;
 let currentDespieceConfig = null;
 let scannerConnected = true;
 let scannerPollTimer = null;
+let currentMode = 'sale'; // 'sale' | 'devolucion' | 'cotizacion'
+
+// Return state
+let returnSaleData = null;
 
 // New state for keyboard + selection
 let searchQuery = '';
@@ -651,13 +655,14 @@ function renderCart() {
 
   entries.forEach(item => {
     const div = document.createElement('div');
-    div.className = 'cart-item' + (item.id === lastAddedId ? ' highlight' : '');
+    div.className = 'cart-item' + (item.id === lastAddedId ? ' highlight' : '') + (item.is_return ? ' return-item' : '');
     div.dataset.pid = item.id;
     const lineTotal = (item.qty * item.price).toFixed(2);
+    const label = item.is_return ? '<span style="color:#c0392b;font-size:10px;font-weight:700;margin-right:4px;">DEVOLUCIÓN</span>' : '';
 
     div.innerHTML =
       '<div class="item-row-top">' +
-        '<div class="item-name">' + item.name + '</div>' +
+        '<div class="item-name">' + label + item.name + '</div>' +
         '<button class="item-remove">✕</button>' +
       '</div>' +
       '<div class="item-row-bottom">' +
@@ -747,9 +752,114 @@ function updateSaleTypeDisplay() {
   $('#client-display').textContent = clientName || 'General';
 }
 
+// ==================== MODE SWITCHING ====================
+function setMode(mode) {
+  currentMode = mode;
+  document.body.className = document.body.className.replace(/mode-\w+/g, '').trim() + ' mode-' + mode;
+  $$('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+
+  // Update checkout button text
+  const ciCheckout = $('.ci-checkout');
+  if (mode === 'devolucion') {
+    if (ciCheckout) ciCheckout.textContent = '✓ Devolver';
+    showReturnLookup();
+  } else if (mode === 'cotizacion') {
+    if (ciCheckout) ciCheckout.textContent = '✓ Cotizar';
+    hideReturnLookup();
+  } else {
+    if (ciCheckout) ciCheckout.textContent = '✓ Cobrar';
+    hideReturnLookup();
+    returnSaleData = null;
+  }
+}
+
+function showReturnLookup() {
+  const cartContainer = $('#cart-items');
+  if (!cartContainer) return;
+  // Check if already showing
+  if ($('#return-lookup')) return;
+  const div = document.createElement('div');
+  div.id = 'return-lookup';
+  div.className = 'return-lookup';
+  div.innerHTML = '<input type="text" id="return-ticket-input" placeholder="Ticket # original..." autocomplete="off">' +
+    '<button onclick="lookupReturnSale()">🔍 Buscar</button>';
+  cartContainer.parentNode.insertBefore(div, cartContainer);
+}
+
+function hideReturnLookup() {
+  const el = $('#return-lookup');
+  if (el) el.remove();
+  const items = $$('.return-item-row');
+  items.forEach(el => el.remove());
+}
+
+function lookupReturnSale() {
+  const saleId = $('#return-ticket-input').value.trim();
+  if (!saleId || isNaN(saleId)) { showToast('Enter a valid ticket number', 'warning'); return; }
+  showLoading(true);
+  fetch('/pos/get-sale-for-return/' + saleId + '/')
+    .then(r => r.json())
+    .then(data => {
+      showLoading(false);
+      if (data.error) { showToast(data.error, 'error'); return; }
+      returnSaleData = data;
+      showReturnItems(data);
+    })
+    .catch(() => { showLoading(false); showToast('Sale not found', 'error'); });
+}
+
+function showReturnItems(data) {
+  // Remove old rows
+  $$('.return-item-row').forEach(el => el.remove());
+  const cartContainer = $('#cart-items');
+  data.items.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'return-item-row';
+    row.innerHTML = '<input type="checkbox" class="return-chk" data-sale-item-id="' + item.sale_item_id + '" checked>' +
+      '<span style="flex:1;">' + item.name + '</span>' +
+      '<span style="color:#888;font-size:11px;margin-right:4px;">SAT:' + (item.sat ? 'Sí' : 'No') + '</span>' +
+      '<input type="number" class="return-qty" value="' + item.quantity + '" min="1" max="' + item.quantity + '" style="width:50px;">' +
+      '<span style="margin-left:4px;">$' + item.price.toFixed(2) + '</span>';
+    cartContainer.appendChild(row);
+  });
+  // Add "Add selected to return" button
+  const btn = document.createElement('div');
+  btn.style = 'padding:8px;text-align:center;';
+  btn.innerHTML = '<button class="modal-btn primary" onclick="addSelectedReturns()" style="background:#c0392b;">➕ Agregar seleccionados a devolución</button>';
+  cartContainer.appendChild(btn);
+}
+
+function addSelectedReturns() {
+  const checkboxes = $$('.return-chk:checked');
+  if (checkboxes.length === 0) { showToast('Select items to return', 'warning'); return; }
+  checkboxes.forEach(chk => {
+    const saleItemId = chk.dataset.saleItemId;
+    const row = chk.closest('.return-item-row');
+    const qtyInput = row.querySelector('.return-qty');
+    const qty = parseInt(qtyInput.value) || 1;
+    const item = returnSaleData.items.find(i => i.sale_item_id == saleItemId);
+    if (!item) return;
+    // Add to cart as return item
+    const pid = item.product_id;
+    if (cart[pid]) {
+      cart[pid].qty += qty;
+    } else {
+      cart[pid] = { id: pid, qty: qty, price: item.price, name: item.name, is_return: true, sale_item_id: saleItemId, sat: item.sat };
+    }
+  });
+  showToast(checkboxes.length + ' item(s) added to return', 'success');
+  renderCart();
+  hideReturnLookup();
+}
+
 // ==================== CHECKOUT ====================
 function proceedCheckout() {
   if (Object.keys(cart).length === 0) { showToast('Cart is empty', 'warning'); return; }
+  // Skip stock validation for devolucion and cotizacion
+  if (currentMode !== 'sale') {
+    openCheckoutModal();
+    return;
+  }
   const items = Object.values(cart).map(item => ({ product_id: item.id, quantity: item.qty }));
   showLoading(true);
   fetch('/pos/validate-stock/', {
@@ -777,6 +887,24 @@ function openCheckoutModal() {
   Object.values(cart).forEach(item => { totalAmount += item.qty * item.price; });
   $('#chk-total').textContent = '$' + totalAmount.toFixed(2);
   window.currentTotal = totalAmount;
+
+  // Show/hide payment section based on mode
+  const pmSection = $('.pm-section');
+  if (pmSection) pmSection.style.display = (currentMode === 'sale') ? 'block' : 'none';
+  const cashArea = $('#cash-payment-area');
+  if (cashArea) cashArea.style.display = 'none';
+
+  if (currentMode !== 'sale') {
+    // Hide payment methods, show confirm button with mode label
+    $$('.payment-methods').forEach(el => el.style.display = 'none');
+    const confirmBtn = $('.modal-actions .primary');
+    if (currentMode === 'devolucion') confirmBtn.textContent = '✓ Devolver';
+    else if (currentMode === 'cotizacion') confirmBtn.textContent = '✓ Cotizar';
+    else confirmBtn.textContent = '✓ Cobrar';
+    return;
+  }
+
+  $$('.payment-methods').forEach(el => el.style.display = '');
   $$('.payment-method-btn').forEach(btn => {
     btn.addEventListener('click', () => selectPaymentMethod(btn.dataset.method));
   });
@@ -826,19 +954,44 @@ function setupNumpad(numpadId, displayId, onValueChange) {
 }
 
 function confirmCheckout() {
-  const paymentMethod = window.selectedPayment || 'cash';
   const totalAmount = window.currentTotal;
-  if (paymentMethod === 'cash') {
-    const cashText = $('#cash-amount-display').textContent.replace('$', '');
-    const cashAmount = parseFloat(cashText) || 0;
-    if (cashAmount <= 0) { showToast('Enter the cash amount received', 'warning'); return; }
-    if (cashAmount < totalAmount) {
-      showToast('Insufficient payment! Need $' + (totalAmount - cashAmount).toFixed(2) + ' more', 'error');
-      return;
+
+  if (currentMode === 'sale') {
+    const paymentMethod = window.selectedPayment || 'cash';
+    if (paymentMethod === 'cash') {
+      const cashText = $('#cash-amount-display').textContent.replace('$', '');
+      const cashAmount = parseFloat(cashText) || 0;
+      if (cashAmount <= 0) { showToast('Enter the cash amount received', 'warning'); return; }
+      if (cashAmount < totalAmount) {
+        showToast('Insufficient payment! Need $' + (totalAmount - cashAmount).toFixed(2) + ' more', 'error');
+        return;
+      }
     }
   }
-  const items = Object.values(cart).map(item => ({ product_id: item.id, quantity: item.qty, price: item.price }));
-  const saleData = { items, tipo: saleType, payment_method: paymentMethod, client_id: clientId || null, total_amount: totalAmount };
+
+  const items = Object.values(cart).map(item => ({
+    product_id: item.id,
+    quantity: item.qty,
+    price: item.price,
+    sale_item_id: item.sale_item_id || null,
+    sat: item.sat || false,
+  }));
+
+  const saleData = {
+    items,
+    tipo: saleType,
+    client_id: clientId || null,
+    total_amount: totalAmount,
+    mode: currentMode,
+  };
+
+  if (currentMode === 'sale') {
+    saleData.payment_method = window.selectedPayment || 'cash';
+  }
+  if (currentMode === 'devolucion' && returnSaleData) {
+    saleData.original_sale_id = returnSaleData.sale_id;
+  }
+
   showLoading(true);
   fetch('/pos/complete-sale/', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -848,13 +1001,15 @@ function confirmCheckout() {
   .then(data => {
     showLoading(false);
     if (data.success) {
-      showToast('✅ Sale #' + data.sale_id + ' completed! $' + data.total, 'success');
+      const labels = { sale: 'Sale', devolucion: 'Devolución', cotizacion: 'Cotización' };
+      const label = labels[currentMode] || 'Sale';
+      showToast('✅ ' + label + ' #' + data.sale_id + ' completed! $' + data.total, 'success');
       window.lastSaleId = data.sale_id;
-      $('#print-sale-info').textContent = 'Sale #' + data.sale_id + ' — Total: $' + data.total.toFixed(2);
+      $('#print-sale-info').textContent = label + ' #' + data.sale_id + ' — Total: $' + data.total.toFixed(2);
       $('#print-modal').classList.add('show');
     } else { showToast('Error: ' + data.error, 'error'); }
   })
-  .catch(() => { showLoading(false); showToast('Failed to complete sale', 'error'); });
+  .catch(() => { showLoading(false); showToast('Failed to complete ' + currentMode, 'error'); });
 }
 
 function finishSale() {
@@ -866,10 +1021,12 @@ function finishSale() {
 function doPrintTicket() {
   $('#print-modal').classList.remove('show');
   showToast('🖶 Printing ticket...', 'success');
+  const ticketTypeMap = { sale: 'sale', devolucion: 'devolution', cotizacion: 'quote' };
+  const ticketType = ticketTypeMap[currentMode] || 'sale';
   fetch('/pos/queue-print/', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({sale_id: window.lastSaleId, ticket_type: 'sale'})
+    body: JSON.stringify({sale_id: window.lastSaleId, ticket_type: ticketType})
   }).finally(() => finishSale());
 }
 
@@ -1082,6 +1239,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Init mayoreo toggle button
   initMayoreoButton();
+
+  // Init mode buttons
+  $$('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      setMode(this.dataset.mode);
+    });
+  });
 
   // Init audio on user interaction
   document.addEventListener('click', initBeeps);

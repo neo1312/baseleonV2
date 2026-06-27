@@ -466,6 +466,15 @@ html, body {
   overflow: hidden;
 }
 
+.cart-item.return-item {
+  border-color: #c0392b;
+  background: #fff5f5;
+}
+
+.cart-item.return-item .item-name {
+  color: #c0392b;
+}
+
 .cart-item:last-child {
   margin-bottom: 0;
 }
@@ -1323,6 +1332,129 @@ html, body {
 /* ===== KEYBOARD STATE ===== */
 .bottom-panel.keyboard-hidden .keyboard-section {
   display: none;
+}
+
+/* ===== MODE TOGGLE ===== */
+.mode-toggle {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 8px;
+}
+
+.mode-btn {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.7);
+  transition: all 0.15s;
+  letter-spacing: 0.5px;
+}
+
+.mode-btn:hover {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+.mode-btn.active {
+  border-color: #fff;
+  color: #fff;
+}
+
+/* Mode: Sale (default) */
+body.mode-devolucion .pos-top-bar {
+  background: linear-gradient(135deg, #c0392b, #e74c3c) !important;
+}
+body.mode-devolucion .mode-btn[data-mode="devolucion"] {
+  background: rgba(255,255,255,0.25);
+  border-color: #fff;
+  color: #fff;
+}
+body.mode-devolucion .kb-key.kb-enter {
+  background: #c0392b !important;
+  border-color: #c0392b !important;
+}
+body.mode-devolucion .top-btn.primary {
+  background: #c0392b !important;
+}
+body.mode-devolucion .ci-checkout {
+  background: #c0392b !important;
+}
+body.mode-devolucion .ci-checkout:hover {
+  background: #a93226 !important;
+}
+
+/* Mode: Cotizacion */
+body.mode-cotizacion .pos-top-bar {
+  background: linear-gradient(135deg, #b7950b, #d4a017) !important;
+}
+body.mode-cotizacion .mode-btn[data-mode="cotizacion"] {
+  background: rgba(255,255,255,0.25);
+  border-color: #fff;
+  color: #fff;
+}
+body.mode-cotizacion .kb-key.kb-enter {
+  background: #b7950b !important;
+  border-color: #b7950b !important;
+}
+body.mode-cotizacion .top-btn.primary {
+  background: #b7950b !important;
+}
+body.mode-cotizacion .ci-checkout {
+  background: #b7950b !important;
+}
+body.mode-cotizacion .ci-checkout:hover {
+  background: #9a7d0a !important;
+}
+
+/* Return ticket input */
+.return-lookup {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  background: #fff5f5;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.return-lookup input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.return-lookup button {
+  padding: 8px 16px;
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.return-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 13px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.return-item-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+.return-item-row input[type="number"] {
+  width: 50px;
+  padding: 2px 4px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 13px;
 }
 
 
