@@ -728,11 +728,11 @@ def ack_print(request, job_id):
 
 
 def pending_auto_prints(request):
-    """Return completed sales after a given ID. Polled by the local printer server."""
+    """Return sales needing printing after a given ID, plus the latest sale ID."""
     after = int(request.GET.get('after', 0))
-    if after == 0:
-        latest = Sale.objects.filter(status='completed').last()
-        if latest:
-            after = latest.id
-    sales = list(Sale.objects.filter(status='completed', id__gt=after)[:3].values('id').order_by('id'))
-    return JsonResponse(sales, safe=False)
+    latest = Sale.objects.filter(status='completed').last()
+    latest_id = latest.id if latest else 0
+    sales = []
+    if after > 0:
+        sales = list(Sale.objects.filter(status='completed', id__gt=after)[:3].values('id').order_by('id'))
+    return JsonResponse({'sales': sales, 'latest_id': latest_id})
