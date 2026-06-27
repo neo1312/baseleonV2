@@ -735,7 +735,7 @@ def pending_auto_prints(request):
         latest_id = latest.id if latest else 0
         sales = []
         if after > 0:
-            sales = list(Sale.objects.filter(status='completed', id__gt=after)[:3].values('id').order_by('id'))
+            sales = list(Sale.objects.filter(status='completed', id__gt=after).order_by('id')[:3].values('id'))
         return JsonResponse({'sales': sales, 'latest_id': latest_id})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
