@@ -829,7 +829,7 @@ function finishSale() {
 
 function doPrintTicket() {
   $('#print-modal').classList.remove('show');
-  new Image().src = 'http://192.168.1.100:5000/print?sale_id=' + window.lastSaleId + '&ticket_type=sale';
+  window.open('http://192.168.1.100:5000/print?sale_id=' + window.lastSaleId + '&ticket_type=sale', '_blank', 'width=420,height=300,menubar=no,toolbar=no,location=no,status=no');
   showToast('🖶 Ticket sent to printer', 'success');
   finishSale();
 }
