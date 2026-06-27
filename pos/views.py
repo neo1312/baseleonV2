@@ -731,7 +731,7 @@ def pending_auto_prints(request):
     """Return sales needing printing after a given ID, plus the latest sale ID."""
     try:
         after = int(request.GET.get('after', 0))
-        latest = Sale.objects.filter(status='completed').last()
+        latest = Sale.objects.filter(status='completed').order_by('id').last()
         latest_id = latest.id if latest else 0
         sales = []
         if after > 0:
