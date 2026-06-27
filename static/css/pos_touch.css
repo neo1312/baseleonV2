@@ -1040,7 +1040,16 @@ html, body {
   padding-bottom: 6px;
 }
 
-.chk-big-total {
+.compact-checkout .chk-mode-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.compact-checkout .chk-big-total {
   font-size: 36px;
   font-weight: 700;
   text-align: center;

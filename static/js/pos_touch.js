@@ -1017,6 +1017,9 @@ function openCheckoutModal() {
   $('#checkout-modal').classList.add('show');
   let totalAmount = 0;
   Object.values(cart).forEach(item => { totalAmount += item.qty * item.price; });
+  const titles = { sale: '💳 Cobrar', devolucion: '🔄 Devolución', cotizacion: '📄 Cotización' };
+  const titleEl = $('#chk-mode-title');
+  if (titleEl) titleEl.textContent = titles[currentMode] || '💳 Cobrar';
   $('#chk-total').textContent = '$' + totalAmount.toFixed(2);
   window.currentTotal = totalAmount;
 

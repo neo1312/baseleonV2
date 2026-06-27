@@ -714,6 +714,11 @@ function proceedCheckoutModal() {
     document.getElementById('checkout-modal').classList.add('show');
 
     // Update checkout summary
+    const titleEl = document.getElementById('checkout-title');
+    if (titleEl) {
+        const titles = { sale: '💳 Cobrar', devolucion: '🔄 Devolución', cotizacion: '📄 Cotización' };
+        titleEl.textContent = titles[currentMode] || 'Complete Sale';
+    }
     document.getElementById('checkout-tipo').textContent = saleType === 'mayoreo' ? 'Mayoreo' : 'Menudeo';
     document.getElementById('checkout-client').textContent = clientName;
 
@@ -739,7 +744,7 @@ function proceedCheckoutModal() {
     if (isNonSaleMode()) {
         const confirmBtn = document.getElementById('checkout-confirm-btn');
         if (confirmBtn) {
-            confirmBtn.textContent = currentMode === 'devolucion' ? '🔄 CONFIRMAR DEVOLUCIÓN' : '📄 GENERAR COTIZACIÓN';
+            confirmBtn.textContent = currentMode === 'devolucion' ? '🔄 DEVOLVER' : '📄 COTIZAR';
         }
         return;
     }
