@@ -798,7 +798,7 @@ def queue_print(request):
             ticket_type = data.get('ticket_type', 'sale')
             if not sale_id:
                 return JsonResponse({'error': 'sale_id required'}, status=400)
-            job_id = 'print_{}_{}'.format(int(time.time()), sale_id)
+            job_id = 'print_{}_{}_{}'.format(ticket_type, int(time.time()), sale_id)
             cache.set(job_id, {'sale_id': sale_id, 'ticket_type': ticket_type}, 120)
             pending = cache.get('print_pending', [])
             pending.append(job_id)
@@ -816,6 +816,9 @@ def get_pending_prints(request):
         job = cache.get(job_id)
         if job:
             job['job_id'] = job_id
+            if 'ticket_type' not in job:
+                parts = job_id.split('_')
+                job['ticket_type'] = parts[1] if len(parts) >= 4 and parts[0] == 'print' else 'sale'
             jobs.append(job)
         else:
             pending.remove(job_id)
