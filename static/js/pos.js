@@ -8,6 +8,7 @@
 let cart = {}; // {product_id: {id, barcode, name, qty, price, tipo}}
 let currentMode = 'sale'; // 'sale' | 'devolucion' | 'cotizacion'
 let returnSaleData = null;
+let returnMode = null; // null | 'ticket' | 'noticket'
 
 // Broadcast channel to notify customer display (if same browser)
 try {
@@ -263,7 +264,32 @@ function addToCart(btn) {
     
     const barcode = row.querySelector('.barcode').textContent;
     const name = row.querySelector('.name').textContent;
-    
+
+    // For devolucion without ticket, skip stock check
+    if (currentMode === 'devolucion' && returnMode === 'noticket') {
+        const priceRegular = parseFloat(row.querySelector('.price-regular').textContent.replace('$', ''));
+        const priceMayoreo = parseFloat(row.querySelector('.price-mayoreo').textContent.replace('$', ''));
+        const price = saleType === 'mayoreo' ? priceMayoreo : priceRegular;
+        if (cart[productId]) {
+            cart[productId].qty += quantity;
+        } else {
+            cart[productId] = {
+                id: productId,
+                barcode: barcode,
+                name: name,
+                qty: quantity,
+                price: price,
+                tipo: saleType,
+                is_return: true,
+            };
+        }
+        cart[productId].addedAt = Date.now();
+        updateCartDisplay();
+        syncCartToSession();
+        qtyInput.value = 1;
+        return;
+    }
+
     // FETCH CURRENT STOCK FROM BACKEND (single source of truth)
     fetch(`/pos/stock/?id=${productId}`)
         .then(r => r.json())
@@ -480,24 +506,68 @@ function applyMayoreoVisibility() {
 // ==================== MODE SWITCHING ====================
 function setMode(mode) {
     currentMode = mode;
+    returnMode = null;
+    returnSaleData = null;
     document.body.className = document.body.className.replace(/mode-\w+/g, '').trim() + ' mode-' + mode;
     document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
 
     const checkoutBtn = document.getElementById('pos-checkout-btn');
     if (mode === 'devolucion') {
         if (checkoutBtn) checkoutBtn.textContent = '🔄 DEVOLVER';
-        showReturnLookup();
+        showReturnChoice();
     } else if (mode === 'cotizacion') {
         if (checkoutBtn) checkoutBtn.textContent = '📄 COTIZAR';
+        hideReturnChoice();
         hideReturnLookup();
     } else {
         if (checkoutBtn) checkoutBtn.textContent = '💳 COBRAR';
+        hideReturnChoice();
         hideReturnLookup();
         returnSaleData = null;
     }
 }
 
+function showReturnChoice() {
+    hideReturnChoice();
+    hideReturnLookup();
+    const cartSection = document.querySelector('.pos-cart-section');
+    if (!cartSection) return;
+    const div = document.createElement('div');
+    div.id = 'return-choice';
+    div.style.cssText = 'padding:16px;text-align:center;background:#fff5f5;border:1px solid #f5c6cb;border-radius:6px;margin-bottom:10px;';
+    div.innerHTML =
+        '<div style="font-size:15px;font-weight:700;color:#c0392b;margin-bottom:12px;">🔙 MODO DEVOLUCIÓN</div>' +
+        '<div style="display:flex;gap:10px;justify-content:center;">' +
+        '<button class="btn btn-danger" onclick="startReturnWithTicket()" style="padding:10px 20px;">🎫 Con Ticket</button>' +
+        '<button class="btn btn-danger" onclick="startReturnWithoutTicket()" style="padding:10px 20px;">📦 Sin Ticket</button>' +
+        '</div>' +
+        '<div style="margin-top:8px;font-size:12px;color:#888;">Con ticket: busca venta original · Sin ticket: selecciona productos directamente</div>';
+    const cartItems = document.querySelector('.cart-items');
+    cartSection.insertBefore(div, cartItems || cartSection.lastChild);
+}
+
+function hideReturnChoice() {
+    const el = document.getElementById('return-choice');
+    if (el) el.remove();
+}
+
+function startReturnWithTicket() {
+    returnMode = 'ticket';
+    hideReturnChoice();
+    hideReturnLookup();
+    showReturnLookup();
+}
+
+function startReturnWithoutTicket() {
+    returnMode = 'noticket';
+    hideReturnChoice();
+    hideReturnLookup();
+    alert('Selecciona productos a devolver desde la tabla de productos');
+}
+
+
 function showReturnLookup() {
+    if (returnMode === 'noticket') return;
     const cartSection = document.querySelector('.pos-cart-section');
     if (!cartSection) return;
     let lookup = document.getElementById('return-lookup');

@@ -19,6 +19,7 @@ let currentMode = 'sale'; // 'sale' | 'devolucion' | 'cotizacion'
 
 // Return state
 let returnSaleData = null;
+let returnMode = null; // null | 'ticket' | 'noticket'
 
 // New state for keyboard + selection
 let searchQuery = '';
@@ -187,33 +188,36 @@ function handleKeyPress(key) {
   const now = Date.now();
 
   // Devolucion mode: keyboard types ticket #, not product search
-  if (currentMode === 'devolucion' && !returnSaleData) {
-    if (key === 'enter') {
-      lookupReturnSale();
-      return;
-    }
-    if (key === 'backspace') {
-      const input = $('#return-ticket-input');
-      if (input) {
-        input.value = input.value.slice(0, -1);
-        input.focus();
+  if (currentMode === 'devolucion') {
+    if (returnMode === 'ticket' && !returnSaleData) {
+      if (key === 'enter') {
+        lookupReturnSale();
+        return;
+      }
+      if (key === 'backspace') {
+        const input = $('#return-ticket-input');
+        if (input) {
+          input.value = input.value.slice(0, -1);
+          input.focus();
+        }
+        return;
+      }
+      if (key === 'clear') {
+        const input = $('#return-ticket-input');
+        if (input) { input.value = ''; input.focus(); }
+        return;
+      }
+      if (key.length === 1) {
+        const input = $('#return-ticket-input');
+        if (input) {
+          input.value += key;
+          input.focus();
+        }
+        return;
       }
       return;
     }
-    if (key === 'clear') {
-      const input = $('#return-ticket-input');
-      if (input) { input.value = ''; input.focus(); }
-      return;
-    }
-    if (key.length === 1) {
-      const input = $('#return-ticket-input');
-      if (input) {
-        input.value += key;
-        input.focus();
-      }
-      return;
-    }
-    return;
+    // Noticket mode or already loaded: fall through to normal search
   }
 
   // Space always goes to search, never barcode buffer
@@ -633,10 +637,9 @@ function lookupBarcode(code) {
 // ==================== ADD TO CART ====================
 function addScannedToCart(product, qty) {
   if (!saleStarted) { showToast('Start a sale first', 'warning'); return; }
-  // Stock check (skip for granel/despiece)
-  if (qty > product.stock && !product.Granel_Item && !product.despiece_config_id) {
+  // Stock check (skip for granel/despiece, skip for returns)
+  if (currentMode !== 'devolucion' && qty > product.stock && !product.Granel_Item && !product.despiece_config_id) {
     showToast('Only ' + product.stock + ' in stock', 'error');
-    // Still allow selection to continue
     return;
   }
   const price = saleType === 'mayoreo' ? (parseFloat(product.price_mayoreo) || 0) : (parseFloat(product.price) || 0);
@@ -652,6 +655,7 @@ function addScannedToCart(product, qty) {
       price: price,
       tipo: saleType,
       addedAt: Date.now(),
+      is_return: currentMode === 'devolucion',
     };
   }
   lastAddedId = pid;
@@ -785,6 +789,8 @@ function updateSaleTypeDisplay() {
 // ==================== MODE SWITCHING ====================
 function setMode(mode) {
   currentMode = mode;
+  returnMode = null;
+  returnSaleData = null;
   document.body.className = document.body.className.replace(/mode-\w+/g, '').trim() + ' mode-' + mode;
   $$('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
 
@@ -793,19 +799,72 @@ function setMode(mode) {
   searchQuery = '';
   updateSearchInput();
 
-  // Update checkout button text
   const checkoutBtn = $('#checkout-btn');
   if (mode === 'devolucion') {
     if (checkoutBtn) checkoutBtn.textContent = '🔄 DEVOLVER';
-    showReturnLookup();
+    showReturnChoice();
   } else if (mode === 'cotizacion') {
     if (checkoutBtn) checkoutBtn.textContent = '📄 COTIZAR';
     hideReturnLookup();
+    hideReturnChoice();
+    enableProductSearch();
   } else {
     if (checkoutBtn) checkoutBtn.textContent = '💳 COBRAR';
     hideReturnLookup();
+    hideReturnChoice();
+    enableProductSearch();
     returnSaleData = null;
   }
+}
+
+function showReturnChoice() {
+  hideReturnLookup();
+  hideReturnChoice();
+  const pl = $('#products-list');
+  if (!pl) return;
+  const div = document.createElement('div');
+  div.id = 'return-choice';
+  div.style.cssText = 'padding:20px;text-align:center;';
+  div.innerHTML =
+    '<div style="font-size:16px;font-weight:700;color:#c0392b;margin-bottom:16px;">🔙 MODO DEVOLUCIÓN</div>' +
+    '<div style="display:flex;gap:12px;justify-content:center;">' +
+    '<button class="modal-btn primary" onclick="startReturnWithTicket()" style="background:#c0392b;font-size:16px;padding:14px 28px;">🎫 Con Ticket</button>' +
+    '<button class="modal-btn primary" onclick="startReturnWithoutTicket()" style="background:#c0392b;font-size:16px;padding:14px 28px;">📦 Sin Ticket</button>' +
+    '</div>' +
+    '<div style="margin-top:10px;font-size:13px;color:#888;">Con ticket: busca la venta original · Sin ticket: selecciona productos directamente</div>';
+  pl.parentNode.insertBefore(div, pl);
+  const idle = $('#pl-idle');
+  if (idle) idle.style.display = 'none';
+  clearSearchResults();
+}
+
+function hideReturnChoice() {
+  const el = $('#return-choice');
+  if (el) el.remove();
+}
+
+function startReturnWithTicket() {
+  returnMode = 'ticket';
+  hideReturnChoice();
+  showReturnLookup();
+}
+
+function startReturnWithoutTicket() {
+  returnMode = 'noticket';
+  hideReturnChoice();
+  hideReturnLookup();
+  enableProductSearch();
+  showToast('Selecciona productos a devolver', 'info');
+}
+
+function enableProductSearch() {
+  const idle = $('#pl-idle');
+  if (idle) idle.style.display = 'flex';
+  hideReturnModeMessage();
+  hideReturnChoice();
+  hideReturnLookup();
+  const inp = $('#search-input');
+  if (inp) inp.focus();
 }
 
 function showReturnLookup() {
