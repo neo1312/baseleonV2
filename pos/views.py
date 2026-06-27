@@ -624,18 +624,32 @@ def scanner_push(request):
             data = json.loads(request.body)
             barcode = data.get('barcode')
             if barcode:
-                cache.set('scanner_barcode', barcode, 30)
+                job_id = 'scan_{}_{}'.format(int(time.time()), barcode)
+                cache.set(job_id, {'barcode': barcode}, 30)
+                pending = cache.get('print_pending', [])
+                pending.append(job_id)
+                cache.set('print_pending', pending, 30)
                 return JsonResponse({'ok': True})
         except (json.JSONDecodeError, AttributeError):
             pass
     return JsonResponse({'ok': False}, status=400)
 
 def scanner_poll(request):
-    """Return pending scanner barcode and clear it."""
-    barcode = cache.get('scanner_barcode')
-    if barcode:
-        cache.delete('scanner_barcode')
-    return JsonResponse({'barcode': barcode})
+    """Return pending scanner barcode (reads from shared print_pending cache)."""
+    pending = cache.get('print_pending', [])
+    for job_id in list(pending):
+        if job_id.startswith('scan_'):
+            job = cache.get(job_id)
+            if job:
+                barcode = job.get('barcode')
+                pending.remove(job_id)
+                cache.set('print_pending', pending, 120)
+                cache.delete(job_id)
+                return JsonResponse({'barcode': barcode})
+            else:
+                pending.remove(job_id)
+                cache.set('print_pending', pending, 120)
+    return JsonResponse({'barcode': None})
 
 
 @login_required(login_url='/login/')

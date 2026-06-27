@@ -31,6 +31,10 @@ let lastScannedCode = '';
 let lastScannedTime = 0;
 let scanDebounceMs = 1500;
 
+// Barcode detection buffer (USB wedge scanner)
+let barcodeBuf = '';
+let barcodeBufTimer = 0;
+
 // --- DOM REFS ---
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -176,9 +180,34 @@ function initKeyboard() {
 }
 
 function handleKeyPress(key) {
-  // Physical keyboard rate limiting (for USB wedge scanners)
   const now = Date.now();
-  if (now - lastKbKeyTime < 20) return; // skip if too fast
+
+  // Barcode detection: rapid keystrokes (USB wedge scanner)
+  if (key.length === 1 && barcodeBufTimer > 0 && now - barcodeBufTimer < 100) {
+    barcodeBuf += key;
+    barcodeBufTimer = now;
+    return;
+  }
+  if (key === 'enter' && barcodeBuf.length >= 5) {
+    const code = barcodeBuf;
+    barcodeBuf = '';
+    barcodeBufTimer = 0;
+    clearSearch();
+    lookupBarcode(code);
+    return;
+  }
+
+  // Start tracking a potential barcode scan
+  if (key.length === 1 && now - lastKbKeyTime > 200) {
+    barcodeBuf = key;
+    barcodeBufTimer = now;
+  } else {
+    barcodeBuf = '';
+    barcodeBufTimer = 0;
+  }
+
+  // Physical keyboard rate limiting (for USB wedge scanners)
+  if (now - lastKbKeyTime < 20) return;
   lastKbKeyTime = now;
 
   if (keyboardMode === 'search') {
