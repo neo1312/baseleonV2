@@ -26,6 +26,5 @@ urlpatterns = [
     path('queue-print/', views.queue_print, name='queue_print'),
     path('get-pending-prints/', views.get_pending_prints, name='get_pending_prints'),
     path('ack-print/<str:job_id>/', views.ack_print, name='ack_print'),
-    path('pending-auto-prints/', views.pending_auto_prints, name='pending_auto_prints'),
 ]
 

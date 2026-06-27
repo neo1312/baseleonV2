@@ -829,6 +829,11 @@ function finishSale() {
 
 function doPrintTicket() {
   $('#print-modal').classList.remove('show');
+  fetch('/pos/queue-print/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({sale_id: window.lastSaleId, ticket_type: 'sale'})
+  }).catch(() => {});
   showToast('🖶 Printing ticket...', 'success');
   finishSale();
 }

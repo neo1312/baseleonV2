@@ -727,15 +727,4 @@ def ack_print(request, job_id):
     return JsonResponse({'error': 'Invalid method'}, status=405)
 
 
-def pending_auto_prints(request):
-    """Return sales needing printing after a given ID, plus the latest sale ID."""
-    try:
-        after = int(request.GET.get('after', 0))
-        latest = Sale.objects.filter(status='completed').order_by('id').last()
-        latest_id = latest.id if latest else 0
-        sales = []
-        if after > 0:
-            sales = list(Sale.objects.filter(status='completed', id__gt=after).order_by('id')[:3].values('id'))
-        return JsonResponse({'sales': sales, 'latest_id': latest_id})
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+
