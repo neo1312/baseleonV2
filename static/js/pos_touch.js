@@ -602,7 +602,18 @@ function updateProductHighlight() {
 }
 
 // ==================== SCANNER LOOKUP ====================
+function flashBarcode(code) {
+  const el = $('#barcode-flash');
+  if (!el) return;
+  el.textContent = code;
+  el.style.display = 'block';
+  el.style.opacity = '1';
+  setTimeout(function() { el.style.opacity = '0'; }, 800);
+  setTimeout(function() { el.style.display = 'none'; }, 1100);
+}
+
 function lookupBarcode(code) {
+  flashBarcode(code);
   // Debounce duplicate scans
   const now = Date.now();
   if (code === lastScannedCode && now - lastScannedTime < scanDebounceMs) return;

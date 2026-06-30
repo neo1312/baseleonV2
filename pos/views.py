@@ -715,6 +715,8 @@ def reset_display(request):
 
 SCANNER_FILE = os.path.join(getattr(settings, 'BASE_DIR', '/tmp'), '.scanner_barcode')
 
+SCANNER_LAST = {'barcode': '', 'ts': 0}
+
 @csrf_exempt
 def scanner_push(request):
     """Receive barcode from scanner server via HTTP POST (cross-network fallback)."""
@@ -723,8 +725,13 @@ def scanner_push(request):
             data = json.loads(request.body)
             barcode = data.get('barcode')
             if barcode:
+                now = time.time()
+                if barcode == SCANNER_LAST['barcode'] and (now - SCANNER_LAST['ts']) < 2:
+                    return JsonResponse({'ok': True, 'dup': True})
+                SCANNER_LAST['barcode'] = barcode
+                SCANNER_LAST['ts'] = now
                 with open(SCANNER_FILE, 'w') as f:
-                    json.dump({'barcode': barcode, 'ts': time.time()}, f)
+                    json.dump({'barcode': barcode, 'ts': now}, f)
                 return JsonResponse({'ok': True})
         except (json.JSONDecodeError, AttributeError, OSError):
             pass
