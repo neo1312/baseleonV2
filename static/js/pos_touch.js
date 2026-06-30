@@ -138,233 +138,80 @@ function playBeep(type) {
 }
 
 // ==================== KEYBOARD HANDLING ====================
-function initKeyboard() {
-  // Setup custom keyboard button clicks
-  $$('.kb-key').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      e.preventDefault();
-      const key = this.dataset.key;
-      handleKeyPress(key);
+function initNativeKeyboard() {
+  // Native keyboard input on search field
+  const input = $('#search-input');
+  if (input) {
+    input.removeAttribute('readonly');
+    input.addEventListener('input', function() {
+      searchQuery = this.value;
+      updateSearchInput();
+      if (searchQuery.length >= 2) {
+        debouncedSearch(searchQuery);
+      } else {
+        clearSearchResults();
+      }
     });
-    // Use touchstart for lower latency
-    btn.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-      const key = this.dataset.key;
-      handleKeyPress(key);
-    }, { passive: false });
-  });
+    input.addEventListener('focus', function() {
+      keyboardMode = 'search';
+    });
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        if (searchQuery.length >= 1) {
+          fetchSearchResults(searchQuery);
+        }
+      }
+    });
+  }
 
-  // Physical keyboard / USB wedge scanner support
+  // Physical keyboard / USB wedge scanner support (barcode detection)
   document.addEventListener('keydown', function(e) {
-    // Ignore if modal is open
     if ($('.touch-modal.show')) {
       if (e.key === 'Escape') handleGlobalEscape();
       return;
     }
-    // Printable character
-    if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-      e.preventDefault();
-      handleKeyPress(e.key.toLowerCase());
+    const key = e.key.toLowerCase();
+    const now = Date.now();
+
+    // Barcode detection: rapid keystrokes (USB wedge scanner)
+    if (key.length === 1 && barcodeBufTimer > 0 && now - barcodeBufTimer < 100) {
+      barcodeBuf += key;
+      barcodeBufTimer = now;
       return;
     }
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleKeyPress('enter');
+    if (key === 'enter' && barcodeBuf.length >= 5) {
+      const code = barcodeBuf;
+      barcodeBuf = '';
+      barcodeBufTimer = 0;
+      clearSearch();
+      lookupBarcode(code);
       return;
     }
-    if (e.key === 'Backspace') {
-      e.preventDefault();
-      handleKeyPress('backspace');
-      return;
+    if (key.length === 1 && now - lastKbKeyTime > 200) {
+      barcodeBuf = key;
+      barcodeBufTimer = now;
+    } else {
+      barcodeBuf = '';
+      barcodeBufTimer = 0;
     }
-    if (e.key === 'Escape') {
-      handleGlobalEscape();
-      return;
-    }
+    if (now - lastKbKeyTime < 20) return;
+    lastKbKeyTime = now;
   });
 }
 
-function handleKeyPress(key) {
-  const now = Date.now();
-
-  // Devolucion mode: keyboard types ticket #, not product search
-  if (currentMode === 'devolucion') {
-    if (returnMode === 'ticket' && !returnSaleData) {
-      if (key === 'enter') {
-        lookupReturnSale();
-        return;
-      }
-      if (key === 'backspace') {
-        const input = $('#return-ticket-input');
-        if (input) {
-          input.value = input.value.slice(0, -1);
-          input.focus();
-        }
-        return;
-      }
-      if (key === 'clear') {
-        const input = $('#return-ticket-input');
-        if (input) { input.value = ''; input.focus(); }
-        return;
-      }
-      if (key.length === 1) {
-        const input = $('#return-ticket-input');
-        if (input) {
-          input.value += key;
-          input.focus();
-        }
-        return;
-      }
-      return;
-    }
-    // Noticket mode or already loaded: fall through to normal search
-  }
-
-  // Space always goes to search, never barcode buffer
-  if (key === ' ') {
-    if (keyboardMode === 'search') handleSearchKey(key);
-    else handleQuantityKey(key);
-    return;
-  }
-
-  // Barcode detection: rapid keystrokes (USB wedge scanner)
-  if (key.length === 1 && barcodeBufTimer > 0 && now - barcodeBufTimer < 100) {
-    barcodeBuf += key;
-    barcodeBufTimer = now;
-    return;
-  }
-  if (key === 'enter' && barcodeBuf.length >= 5) {
-    const code = barcodeBuf;
-    barcodeBuf = '';
-    barcodeBufTimer = 0;
-    clearSearch();
-    lookupBarcode(code);
-    return;
-  }
-
-  // Start tracking a potential barcode scan
-  if (key.length === 1 && now - lastKbKeyTime > 200) {
-    barcodeBuf = key;
-    barcodeBufTimer = now;
-  } else {
-    barcodeBuf = '';
-    barcodeBufTimer = 0;
-  }
-
-  // Physical keyboard rate limiting (for USB wedge scanners)
-  if (now - lastKbKeyTime < 20) return;
-  lastKbKeyTime = now;
-
-  if (keyboardMode === 'search') {
-    handleSearchKey(key);
-  } else {
-    handleQuantityKey(key);
-  }
-}
-
-function handleSearchKey(key) {
-  if (key === 'backspace') {
-    searchQuery = searchQuery.slice(0, -1);
-    updateSearchInput();
-    if (searchQuery.length >= 2) {
-      debouncedSearch(searchQuery);
-    } else {
-      clearSearchResults();
-    }
-    return;
-  }
-  if (key === 'clear') {
-    clearSearch();
-    return;
-  }
-  if (key === 'enter') {
-    if (searchQuery.length >= 1) {
-      fetchSearchResults(searchQuery);
-    }
-    return;
-  }
-  // Append character (lowercase already)
-  searchQuery += key;
-  updateSearchInput();
-  if (searchQuery.length >= 2) {
-    debouncedSearch(searchQuery);
-  }
-}
-
-function handleQuantityKey(key) {
-  if (key === 'backspace') {
-    qtyValue = qtyValue.length > 1 ? qtyValue.slice(0, -1) : '1';
-    updateQtyDisplay();
-    return;
-  }
-  if (key === 'clear') {
-    qtyValue = '1';
-    updateQtyDisplay();
-    return;
-  }
-  if (key === 'enter') {
-    addSelectedToCart();
-    return;
-  }
-  // Only allow digits
-  if (key >= '0' && key <= '9') {
-    const newVal = qtyValue === '1' ? key : qtyValue + key;
-    qtyValue = newVal.replace(/^0+/, '') || '1';
-    updateQtyDisplay();
-  }
-}
 
 function updateSearchInput() {
   const input = $('#search-input');
-  input.value = searchQuery;
+  if (document.activeElement !== input) {
+    input.value = searchQuery;
+  }
   const clearBtn = $('#search-clear');
   clearBtn.style.display = searchQuery.length > 0 ? 'flex' : 'none';
-}
-
-function updateQtyDisplay() {
-  $('#kb-qty-value').textContent = qtyValue;
-  // Update selected product qty display in list
-  const selItem = $('.pl-item.selected .pl-item-qty-value');
-  if (selItem) selItem.textContent = qtyValue;
 }
 
 function debouncedSearch(q) {
   clearTimeout(searchDebounce);
   searchDebounce = setTimeout(() => fetchSearchResults(q), 150);
-}
-
-function setKeyboardMode(mode) {
-  keyboardMode = mode;
-  updateKeyboardUI();
-}
-
-function updateKeyboardUI() {
-  const label = $('#kb-mode-label');
-  const qtyDisplay = $('#kb-qty-display');
-  if (keyboardMode === 'quantity') {
-    label.textContent = '✏️ Cantidad para: ' + (selectedProductData?.compose_name || selectedProductData?.name || '');
-    label.className = 'kb-mode-label qty-mode';
-    qtyDisplay.style.display = 'inline-flex';
-    $('#kb-qty-value').textContent = qtyValue;
-  } else {
-    label.textContent = searchQuery ? '🔍 ' + searchQuery : '🔍 Buscar producto...';
-    label.className = 'kb-mode-label search-mode';
-    qtyDisplay.style.display = 'none';
-  }
-}
-
-// ==================== KEYBOARD TOGGLE ====================
-function toggleKeyboard() {
-  keyboardVisible = !keyboardVisible;
-  const panel = $('#bottom-panel');
-  const toggle = $('#kb-toggle');
-  if (keyboardVisible) {
-    panel.classList.remove('keyboard-hidden');
-    toggle.textContent = '🔽';
-  } else {
-    panel.classList.add('keyboard-hidden');
-    toggle.textContent = '🔼';
-  }
 }
 
 // ==================== SEARCH & PRODUCTS LIST ====================
@@ -521,9 +368,13 @@ function clearSearch() {
   selectedProductId = null;
   selectedProductData = null;
   qtyValue = '1';
-  setKeyboardMode('search');
+  keyboardMode = 'search';
+  const input = $('#search-input');
+  if (input) input.value = '';
   updateSearchInput();
   clearSearchResults();
+  const input2 = $('#search-input');
+  if (input2) input2.focus();
 }
 
 // ==================== PRODUCT SELECTION (double-tap to add) ====================
@@ -531,19 +382,18 @@ function selectProduct(productData) {
   const pid = String(productData.id);
 
   if (selectedProductId === pid) {
-    // Double-tap on same product → add to cart
+    // Double-tap on same product → add to cart with qty 1
+    selectedProductData = productData;
     addSelectedToCart();
     return;
   }
 
-  // Single tap → select this product, switch to quantity mode
+  // Single tap → open quantity modal
   selectedProductId = pid;
   selectedProductData = productData;
   qtyValue = '1';
-
-  setKeyboardMode('quantity');
+  openQtyModal(productData);
   updateProductHighlight();
-  updateQtyDisplay();
 }
 
 function autoStartSale() {
@@ -576,8 +426,34 @@ function clearSelection() {
   selectedProductId = null;
   selectedProductData = null;
   qtyValue = '1';
-  setKeyboardMode('search');
   updateProductHighlight();
+}
+
+// ==================== QUANTITY MODAL ====================
+function openQtyModal(productData) {
+  $('#qty-modal-title').textContent = productData.compose_name || productData.name || '';
+  $('#qty-modal-product').textContent = '$' + (productData.price || 0).toFixed(2);
+  $('#qty-modal-input').value = '1';
+  $('#qty-modal').classList.add('show');
+  $('#qty-modal-input').focus();
+}
+
+function closeQtyModal() {
+  $('#qty-modal').classList.remove('show');
+}
+
+function qtyDelta(delta) {
+  const input = $('#qty-modal-input');
+  let val = parseInt(input.value) || 1;
+  val = Math.max(1, val + delta);
+  input.value = val;
+}
+
+function confirmQty() {
+  const input = $('#qty-modal-input');
+  qtyValue = parseInt(input.value) || 1;
+  closeQtyModal();
+  addSelectedToCart();
 }
 
 function updateProductHighlight() {
@@ -695,7 +571,11 @@ function renderCart() {
   $('#cart-totals').style.display = 'block';
   $('#cart-actions').style.display = 'flex';
 
-  const entries = Object.values(cart).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+  const entries = Object.values(cart).sort((a, b) => {
+    if (a.id === lastAddedId) return -1;
+    if (b.id === lastAddedId) return 1;
+    return (a.name || '').localeCompare(b.name || '');
+  });
   container.innerHTML = '';
 
   entries.forEach(item => {
@@ -1291,6 +1171,7 @@ function handleGlobalEscape() {
   if ($('#checkout-modal.show')) { closeCheckout(); return; }
   if ($('#settings-modal.show')) { closeSettings(); return; }
   if ($('#display-modal.show')) { closeDisplayLink(); return; }
+  if ($('#qty-modal.show')) { closeQtyModal(); return; }
   if (selectedProductId) { clearSelection(); return; }
   if (searchQuery) { clearSearch(); return; }
 }
@@ -1376,8 +1257,8 @@ function initMayoreoButton() {
 document.addEventListener('DOMContentLoaded', function() {
   sessionKey = DISPLAY_SESSION_KEY;
 
-  // Init keyboard
-  initKeyboard();
+  // Init native keyboard
+  initNativeKeyboard();
 
   // Init search
   initSearch();

@@ -46,7 +46,7 @@
         <div class="pos-left-panel">
             <div class="search-bar" id="search-bar">
                 <span class="search-bar-icon">🔍</span>
-                <input type="text" id="search-input" class="search-input" placeholder="Buscar producto por nombre, código o clave..." readonly autocomplete="off">
+                <input type="text" id="search-input" class="search-input" placeholder="Buscar producto por nombre, código o clave..." autocomplete="off" inputmode="search">
                 <button class="search-bar-clear" id="search-clear" style="display:none;" onclick="clearSearch()">✕</button>
             </div>
             <div class="products-list" id="products-list">
@@ -80,69 +80,19 @@
         </div>
     </div>
 
-    <!-- BOTTOM KEYBOARD PANEL -->
-    <div class="bottom-panel" id="bottom-panel">
-        <div class="kb-handle">
-            <button class="kb-toggle" id="kb-toggle" onclick="toggleKeyboard()">🔽</button>
-        </div>
-        <div class="keyboard-section" id="keyboard-section">
-            <div class="kb-row">
-                <button class="kb-key" data-key="1">1</button>
-                <button class="kb-key" data-key="2">2</button>
-                <button class="kb-key" data-key="3">3</button>
-                <button class="kb-key" data-key="4">4</button>
-                <button class="kb-key" data-key="5">5</button>
-                <button class="kb-key" data-key="6">6</button>
-                <button class="kb-key" data-key="7">7</button>
-                <button class="kb-key" data-key="8">8</button>
-                <button class="kb-key" data-key="9">9</button>
-                <button class="kb-key" data-key="0">0</button>
-                <button class="kb-key kb-action" data-key="backspace">⌫</button>
+    <!-- QUANTITY MODAL (shown when product selected) -->
+    <div id="qty-modal" class="touch-modal">
+        <div class="touch-modal-content" style="max-width:360px;">
+            <h2 id="qty-modal-title">✏️ Cantidad</h2>
+            <p id="qty-modal-product" style="font-size:1.1rem;color:var(--text-muted);margin-bottom:16px;text-align:center;"></p>
+            <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px;">
+                <button class="modal-btn secondary" style="font-size:24px;padding:8px 20px;" onclick="qtyDelta(-1)">−</button>
+                <input type="number" id="qty-modal-input" value="1" min="1" style="width:80px;padding:12px;font-size:24px;text-align:center;border:2px solid var(--border);border-radius:8px;">
+                <button class="modal-btn secondary" style="font-size:24px;padding:8px 20px;" onclick="qtyDelta(1)">+</button>
             </div>
-            <div class="kb-row">
-                <button class="kb-key" data-key="q">Q</button>
-                <button class="kb-key" data-key="w">W</button>
-                <button class="kb-key" data-key="e">E</button>
-                <button class="kb-key" data-key="r">R</button>
-                <button class="kb-key" data-key="t">T</button>
-                <button class="kb-key" data-key="y">Y</button>
-                <button class="kb-key" data-key="u">U</button>
-                <button class="kb-key" data-key="i">I</button>
-                <button class="kb-key" data-key="o">O</button>
-                <button class="kb-key" data-key="p">P</button>
-            </div>
-            <div class="kb-row">
-                <button class="kb-key" data-key="a">A</button>
-                <button class="kb-key" data-key="s">S</button>
-                <button class="kb-key" data-key="d">D</button>
-                <button class="kb-key" data-key="f">F</button>
-                <button class="kb-key" data-key="g">G</button>
-                <button class="kb-key" data-key="h">H</button>
-                <button class="kb-key" data-key="j">J</button>
-                <button class="kb-key" data-key="k">K</button>
-                <button class="kb-key" data-key="l">L</button>
-                <button class="kb-key" data-key="ñ">Ñ</button>
-                <button class="kb-key kb-enter" data-key="enter">↵</button>
-            </div>
-            <div class="kb-row">
-                <button class="kb-key" data-key="z">Z</button>
-                <button class="kb-key" data-key="x">X</button>
-                <button class="kb-key" data-key="c">C</button>
-                <button class="kb-key" data-key="v">V</button>
-                <button class="kb-key kb-space" data-key=" ">␣</button>
-                <button class="kb-key" data-key="b">B</button>
-                <button class="kb-key" data-key="n">N</button>
-                <button class="kb-key" data-key="m">M</button>
-                <button class="kb-key" data-key=".">.</button>
-                <button class="kb-key" data-key="-">-</button>
-                <button class="kb-key" data-key="/">/</button>
-                <button class="kb-key kb-action" data-key="clear">C</button>
-            </div>
-            <div class="kb-status-bar">
-                <span class="kb-mode-label" id="kb-mode-label">🔍 Buscar producto...</span>
-                <span class="kb-qty-display" id="kb-qty-display" style="display:none;">
-                    Cant: <strong id="kb-qty-value">1</strong>
-                </span>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeQtyModal()">Cancelar</button>
+                <button class="modal-btn primary" onclick="confirmQty()">✓ Agregar</button>
             </div>
         </div>
     </div>
