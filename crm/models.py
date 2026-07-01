@@ -743,13 +743,33 @@ class ClientTierStatus(models.Model):
         ordering = ['client']
 
 class CajaConfig(models.Model):
-    cutoff_time = models.TimeField(
+    cutoff_time_mon = models.TimeField(
         default=timezone.datetime.strptime('17:30', '%H:%M').time(),
-        verbose_name='Cutoff Lunes-Viernes'
+        verbose_name='Cutoff Lunes'
     )
-    cutoff_time_saturday = models.TimeField(
+    cutoff_time_tue = models.TimeField(
+        default=timezone.datetime.strptime('17:30', '%H:%M').time(),
+        verbose_name='Cutoff Martes'
+    )
+    cutoff_time_wed = models.TimeField(
+        default=timezone.datetime.strptime('17:30', '%H:%M').time(),
+        verbose_name='Cutoff Miércoles'
+    )
+    cutoff_time_thu = models.TimeField(
+        default=timezone.datetime.strptime('17:30', '%H:%M').time(),
+        verbose_name='Cutoff Jueves'
+    )
+    cutoff_time_fri = models.TimeField(
+        default=timezone.datetime.strptime('17:30', '%H:%M').time(),
+        verbose_name='Cutoff Viernes'
+    )
+    cutoff_time_sat = models.TimeField(
         default=timezone.datetime.strptime('15:00', '%H:%M').time(),
         verbose_name='Cutoff Sábado'
+    )
+    cutoff_time_sun = models.TimeField(
+        default=timezone.datetime.strptime('17:30', '%H:%M').time(),
+        verbose_name='Cutoff Domingo'
     )
 
     class Meta:
@@ -761,6 +781,18 @@ class CajaConfig(models.Model):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
 
+    def get_cutoff_for_weekday(self, weekday):
+        mapping = {
+            0: self.cutoff_time_mon,
+            1: self.cutoff_time_tue,
+            2: self.cutoff_time_wed,
+            3: self.cutoff_time_thu,
+            4: self.cutoff_time_fri,
+            5: self.cutoff_time_sat,
+            6: self.cutoff_time_sun,
+        }
+        return mapping.get(weekday)
+
 
 class CashRegisterSession(models.Model):
     statuses = [
@@ -771,6 +803,7 @@ class CashRegisterSession(models.Model):
     opened_at = models.DateTimeField(blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
     opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    carryover_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name='Efectivo post-corte (arrastre)')
     status = models.CharField(choices=statuses, max_length=20, default='open')
     effective_date = models.DateField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)

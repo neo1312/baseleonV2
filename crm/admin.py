@@ -221,6 +221,25 @@ class ClientTierStatusAdmin(ImportExportModelAdmin, admin.ModelAdmin):
 
 admin.site.register(ClientTierStatus, ClientTierStatusAdmin)
 
-admin.site.register(CashRegisterSession)
-admin.site.register(CashCount)
-admin.site.register(CajaConfig)
+class CashRegisterSessionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'cashier', 'opened_at', 'closed_at', 'status', 'opening_balance', 'carryover_amount', 'effective_date')
+    list_filter = ('status',)
+    search_fields = ('cashier__username',)
+
+class CashCountAdmin(admin.ModelAdmin):
+    list_display = ('session', 'counted_cash_total', 'counted_card_total', 'counted_check_total', 'total_counted', 'counted_at')
+    readonly_fields = ('counted_cash_total', 'total_counted', 'cash_difference', 'total_difference')
+
+class CajaConfigAdmin(admin.ModelAdmin):
+    fieldsets = (
+        (None, {
+            'fields': (
+                ('cutoff_time_mon', 'cutoff_time_tue', 'cutoff_time_wed', 'cutoff_time_thu', 'cutoff_time_fri'),
+                ('cutoff_time_sat', 'cutoff_time_sun'),
+            )
+        }),
+    )
+
+admin.site.register(CashRegisterSession, CashRegisterSessionAdmin)
+admin.site.register(CashCount, CashCountAdmin)
+admin.site.register(CajaConfig, CajaConfigAdmin)
