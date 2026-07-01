@@ -177,10 +177,12 @@ def session_detail(request):
         )
     )
 
-    expected_cash = session.opening_balance + Decimal(str(cash_sales)) - Decimal(str(dev_total))
+    net_expected_cash = Decimal(str(cash_sales)) - Decimal(str(dev_total))
+    expected_cash = session.opening_balance + net_expected_cash
     expected_card = Decimal(str(card_sales))
     expected_check = Decimal(str(check_sales))
     total_expected = expected_cash + expected_card + expected_check
+    display_total = net_expected_cash + expected_card + expected_check
 
     post_cutoff_sales = []
     post_cutoff_total = Decimal('0')
@@ -240,9 +242,11 @@ def session_detail(request):
         'title': 'Arqueo de Caja',
         'session': session,
         'expected_cash': float(expected_cash),
+        'net_expected_cash': float(net_expected_cash),
         'expected_card': float(expected_card),
         'expected_check': float(expected_check),
         'total_expected': float(total_expected),
+        'display_total': float(display_total),
         'DENOMINATIONS': CashCount.DENOMINATIONS,
         'post_cutoff_sales': post_cutoff_sales,
         'post_cutoff_total': float(post_cutoff_total),

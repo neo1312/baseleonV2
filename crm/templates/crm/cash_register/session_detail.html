@@ -98,9 +98,9 @@
         <div class="card-body">
             <div class="row text-center">
                 <div class="col-4 border-end">
-                    <small class="text-muted">Efectivo</small>
-                    <h3 class="text-success mb-0">${{ expected_cash|floatformat:2 }}</h3>
-                    <small>(fondo + ventas cash &minus; devoluciones, sin incluir post-corte)</small>
+                    <small class="text-muted">Efectivo (ventas)</small>
+                    <h3 class="text-success mb-0">${{ net_expected_cash|floatformat:2 }}</h3>
+                    <small>(ventas cash &minus; devoluciones, sin incluir fondo ni post-corte)</small>
                 </div>
                 <div class="col-4 border-end">
                     <small class="text-muted">Tarjeta</small>
@@ -113,7 +113,8 @@
             </div>
             <hr>
             <div class="text-center">
-                <h5>Total esperado (sin post-corte): <strong>${{ total_expected|floatformat:2 }}</strong></h5>
+                <h5>Total ventas esperado: <strong>${{ display_total|floatformat:2 }}</strong></h5>
+                <small class="text-muted">Efectivo en caja (con fondo de ${{ session.opening_balance|floatformat:2 }}): ${{ expected_cash|floatformat:2 }}</small>
             </div>
         </div>
     </div>
