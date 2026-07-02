@@ -222,7 +222,7 @@ class ClientTierStatusAdmin(ImportExportModelAdmin, admin.ModelAdmin):
 admin.site.register(ClientTierStatus, ClientTierStatusAdmin)
 
 class CashRegisterSessionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'cashier', 'opened_at', 'closed_at', 'status', 'opening_balance', 'carryover_amount', 'effective_date')
+    list_display = ('id', 'cashier', 'opened_at', 'closed_at', 'status', 'opening_balance', 'carryover_amount', 'post_cutoff_cash', 'effective_date')
     list_filter = ('status',)
     search_fields = ('cashier__username',)
 

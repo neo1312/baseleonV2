@@ -52,14 +52,13 @@ def session_list(request):
     for s in sessions:
         cc = getattr(s, 'cash_count', None)
         if cc:
-            s.net_expected = (cc.expected_cash_total + cc.expected_card_total + cc.expected_check_total) - s.opening_balance
-            s.net_delivered = cc.total_counted - s.opening_balance
+            s.net_expected = cc.expected_cash_total + cc.expected_card_total + cc.expected_check_total
+            s.net_delivered = cc.total_counted
         else:
             s.net_expected = None
             s.net_delivered = None
 
-        s.post_cutoff_cash = Decimal('0')
-        if s.closed_at and s.opened_at:
+        if s.status == 'closed' and not s.post_cutoff_cash and s.closed_at and s.opened_at:
             closed_local = timezone.localtime(s.closed_at)
             weekday = closed_local.weekday()
             if weekday != 6:
@@ -68,13 +67,14 @@ def session_list(request):
                     cutoff_dt = closed_local.replace(
                         hour=cutoff_time.hour, minute=cutoff_time.minute, second=0, microsecond=0
                     )
-                    post_cutoff = Sale.objects.filter(
+                    fallback = Sale.objects.filter(
                         date_created__gte=cutoff_dt,
                         date_created__lt=s.closed_at,
                         payment_method='cash',
                         status='completed',
                     ).aggregate(total=Sum('total_amount'))['total'] or 0
-                    s.post_cutoff_cash = post_cutoff
+                    if not s.post_cutoff_cash:
+                        s.post_cutoff_cash = fallback
 
     context = {
         'title': 'Cierre de Caja',
@@ -94,20 +94,22 @@ def session_open(request):
 
     carryover = Decimal('0')
     prev_session = CashRegisterSession.objects.filter(status='closed').order_by('-closed_at').first()
-    if prev_session and prev_session.closed_at:
-        closed_local = timezone.localtime(prev_session.closed_at)
-        weekday = closed_local.weekday()
-        cutoff_time = cutoff_config.get_cutoff_for_weekday(weekday)
-        if cutoff_time and closed_local.time() > cutoff_time:
-            cutoff_dt = closed_local.replace(
-                hour=cutoff_time.hour, minute=cutoff_time.minute, second=0, microsecond=0
-            )
-            carryover = Sale.objects.filter(
-                date_created__gte=cutoff_dt,
-                date_created__lt=prev_session.closed_at,
-                payment_method='cash',
-                status='completed',
-            ).aggregate(total=Sum('total_amount'))['total'] or 0
+    if prev_session:
+        carryover = prev_session.post_cutoff_cash
+        if not carryover and prev_session.closed_at:
+            closed_local = timezone.localtime(prev_session.closed_at)
+            weekday = closed_local.weekday()
+            cutoff_time = cutoff_config.get_cutoff_for_weekday(weekday)
+            if cutoff_time and closed_local.time() > cutoff_time:
+                cutoff_dt = closed_local.replace(
+                    hour=cutoff_time.hour, minute=cutoff_time.minute, second=0, microsecond=0
+                )
+                carryover = Sale.objects.filter(
+                    date_created__gte=cutoff_dt,
+                    date_created__lt=prev_session.closed_at,
+                    payment_method='cash',
+                    status='completed',
+                ).aggregate(total=Sum('total_amount'))['total'] or 0
 
     if request.method == 'POST':
         opening_balance = request.POST.get('opening_balance', '0')
@@ -177,12 +179,10 @@ def session_detail(request):
         )
     )
 
-    net_expected_cash = Decimal(str(cash_sales)) - Decimal(str(dev_total))
-    expected_cash = session.opening_balance + net_expected_cash
+    expected_cash = session.carryover_amount + Decimal(str(cash_sales)) - Decimal(str(dev_total))
     expected_card = Decimal(str(card_sales))
     expected_check = Decimal(str(check_sales))
     total_expected = expected_cash + expected_card + expected_check
-    display_total = net_expected_cash + expected_card + expected_check
 
     post_cutoff_sales = []
     post_cutoff_total = Decimal('0')
@@ -208,6 +208,7 @@ def session_detail(request):
         session.closed_at = now
         session.status = 'closed'
         session.effective_date = effective_date
+        session.post_cutoff_cash = post_cutoff_cash
 
         count = CashCount(session=session)
         for field, _ in CashCount.DENOMINATIONS:
@@ -242,11 +243,9 @@ def session_detail(request):
         'title': 'Arqueo de Caja',
         'session': session,
         'expected_cash': float(expected_cash),
-        'net_expected_cash': float(net_expected_cash),
         'expected_card': float(expected_card),
         'expected_check': float(expected_check),
         'total_expected': float(total_expected),
-        'display_total': float(display_total),
         'DENOMINATIONS': CashCount.DENOMINATIONS,
         'post_cutoff_sales': post_cutoff_sales,
         'post_cutoff_total': float(post_cutoff_total),

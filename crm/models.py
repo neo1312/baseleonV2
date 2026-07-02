@@ -804,6 +804,7 @@ class CashRegisterSession(models.Model):
     closed_at = models.DateTimeField(blank=True, null=True)
     opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     carryover_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name='Efectivo post-corte (arrastre)')
+    post_cutoff_cash = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name='Efectivo post-corte (va al siguiente día)')
     status = models.CharField(choices=statuses, max_length=20, default='open')
     effective_date = models.DateField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)

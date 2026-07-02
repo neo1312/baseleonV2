@@ -12,11 +12,12 @@
                     <div class="alert alert-info">
                         <h6 class="alert-heading"><i class="fas fa-clock"></i> Efectivo pendiente del día anterior</h6>
                         <p class="mb-0">
-                            Ventas en efectivo después del corte de la sesión anterior:
+                            Ventas en efectivo después del cierre de la sesión anterior:
                             <strong>${{ carryover|floatformat:2 }}</strong>
                         </p>
                         <p class="mb-0 small">
-                            Este efectivo ya está en la caja y debe sumarse al fondo inicial.
+                            Este efectivo ya está en la caja (junto al fondo fijo de $1,000.00).
+                            Al cierre solo contará las ventas del día, <strong>no el fondo fijo</strong>.
                         </p>
                     </div>
                     {% endif %}
@@ -24,23 +25,23 @@
                     <form method="POST">
                         {% csrf_token %}
                         <div class="mb-3">
-                            <label class="form-label">Fondo inicial que ingresa el cajero</label>
+                            <label class="form-label">Fondo fijo de caja</label>
                             <div class="input-group">
                                 <span class="input-group-text">$</span>
                                 <input type="number" name="opening_balance" class="form-control form-control-lg"
                                        step="0.01" min="0" value="1000.00" required>
                             </div>
                             <div class="form-text">
-                                Cantidad de efectivo que el cajero pone en la caja (ej. $1,000.00).
-                                No incluye el efectivo post-corte del día anterior.
+                                Monto permanente en caja (ej. $1,000.00). Este fondo <strong>no se cuenta</strong> al cerrar.
                             </div>
                         </div>
 
                         {% if carryover > 0 %}
                         <div class="alert alert-success">
-                            <strong>Total efectivo en caja al iniciar:</strong>
+                            <strong>Total en caja al iniciar:</strong>
                             ${{ suggested_total|floatformat:2 }}
-                            <span class="text-muted">($1,000.00 fondo + ${{ carryover|floatformat:2 }} arrastre)</span>
+                            <span class="text-muted">($1,000.00 fondo fijo + ${{ carryover|floatformat:2 }} arrastre del día anterior)</span>
+                            <br><small>Al cierre solo cuadra ${{ carryover|floatformat:2 }} + ventas del día.</small>
                         </div>
                         {% endif %}
 
