@@ -142,7 +142,7 @@ class Product(models.Model):
     @property
     def compose_name(self):
         brand_name = self.brand.name if self.brand else ''
-        return f"{self.name} — {brand_name}" if brand_name else self.name
+        return f"{self.name} {brand_name}" if brand_name else self.name
 
     def __str__(self):
         return self.compose_name

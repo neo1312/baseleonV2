@@ -28,72 +28,23 @@
                     <p class="mb-0 fw-bold">${{ session.opening_balance|floatformat:2 }}</p>
                 </div>
                 <div class="col-md-3">
-                    <small class="text-muted">Arrastre (post-corte anterior)</small>
+                    <small class="text-muted">Arrastre (sesión anterior)</small>
                     <p class="mb-0 fw-bold text-info">${{ carryover|floatformat:2 }}</p>
                 </div>
-                <div class="col-md-3">
-                    <small class="text-muted">
-                        Corte:
-                        {% if cutoff_today %}
-                            {{ cutoff_today|time:"H:i" }}
-                        {% else %}
-                            — (domingo)
-                        {% endif %}
-                    </small>
-                    <p class="mb-0 fw-bold">Ventas después pasan a {{ next_day_label }}</p>
-                </div>
+                <div class="col-md-3"></div>
             </div>
         </div>
     </div>
 
-    {% if post_cutoff_sales %}
-    <div class="alert alert-warning">
-        <h5 class="alert-heading"><i class="fas fa-clock"></i> Ventas después del corte</h5>
-        <p class="mb-2">
-            Se encontraron <strong>{{ post_cutoff_count }} venta(s)</strong> por
-            <strong>${{ post_cutoff_total|floatformat:2 }}</strong> realizadas después de la hora de corte.
-            <strong class="text-danger">NO están incluidas</strong> en el esperado de esta sesión
-            — pasan al reporte de <strong>{{ next_day_label }}</strong>.
-            El efectivo de estas ventas (${{ post_cutoff_cash|floatformat:2 }}) se registra como arrastre
-            para la siguiente sesión.
-        </p>
-        <table class="table table-sm table-warning mb-0">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Hora</th>
-                    <th>Monto</th>
-                    <th>Método</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for s in post_cutoff_sales %}
-                <tr>
-                    <td>{{ s.id }}</td>
-                    <td>{{ s.date_created|date:"H:i" }}</td>
-                    <td>${{ s.total_amount|floatformat:2 }}</td>
-                    <td>{{ s.payment_method }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-            <tfoot>
-                <tr class="fw-bold">
-                    <td colspan="2">Total</td>
-                    <td>${{ post_cutoff_total|floatformat:2 }}</td>
-                    <td></td>
-                </tr>
-            </tfoot>
-        </table>
-    </div>
-    {% endif %}
+
 
     <form method="POST">
     {% csrf_token %}
 
-    <!-- Expected amounts (pre-cutoff only) -->
+    <!-- Expected amounts -->
     <div class="card mb-4 border-primary">
         <div class="card-header bg-primary text-white">
-            <h5 class="mb-0"><i class="fas fa-calculator"></i> Esperado (ventas antes del corte)</h5>
+            <h5 class="mb-0"><i class="fas fa-calculator"></i> Esperado</h5>
         </div>
         <div class="card-body">
             <div class="row text-center">
