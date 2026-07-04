@@ -882,7 +882,7 @@ class ProductProvider(models.Model):
         max_length=100,
         verbose_name='Unidad Empaque',
         default="1",
-        validators=[RegexValidator(r'^\d+$', 'Solo se permiten números enteros positivos (sin decimales).')],
+        validators=[RegexValidator(r'^[1-9]\d*$', 'Solo se permiten números enteros positivos mayores a cero (sin decimales, sin negativos).')],
         help_text='Pieces per bundle (1 = individual piece). Enteros solamente.'
     )
     
