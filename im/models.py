@@ -891,7 +891,15 @@ class ProductProvider(models.Model):
     @property
     def provider_cost(self):
         """Calculated cost per piece (bundle_price / unidad_empaque), rounded to 2 decimals"""
-        ue = int(self.unidad_empaque or 1)
+        try:
+            ue = int(self.unidad_empaque)
+        except (ValueError, TypeError):
+            try:
+                ue = float(self.unidad_empaque)
+            except (ValueError, TypeError):
+                ue = 1
+        if ue <= 0:
+            ue = 1
         return round(Decimal(str(Decimal(str(self.bundle_price)) / Decimal(str(ue)))), 2)
     
     def __str__(self):
