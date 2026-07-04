@@ -28,8 +28,9 @@
                     <p class="mb-0 fw-bold">${{ session.opening_balance|floatformat:2 }}</p>
                 </div>
                 <div class="col-md-3">
-                    <small class="text-muted">Arrastre (sesión anterior)</small>
+                    <small class="text-muted">Vendido en caja cerrada</small>
                     <p class="mb-0 fw-bold text-info">${{ carryover|floatformat:2 }}</p>
+                    <small class="text-muted">Este monto se arrastra a la próxima apertura</small>
                 </div>
                 <div class="col-md-3"></div>
             </div>
@@ -51,7 +52,7 @@
                 <div class="col-4 border-end">
                     <small class="text-muted">Efectivo a contar</small>
                     <h3 class="text-success mb-0">${{ expected_cash|floatformat:2 }}</h3>
-                    <small>(arrastre ${{ carryover|floatformat:2 }} + ventas cash &minus; devoluciones, <strong>sin</strong> los ${{ session.opening_balance|floatformat:2 }} de fondo fijo)</small>
+                    <small>(vendido en caja cerrada ${{ carryover|floatformat:2 }} + ventas cash &minus; devoluciones, <strong>sin</strong> los ${{ session.opening_balance|floatformat:2 }} de fondo fijo)</small>
                 </div>
                 <div class="col-4 border-end">
                     <small class="text-muted">Tarjeta</small>

@@ -49,7 +49,7 @@ def session_open(request):
             payment_method='cash',
             status='completed',
         ).aggregate(total=Sum('total_amount'))['total'] or 0
-        carryover = prev_session.post_cutoff_cash + Decimal(str(cash_closed))
+        carryover = Decimal(str(cash_closed))
     else:
         cash_closed = Sale.objects.filter(
             status='completed',
@@ -126,7 +126,7 @@ def session_detail(request):
         session.closed_at = now
         session.status = 'closed'
         session.effective_date = now.date()
-        session.post_cutoff_cash = expected_cash
+        session.post_cutoff_cash = Decimal('0')
 
         count = CashCount(session=session)
         for field, _ in CashCount.DENOMINATIONS:
