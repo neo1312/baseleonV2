@@ -8,6 +8,7 @@ import math
 from django.db.models.functions import Lower
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 
 class Brand(models.Model):
     id=models.AutoField(primary_key=True)
@@ -881,7 +882,8 @@ class ProductProvider(models.Model):
         max_length=100,
         verbose_name='Unidad Empaque',
         default="1",
-        help_text='Pieces per bundle (1 = individual piece)'
+        validators=[RegexValidator(r'^\d+$', 'Solo se permiten números enteros positivos (sin decimales).')],
+        help_text='Pieces per bundle (1 = individual piece). Enteros solamente.'
     )
     
     # Utility fields
