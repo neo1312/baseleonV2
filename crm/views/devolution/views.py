@@ -25,7 +25,7 @@ def add_section_context(data):
     return data
 
 @csrf_exempt
-@role_required('Admin', 'Cashier', 'Cajero', 'Manager')
+@role_required('Admin', 'Cashier', 'Manager')
 def devolutionList(request):
     data = {
             'entityUrl':'/devolution/new',

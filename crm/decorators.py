@@ -18,8 +18,8 @@ def role_required(*role_names):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
             if request.user.is_authenticated:
-                user_roles = set(request.user.groups.values_list('name', flat=True))
-                if user_roles.intersection(set(role_names)):
+                user_roles = {r.lower() for r in request.user.groups.values_list('name', flat=True)}
+                if user_roles.intersection(r.lower() for r in role_names):
                     return view_func(request, *args, **kwargs)
                 else:
                     # User is authenticated but doesn't have required role
@@ -48,22 +48,22 @@ def user_has_role(user, *role_names):
     if not user.is_authenticated:
         return False
     
-    user_roles = set(user.groups.values_list('name', flat=True))
-    return bool(user_roles.intersection(set(role_names)))
+    user_roles = {r.lower() for r in user.groups.values_list('name', flat=True)}
+    return bool(user_roles.intersection(r.lower() for r in role_names))
 
 
 def get_user_role(user):
-    """Get the primary role of a user (first group)"""
+    """Get the primary role of a user (first group, lowercased)"""
     if not user.is_authenticated:
         return None
     
     group = user.groups.first()
-    return group.name if group else None
+    return group.name.lower() if group else None
 
 
 def get_all_user_roles(user):
-    """Get all roles for a user"""
+    """Get all roles for a user (lowercased)"""
     if not user.is_authenticated:
         return []
     
-    return list(user.groups.values_list('name', flat=True))
+    return [r.lower() for r in user.groups.values_list('name', flat=True)]

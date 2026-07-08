@@ -272,32 +272,30 @@ MENU_STRUCTURE = {
 
 
 def get_dashboard_for_user(user):
-    """Get dashboard cards based on user role"""
+    """Get dashboard cards based on user role (case-insensitive)"""
     if not user.is_authenticated:
         return None
     
-    user_groups = user.groups.values_list('name', flat=True)
+    user_roles = {r.lower() for r in user.groups.values_list('name', flat=True)}
+    features_lower = {k.lower(): v for k, v in ROLE_FEATURES.items()}
     
-    # Return first matching role's dashboard
-    for role in user_groups:
-        if role in ROLE_FEATURES:
-            return ROLE_FEATURES[role]
+    for role in user_roles:
+        if role in features_lower:
+            return features_lower[role]
     
-    # Default to Admin dashboard if no role found
     return ROLE_FEATURES.get('Admin')
 
 
 def get_menu_for_user(user):
-    """Get menu items based on user role"""
+    """Get menu items based on user role (case-insensitive)"""
     if not user.is_authenticated:
         return None
     
-    user_groups = user.groups.values_list('name', flat=True)
+    user_roles = {r.lower() for r in user.groups.values_list('name', flat=True)}
+    menu_lower = {k.lower(): v for k, v in MENU_STRUCTURE.items()}
     
-    # Return first matching role's menu
-    for role in user_groups:
-        if role in MENU_STRUCTURE:
-            return MENU_STRUCTURE[role]
+    for role in user_roles:
+        if role in menu_lower:
+            return menu_lower[role]
     
-    # Default to Admin menu if no role found
     return MENU_STRUCTURE.get('Admin')

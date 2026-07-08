@@ -29,7 +29,7 @@ def add_section_context(data):
     return data
 
 @csrf_exempt
-@role_required('Admin', 'Cashier', 'Cajero')
+@role_required('Admin', 'Cashier')
 def saleCreateNew(request):
     data = {
             'product_create':'/im/product/create',
@@ -44,7 +44,7 @@ def saleCreateNew(request):
 
 
 @csrf_exempt
-@role_required('Admin', 'Cashier', 'Cajero', 'Manager')
+@role_required('Admin', 'Cashier', 'Manager')
 def saleList(request):
     sales = Sale.objects.all()
 
@@ -302,7 +302,7 @@ def sale_ticket_json(request, pk):
 
 
 @csrf_exempt
-@role_required('Admin', 'Cashier', 'Cajero', 'Manager')
+@role_required('Admin', 'Cashier', 'Manager')
 def saleNew(request):
     clients = Client.objects.all()
     default_client_id=1

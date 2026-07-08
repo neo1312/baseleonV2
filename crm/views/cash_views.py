@@ -10,7 +10,7 @@ from crm.decorators import role_required
 
 
 @login_required
-@role_required('Admin', 'Cashier', 'Cajero')
+@role_required('Admin', 'Cashier')
 def session_list(request):
     sessions = CashRegisterSession.objects.all().select_related('cashier', 'cash_count')
     open_session = sessions.filter(status='open').first()
@@ -33,7 +33,7 @@ def session_list(request):
 
 
 @login_required
-@role_required('Admin', 'Cashier', 'Cajero')
+@role_required('Admin', 'Cashier')
 def session_open(request):
     if CashRegisterSession.objects.filter(status='open').exists():
         return redirect('crm:cash_session_detail')
@@ -81,7 +81,7 @@ def session_open(request):
 
 
 @login_required
-@role_required('Admin', 'Cashier', 'Cajero')
+@role_required('Admin', 'Cashier')
 def session_detail(request):
     session = CashRegisterSession.objects.filter(status='open').select_related('cashier').first()
     if not session:

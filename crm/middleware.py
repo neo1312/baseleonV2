@@ -14,7 +14,8 @@ class BuyerRestrictionMiddleware:
 
     def __call__(self, request):
         if request.user.is_authenticated:
-            if request.user.groups.filter(name__in=self.RESTRICTED_ROLES).exists():
+            user_roles = {r.lower() for r in request.user.groups.values_list('name', flat=True)}
+            if user_roles.intersection(r.lower() for r in self.RESTRICTED_ROLES):
                 path = request.path_info
 
                 allowed_prefixes = (
