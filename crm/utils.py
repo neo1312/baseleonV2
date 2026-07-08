@@ -114,22 +114,6 @@ ROLE_FEATURES = {
                     {'title': 'Cierre de Caja', 'description': 'Abrir y realizar arqueo', 'icon': '💰', 'url': '/cash-register/', 'color': '#FF8C00'},
                 ]
             },
-            {
-                'category': 'Sales',
-                'items': [
-                    {'title': 'Nueva Venta', 'description': 'Registrar venta', 'icon': '🛒', 'url': '/sale/new', 'color': '#DC143C'},
-                    {'title': 'Nueva Cotización', 'description': 'Crear cotización', 'icon': '📋', 'url': '/quote/new', 'color': '#B8221C'},
-                    {'title': 'Procesar Devolución', 'description': 'Registrar devolución', 'icon': '↩️', 'url': '/devolution/new', 'color': '#8B1414'},
-                ]
-            },
-            {
-                'category': 'Reference',
-                'items': [
-                    {'title': 'Productos', 'description': 'Ver catálogo', 'icon': '📦', 'url': '/im/product/list', 'color': '#D84E4E'},
-                    {'title': 'Clientes', 'description': 'Ver clientes', 'icon': '👥', 'url': '/client/list', 'color': '#C41C38'},
-                    {'title': 'Consultar Productos', 'description': 'Buscar por nombre, clave o código', 'icon': '🔍', 'url': '/wholesale/', 'color': '#228B22'},
-                ]
-            },
         ]
     },
     'Auditor': {
@@ -237,15 +221,11 @@ MENU_STRUCTURE = {
         {'category': 'Proveedores', 'icon': 'fas fa-truck', 'url': '/provider/list', 'color': 'text-warning'},
     ],
     'Cashier': [
-        {'category': 'Ventas', 'icon': 'fas fa-shopping-cart', 'url': '/sale/new', 'color': 'text-primary'},
-        {'category': 'Cotizaciones', 'icon': 'fas fa-quote-left', 'url': '/quote/new', 'color': 'text-info'},
-        {'category': 'Devoluciones', 'icon': 'fas fa-undo', 'url': '/devolution/new', 'color': 'text-warning'},
-        {'category': 'Consultar Productos', 'icon': 'fas fa-search', 'url': '/wholesale/', 'color': 'text-success'},
+        {'category': 'POS System', 'icon': 'fas fa-cash-register', 'url': '/pos/', 'color': 'text-primary'},
+        {'category': 'POS Touch', 'icon': 'fas fa-mobile-alt', 'url': '/pos/touch/', 'color': 'text-info'},
+        {'category': 'Customer Display', 'icon': 'fas fa-desktop', 'url': '/pos/customer-display/', 'color': 'text-success'},
         {'divider': True},
         {'category': 'Cierre de Caja', 'icon': 'fas fa-cash-register', 'url': '/cash-register/', 'color': 'text-warning'},
-        {'divider': True},
-        {'category': 'Productos', 'icon': 'fas fa-boxes', 'url': '/im/product/list', 'color': 'text-success'},
-        {'category': 'Clientes', 'icon': 'fas fa-users', 'url': '/client/list', 'color': 'text-info'},
     ],
     'Auditor': [
         {'category': 'Auditoría', 'icon': 'fas fa-magnifying-glass-chart', 'url': '/im/audit/', 'color': 'text-info'},
