@@ -116,6 +116,22 @@ ROLE_FEATURES = {
             },
         ]
     },
+    'Cajero': {
+        'label': 'Cajero Dashboard',
+        'icon': 'fas fa-cash-register',
+        'color': '#FF8C00',
+        'cards': [
+            {
+                'category': 'Point of Sale',
+                'items': [
+                    {'title': 'POS System', 'description': 'Fast & easy checkout', 'icon': '💳', 'url': '/pos/', 'color': '#DC143C'},
+                    {'title': 'POS Touch', 'description': 'Touch-optimized for tablets 10"', 'icon': '📱', 'url': '/pos/touch/', 'color': '#FF4500'},
+                    {'title': 'Customer Display', 'description': 'Customer-facing ticket', 'icon': '🖥️', 'url': '/pos/customer-display/', 'color': '#FF8C00'},
+                    {'title': 'Cierre de Caja', 'description': 'Abrir y realizar arqueo', 'icon': '💰', 'url': '/cash-register/', 'color': '#FF8C00'},
+                ]
+            },
+        ]
+    },
     'Auditor': {
         'label': 'Auditor Dashboard',
         'icon': 'fas fa-search',
@@ -221,6 +237,13 @@ MENU_STRUCTURE = {
         {'category': 'Proveedores', 'icon': 'fas fa-truck', 'url': '/provider/list', 'color': 'text-warning'},
     ],
     'Cashier': [
+        {'category': 'POS System', 'icon': 'fas fa-cash-register', 'url': '/pos/', 'color': 'text-primary'},
+        {'category': 'POS Touch', 'icon': 'fas fa-mobile-alt', 'url': '/pos/touch/', 'color': 'text-info'},
+        {'category': 'Customer Display', 'icon': 'fas fa-desktop', 'url': '/pos/customer-display/', 'color': 'text-success'},
+        {'divider': True},
+        {'category': 'Cierre de Caja', 'icon': 'fas fa-cash-register', 'url': '/cash-register/', 'color': 'text-warning'},
+    ],
+    'Cajero': [
         {'category': 'POS System', 'icon': 'fas fa-cash-register', 'url': '/pos/', 'color': 'text-primary'},
         {'category': 'POS Touch', 'icon': 'fas fa-mobile-alt', 'url': '/pos/touch/', 'color': 'text-info'},
         {'category': 'Customer Display', 'icon': 'fas fa-desktop', 'url': '/pos/customer-display/', 'color': 'text-success'},

@@ -38,6 +38,14 @@ class Command(BaseCommand):
                 'view_product',  # Read-only products
                 'view_client',   # Read-only clients
             ],
+            'Cajero': [
+                # Sales only (Spanish alias for Cashier)
+                'add_sale', 'change_sale', 'view_sale',
+                'add_quote', 'change_quote', 'view_quote',
+                'add_devolution', 'change_devolution', 'view_devolution',
+                'view_product',
+                'view_client',
+            ],
             'Auditor': [
                 # Audit and reports only
                 'add_inventoryaudit', 'change_inventoryaudit', 'view_inventoryaudit',
