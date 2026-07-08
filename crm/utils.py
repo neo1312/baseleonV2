@@ -1,4 +1,5 @@
 """Dashboard utilities for role-based feature access"""
+from crm.decorators import _canonical_roles
 
 
 ROLE_FEATURES = {
@@ -272,30 +273,28 @@ MENU_STRUCTURE = {
 
 
 def get_dashboard_for_user(user):
-    """Get dashboard cards based on user role (case-insensitive)"""
+    """Get dashboard cards based on user role"""
     if not user.is_authenticated:
         return None
     
-    user_roles = {r.lower() for r in user.groups.values_list('name', flat=True)}
-    features_lower = {k.lower(): v for k, v in ROLE_FEATURES.items()}
+    user_roles = _canonical_roles(user.groups.values_list('name', flat=True))
     
     for role in user_roles:
-        if role in features_lower:
-            return features_lower[role]
+        if role in ROLE_FEATURES:
+            return ROLE_FEATURES[role]
     
     return ROLE_FEATURES.get('Admin')
 
 
 def get_menu_for_user(user):
-    """Get menu items based on user role (case-insensitive)"""
+    """Get menu items based on user role"""
     if not user.is_authenticated:
         return None
     
-    user_roles = {r.lower() for r in user.groups.values_list('name', flat=True)}
-    menu_lower = {k.lower(): v for k, v in MENU_STRUCTURE.items()}
+    user_roles = _canonical_roles(user.groups.values_list('name', flat=True))
     
     for role in user_roles:
-        if role in menu_lower:
-            return menu_lower[role]
+        if role in MENU_STRUCTURE:
+            return MENU_STRUCTURE[role]
     
     return MENU_STRUCTURE.get('Admin')

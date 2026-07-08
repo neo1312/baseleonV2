@@ -1,4 +1,5 @@
 from django.shortcuts import redirect
+from crm.decorators import _canonical_roles
 
 
 class BuyerRestrictionMiddleware:
@@ -14,8 +15,8 @@ class BuyerRestrictionMiddleware:
 
     def __call__(self, request):
         if request.user.is_authenticated:
-            user_roles = {r.lower() for r in request.user.groups.values_list('name', flat=True)}
-            if user_roles.intersection(r.lower() for r in self.RESTRICTED_ROLES):
+            user_roles = _canonical_roles(request.user.groups.values_list('name', flat=True))
+            if user_roles.intersection(set(self.RESTRICTED_ROLES)):
                 path = request.path_info
 
                 allowed_prefixes = (
