@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.utils import timezone
 from decimal import Decimal
@@ -325,6 +326,37 @@ def po_placed_orders(request):
     }
     
     return render(request, 'purchase/po/placed.html', context)
+
+
+@csrf_exempt
+def po_detail_json(request, po_id):
+    po = get_object_or_404(PurchaseOrder, id=po_id)
+    items = []
+    for item in po.items.all():
+        items.append({
+            'name': item.product.compose_name if item.product else 'Producto eliminado',
+            'ordered_qty': item.ordered_quantity,
+            'received_qty': item.received_quantity,
+            'cost': float(item.ordered_cost_per_unit),
+            'ordered_total': float(item.ordered_total),
+        })
+    iva_received = float(po.total_received_cost * Decimal('0.16')) if po.has_iva else 0
+    invoice_total = float(po.total_received_cost) + iva_received
+    return JsonResponse({
+        'po_number': po.po_number,
+        'provider': po.provider.name,
+        'status': po.get_status_display(),
+        'date': po.created_date.strftime('%b %d, %Y'),
+        'created_by': po.created_by or '-',
+        'order_type': po.get_order_type_display() or '-',
+        'tracking': po.tracking_reference or '-',
+        'has_iva': po.has_iva,
+        'total_ordered': float(po.total_ordered_cost),
+        'total_received': float(po.total_received_cost),
+        'iva': iva_received,
+        'invoice_total': invoice_total,
+        'items': items,
+    })
 
 
 def po_send(request, po_id):

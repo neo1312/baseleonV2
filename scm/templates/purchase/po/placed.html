@@ -269,69 +269,40 @@
 </div>
 
 <script>
-var poData = {
-{% for po in purchase_orders %}
-    {{ po.id }}: {
-        po_number: '{{ po.po_number }}',
-        provider: '{{ po.provider.name }}',
-        status: '{{ po.get_status_display }}',
-        statusClass: '{% if po.status == "approved" %}badge-info{% elif po.status == "sent" %}badge-warning{% elif po.status == "received" %}badge-success{% elif po.status == "completed" %}badge-secondary{% endif %}',
-        date: '{{ po.created_date|date:"M d, Y" }}',
-        created_by: '{{ po.created_by|default:"-" }}',
-        order_type: '{{ po.get_order_type_display|default:"-" }}',
-        tracking: '{{ po.tracking_reference|default:"-" }}',
-        has_iva: {{ po.has_iva|yesno:"true,false" }},
-        total_ordered: {{ po.total_ordered_cost|floatformat:2 }},
-        total_received: {{ po.total_received_cost|floatformat:2 }},
-        iva: {{ po.iva_received|floatformat:2 }},
-        invoice_total: {{ po.invoice_total|floatformat:2 }},
-        items: [
-            {% for item in po.items.all %}
-            {
-                name: '{{ item.product.compose_name|default:"Producto eliminado" }}',
-                ordered_qty: {{ item.ordered_quantity }},
-                received_qty: {{ item.received_quantity|default:"-" }},
-                cost: {{ item.ordered_cost_per_unit|floatformat:2 }},
-                ordered_total: {{ item.ordered_total|floatformat:2 }}
-            }{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ]
-    }{% if not forloop.last %},{% endif %}
-{% endfor %}
-};
-
 document.querySelectorAll('.btn-view-po').forEach(function(btn) {
     btn.addEventListener('click', function() {
         var poId = this.getAttribute('data-po-id');
-        var po = poData[poId];
-        if (!po) return;
+        fetch('/po/detail-json/' + poId + '/')
+            .then(function(r) { return r.json(); })
+            .then(function(po) {
+                document.getElementById('detailPoNumber').textContent = '#' + po.po_number;
+                document.getElementById('detailProvider').textContent = po.provider;
+                var statusClass = {approved: 'badge-info', sent: 'badge-warning', received: 'badge-success', completed: 'badge-secondary'};
+                document.getElementById('detailStatus').innerHTML = '<span class="badge badge-pill ' + (statusClass[po.status.toLowerCase()] || 'badge-secondary') + '">' + po.status.toUpperCase() + '</span>';
+                document.getElementById('detailDate').textContent = po.date;
+                document.getElementById('detailCreatedBy').textContent = po.created_by;
+                document.getElementById('detailOrderType').textContent = po.order_type;
+                document.getElementById('detailTracking').textContent = po.tracking;
+                document.getElementById('detailIva').textContent = po.has_iva ? 'Si (16%)' : 'No';
 
-        document.getElementById('detailPoNumber').textContent = '#' + po.po_number;
-        document.getElementById('detailProvider').textContent = po.provider;
-        document.getElementById('detailStatus').innerHTML = '<span class="badge badge-pill ' + po.statusClass + '">' + po.status.toUpperCase() + '</span>';
-        document.getElementById('detailDate').textContent = po.date;
-        document.getElementById('detailCreatedBy').textContent = po.created_by;
-        document.getElementById('detailOrderType').textContent = po.order_type;
-        document.getElementById('detailTracking').textContent = po.tracking;
-        document.getElementById('detailIva').textContent = po.has_iva ? 'Si (16%)' : 'No';
+                var itemsHtml = '';
+                po.items.forEach(function(item) {
+                    itemsHtml += '<tr>' +
+                        '<td>' + item.name + '</td>' +
+                        '<td class="text-center">' + item.ordered_qty + '</td>' +
+                        '<td class="text-center">' + (item.received_qty !== null ? item.received_qty : '-') + '</td>' +
+                        '<td class="text-right">$' + item.cost.toFixed(2) + '</td>' +
+                        '<td class="text-right">$' + item.ordered_total.toFixed(2) + '</td>' +
+                        '</tr>';
+                });
+                document.getElementById('detailItems').innerHTML = itemsHtml;
+                document.getElementById('detailTotalOrdered').textContent = '$' + po.total_ordered.toFixed(2);
+                document.getElementById('detailTotalReceived').textContent = '$' + po.total_received.toFixed(2);
+                document.getElementById('detailIvaAmount').textContent = '$' + po.iva.toFixed(2);
+                document.getElementById('detailInvoiceTotal').textContent = '$' + po.invoice_total.toFixed(2);
 
-        var itemsHtml = '';
-        po.items.forEach(function(item) {
-            itemsHtml += '<tr>' +
-                '<td>' + item.name + '</td>' +
-                '<td class="text-center">' + item.ordered_qty + '</td>' +
-                '<td class="text-center">' + item.received_qty + '</td>' +
-                '<td class="text-right">$' + item.cost + '</td>' +
-                '<td class="text-right">$' + item.ordered_total + '</td>' +
-                '</tr>';
-        });
-        document.getElementById('detailItems').innerHTML = itemsHtml;
-        document.getElementById('detailTotalOrdered').textContent = '$' + po.total_ordered;
-        document.getElementById('detailTotalReceived').textContent = '$' + po.total_received;
-        document.getElementById('detailIvaAmount').textContent = '$' + po.iva;
-        document.getElementById('detailInvoiceTotal').textContent = '$' + po.invoice_total;
-
-        $('#poDetailModal').modal('show');
+                $('#poDetailModal').modal('show');
+            });
     });
 });
 </script>
