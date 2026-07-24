@@ -101,33 +101,36 @@
                                     <td class="text-end">${{ po.iva_received|floatformat:2 }}</td>
                                     <td class="text-end"><strong>${{ po.invoice_total|floatformat:2 }}</strong></td>
                                     <td>
-                                        {% if po.status == 'approved' %}
-                                            <button type="button" class="btn btn-sm btn-warning" data-toggle="modal" data-target="#sendModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}" data-provider-phone="{{ po.provider.phoneNumber }}">
-                                                <i class="fas fa-paper-plane"></i> Send
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-danger" data-toggle="modal" data-target="#deleteModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
-                                                <i class="fas fa-trash"></i> Delete
-                                            </button>
-                                        {% elif po.status == 'sent' %}
-                                            <a href="{% url 'scm:po_receive' po.id %}" class="btn btn-sm btn-info">
-                                                <i class="fas fa-download"></i> Receive
-                                            </a>
-                                            <button type="button" class="btn btn-sm btn-danger" data-toggle="modal" data-target="#deleteModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
-                                                <i class="fas fa-trash"></i> Delete
-                                            </button>
-                                        {% elif po.status == 'received' %}
-                                            <a href="{% url 'scm:po_receive' po.id %}" class="btn btn-sm btn-primary">
-                                                <i class="fas fa-check-circle"></i> Complete
-                                            </a>
-                                            <button type="button" class="btn btn-sm btn-danger" data-toggle="modal" data-target="#deleteModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
-                                                <i class="fas fa-trash"></i> Delete
-                                            </button>
-                                        {% elif po.status == 'completed' %}
-                                            <button type="button" class="btn btn-sm btn-danger" data-toggle="modal" data-target="#deleteModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
-                                                <i class="fas fa-trash"></i> Delete
-                                            </button>
-                                        {% endif %}
-                                    </td>
+                                         <button type="button" class="btn btn-sm btn-info btn-view-po" data-po-id="{{ po.id }}" title="Ver detalle">
+                                             <i class="fas fa-eye"></i>
+                                         </button>
+                                         {% if po.status == 'approved' %}
+                                             <button type="button" class="btn btn-sm btn-warning" data-toggle="modal" data-target="#sendModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}" data-provider-phone="{{ po.provider.phoneNumber }}">
+                                                 <i class="fas fa-paper-plane"></i> Send
+                                             </button>
+                                             <button type="button" class="btn btn-sm btn-danger" data-toggle="modal" data-target="#deleteModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
+                                                 <i class="fas fa-trash"></i> Delete
+                                             </button>
+                                         {% elif po.status == 'sent' %}
+                                             <a href="{% url 'scm:po_receive' po.id %}" class="btn btn-sm btn-info">
+                                                 <i class="fas fa-download"></i> Receive
+                                             </a>
+                                             <button type="button" class="btn btn-sm btn-danger" data-toggle="modal" data-target="#deleteModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
+                                                 <i class="fas fa-trash"></i> Delete
+                                             </button>
+                                         {% elif po.status == 'received' %}
+                                             <a href="{% url 'scm:po_receive' po.id %}" class="btn btn-sm btn-primary">
+                                                 <i class="fas fa-check-circle"></i> Complete
+                                             </a>
+                                             <button type="button" class="btn btn-sm btn-danger" data-toggle="modal" data-target="#deleteModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
+                                                 <i class="fas fa-trash"></i> Delete
+                                             </button>
+                                         {% elif po.status == 'completed' %}
+                                             <button type="button" class="btn btn-sm btn-danger" data-toggle="modal" data-target="#deleteModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
+                                                 <i class="fas fa-trash"></i> Delete
+                                             </button>
+                                         {% endif %}
+                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -208,6 +211,130 @@
         </div>
     </div>
 </div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="poDetailModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-eye"></i> Detalle de Orden de Compra</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-3"><strong>PO #:</strong> <span id="detailPoNumber"></span></div>
+                    <div class="col-md-3"><strong>Proveedor:</strong> <span id="detailProvider"></span></div>
+                    <div class="col-md-3"><strong>Estado:</strong> <span id="detailStatus"></span></div>
+                    <div class="col-md-3"><strong>Fecha:</strong> <span id="detailDate"></span></div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-3"><strong>Creado por:</strong> <span id="detailCreatedBy"></span></div>
+                    <div class="col-md-3"><strong>Tipo:</strong> <span id="detailOrderType"></span></div>
+                    <div class="col-md-3"><strong>Tracking:</strong> <span id="detailTracking"></span></div>
+                    <div class="col-md-3"><strong>IVA:</strong> <span id="detailIva"></span></div>
+                </div>
+                <table class="table table-sm table-bordered">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-center">Cant. Pedida</th>
+                            <th class="text-center">Cant. Recibida</th>
+                            <th class="text-right">Costo Unit.</th>
+                            <th class="text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailItems"></tbody>
+                    <tfoot>
+                        <tr class="font-weight-bold">
+                            <td colspan="4" class="text-right">Total Original:</td>
+                            <td class="text-right" id="detailTotalOrdered"></td>
+                        </tr>
+                        <tr class="font-weight-bold">
+                            <td colspan="4" class="text-right">Total Recibido:</td>
+                            <td class="text-right" id="detailTotalReceived"></td>
+                        </tr>
+                        <tr class="font-weight-bold">
+                            <td colspan="4" class="text-right">IVA:</td>
+                            <td class="text-right" id="detailIvaAmount"></td>
+                        </tr>
+                        <tr class="font-weight-bold table-success">
+                            <td colspan="4" class="text-right">Total Factura:</td>
+                            <td class="text-right" id="detailInvoiceTotal"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+var poData = {
+{% for po in purchase_orders %}
+    {{ po.id }}: {
+        po_number: '{{ po.po_number }}',
+        provider: '{{ po.provider.name }}',
+        status: '{{ po.get_status_display }}',
+        statusClass: '{% if po.status == "approved" %}badge-info{% elif po.status == "sent" %}badge-warning{% elif po.status == "received" %}badge-success{% elif po.status == "completed" %}badge-secondary{% endif %}',
+        date: '{{ po.created_date|date:"M d, Y" }}',
+        created_by: '{{ po.created_by|default:"-" }}',
+        order_type: '{{ po.get_order_type_display|default:"-" }}',
+        tracking: '{{ po.tracking_reference|default:"-" }}',
+        has_iva: {{ po.has_iva|yesno:"true,false" }},
+        total_ordered: {{ po.total_ordered_cost|floatformat:2 }},
+        total_received: {{ po.total_received_cost|floatformat:2 }},
+        iva: {{ po.iva_received|floatformat:2 }},
+        invoice_total: {{ po.invoice_total|floatformat:2 }},
+        items: [
+            {% for item in po.items.all %}
+            {
+                name: '{{ item.product.compose_name|default:"Producto eliminado" }}',
+                ordered_qty: {{ item.ordered_quantity }},
+                received_qty: {{ item.received_quantity|default:"-" }},
+                cost: {{ item.ordered_cost_per_unit|floatformat:2 }},
+                ordered_total: {{ item.ordered_total|floatformat:2 }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not forloop.last %},{% endif %}
+{% endfor %}
+};
+
+document.querySelectorAll('.btn-view-po').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var poId = this.getAttribute('data-po-id');
+        var po = poData[poId];
+        if (!po) return;
+
+        document.getElementById('detailPoNumber').textContent = '#' + po.po_number;
+        document.getElementById('detailProvider').textContent = po.provider;
+        document.getElementById('detailStatus').innerHTML = '<span class="badge badge-pill ' + po.statusClass + '">' + po.status.toUpperCase() + '</span>';
+        document.getElementById('detailDate').textContent = po.date;
+        document.getElementById('detailCreatedBy').textContent = po.created_by;
+        document.getElementById('detailOrderType').textContent = po.order_type;
+        document.getElementById('detailTracking').textContent = po.tracking;
+        document.getElementById('detailIva').textContent = po.has_iva ? 'Si (16%)' : 'No';
+
+        var itemsHtml = '';
+        po.items.forEach(function(item) {
+            itemsHtml += '<tr>' +
+                '<td>' + item.name + '</td>' +
+                '<td class="text-center">' + item.ordered_qty + '</td>' +
+                '<td class="text-center">' + item.received_qty + '</td>' +
+                '<td class="text-right">$' + item.cost + '</td>' +
+                '<td class="text-right">$' + item.ordered_total + '</td>' +
+                '</tr>';
+        });
+        document.getElementById('detailItems').innerHTML = itemsHtml;
+        document.getElementById('detailTotalOrdered').textContent = '$' + po.total_ordered;
+        document.getElementById('detailTotalReceived').textContent = '$' + po.total_received;
+        document.getElementById('detailIvaAmount').textContent = '$' + po.iva;
+        document.getElementById('detailInvoiceTotal').textContent = '$' + po.invoice_total;
+
+        $('#poDetailModal').modal('show');
+    });
+});
+</script>
 
 <script>
 function setDateRange(days) {
