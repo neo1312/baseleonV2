@@ -265,8 +265,8 @@ function addToCart(btn) {
     const barcode = row.querySelector('.barcode').textContent;
     const name = row.querySelector('.name').textContent;
 
-    // For devolucion without ticket, skip stock check
-    if (currentMode === 'devolucion' && returnMode === 'noticket') {
+    // For devolucion, skip stock check (any return mode)
+    if (currentMode === 'devolucion') {
         const priceRegular = parseFloat(row.querySelector('.price-regular').textContent.replace('$', ''));
         const priceMayoreo = parseFloat(row.querySelector('.price-mayoreo').textContent.replace('$', ''));
         const price = saleType === 'mayoreo' ? priceMayoreo : priceRegular;
