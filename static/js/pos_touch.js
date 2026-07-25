@@ -13,7 +13,7 @@ let saleStarted = false;
 let sessionKey = '';
 let lastAddedId = null;
 let currentDespieceConfig = null;
-let scannerConnected = true;
+let scannerConnected = false;
 let scannerPollTimer = null;
 let currentMode = 'sale'; // 'sale' | 'devolucion' | 'cotizacion'
 
@@ -1196,12 +1196,12 @@ function toggleScannerConnection() {
   scannerConnected = !scannerConnected;
   const btn = $('#scanner-toggle');
   if (scannerConnected) {
-    btn.innerHTML = '🔗';
-    btn.style.opacity = '1';
+    btn.innerHTML = '🔗 Remoto';
+    btn.classList.add('remote-active');
     initScannerPoll();
   } else {
-    btn.innerHTML = '🔌';
-    btn.style.opacity = '0.5';
+    btn.innerHTML = '💻 Local';
+    btn.classList.remove('remote-active');
     if (scannerPollTimer) {
       clearInterval(scannerPollTimer);
       scannerPollTimer = null;
@@ -1263,8 +1263,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Init search
   initSearch();
 
-  // Init scanner polling
-  initScannerPoll();
+  // Init scanner polling (disabled by default, user toggles manually)
 
   // Init mayoreo toggle button
   initMayoreoButton();

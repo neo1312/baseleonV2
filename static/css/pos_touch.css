@@ -123,6 +123,14 @@ html, body {
   background: var(--accent);
 }
 
+.top-btn.remote-active {
+  background: #2a7a4a;
+}
+
+.top-btn.remote-active:active {
+  background: #1e5e38;
+}
+
 .top-btn.primary:active {
   background: var(--accent-hover);
 }
