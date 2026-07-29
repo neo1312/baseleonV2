@@ -13,7 +13,7 @@ let saleStarted = false;
 let sessionKey = '';
 let lastAddedId = null;
 let currentDespieceConfig = null;
-let scannerConnected = false;
+let scannerConnected = true;
 let scannerPollTimer = null;
 let currentMode = 'sale'; // 'sale' | 'devolucion' | 'cotizacion'
 
@@ -1263,7 +1263,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Init search
   initSearch();
 
-  // Init scanner polling (disabled by default, user toggles manually)
+  // Init scanner polling (default: remote)
+  initScannerPoll();
 
   // Init mayoreo toggle button
   initMayoreoButton();
