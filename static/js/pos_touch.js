@@ -13,6 +13,7 @@ let saleStarted = false;
 let sessionKey = '';
 let lastAddedId = null;
 let currentDespieceConfig = null;
+let pendingDespieceAdd = null; // {product, qty} waiting for a conversion
 let scannerConnected = true;
 let scannerPollTimer = null;
 let currentMode = 'sale'; // 'sale' | 'devolucion' | 'cotizacion'
@@ -211,7 +212,26 @@ function updateSearchInput() {
 
 function debouncedSearch(q) {
   clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(() => fetchSearchResults(q), 150);
+  searchDebounce = setTimeout(() => fetchSearchResults(q), 100);
+}
+
+// Keeps modal action buttons above the on-screen keyboard
+function initKeyboardSafeArea() {
+  const root = document.documentElement;
+  function sync() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const kbH = Math.max(0, Math.round(window.innerHeight - vv.height));
+    root.style.setProperty('--kb-safe', kbH + 'px');
+    const modal = $('.touch-modal.show');
+    if (modal) modal.classList.toggle('keyboard-open', kbH > 120);
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', sync);
+    window.visualViewport.addEventListener('scroll', sync);
+  }
+  window.addEventListener('resize', sync);
+  sync();
 }
 
 // ==================== SEARCH & PRODUCTS LIST ====================
@@ -434,12 +454,13 @@ function openQtyModal(productData) {
   $('#qty-modal-title').textContent = productData.compose_name || productData.name || '';
   $('#qty-modal-product').textContent = '$' + (productData.price || 0).toFixed(2);
   $('#qty-modal-input').value = '1';
-  $('#qty-modal').classList.add('show');
+  $('#qty-modal').classList.add('show', 'align-top');
   $('#qty-modal-input').focus();
 }
 
 function closeQtyModal() {
   $('#qty-modal').classList.remove('show');
+  $('#qty-modal').classList.remove('keyboard-open');
 }
 
 function qtyDelta(delta) {
@@ -524,8 +545,13 @@ function lookupBarcode(code) {
 // ==================== ADD TO CART ====================
 function addScannedToCart(product, qty) {
   if (!saleStarted) { showToast('Start a sale first', 'warning'); return; }
-  // Stock check (skip for granel/despiece, skip for returns)
-  if (currentMode !== 'devolucion' && qty > product.stock && !product.Granel_Item && !product.despiece_config_id) {
+  // Stock check (skip for granel, skip for returns)
+  if (currentMode !== 'devolucion' && qty > product.stock && !product.Granel_Item) {
+    // Despiece product with no inventory → offer conversion to create it
+    if (product.despiece_config_id) {
+      offerDespieceConversion(product, qty);
+      return;
+    }
     showToast('Only ' + product.stock + ' in stock', 'error');
     return;
   }
@@ -1064,7 +1090,26 @@ function skipPrint() {
 }
 
 // ==================== DESPIECE ====================
-function openDespieceModal(config) {
+// Called when adding a despiece product with no inventory: block the add,
+// alert the cashier, and offer to run the conversion to create stock.
+function offerDespieceConversion(product, qty) {
+  if (!product.despiece_config_id) return;
+  pendingDespieceAdd = { product, qty };
+  const needed = Math.max(1, qty - (parseInt(product.stock) || 0));
+  const prefill = Math.max(1, Math.min(Math.ceil(needed / (parseFloat(product.despiece_units_per) || 1)), parseInt(product.despiece_source_stock) || 1));
+  const destName = product.compose_name || product.name || 'el producto';
+  const srcName = product.despiece_source_name || 'el producto de origen';
+  showConfirm('Sin inventario de "' + destName + '". ¿Convertir ' + srcName + ' → ' + destName + ' para generar inventario y vender?', () => {
+    openDespieceModal({
+      configId: product.despiece_config_id,
+      sourceName: product.despiece_source_name,
+      sourceStock: product.despiece_source_stock,
+      unitsPer: product.despiece_units_per,
+    }, prefill);
+  }, () => { pendingDespieceAdd = null; });
+}
+
+function openDespieceModal(config, prefillQty) {
   currentDespieceConfig = {
     configId: config.configId || config.despieceConfigId,
     sourceName: config.sourceName || config.despieceSourceName || '',
@@ -1074,7 +1119,7 @@ function openDespieceModal(config) {
   if (!currentDespieceConfig.configId) { showToast('No despiece config', 'error'); return; }
   $('#despiece-source-name').textContent = currentDespieceConfig.sourceName;
   $('#despiece-source-stock').textContent = currentDespieceConfig.sourceStock + ' pz';
-  $('#despiece-qty').value = 1;
+  $('#despiece-qty').value = Math.max(1, Math.min(parseInt(prefillQty) || 1, currentDespieceConfig.sourceStock || 1));
   updateDespiecePreview();
   $('#despiece-modal').classList.add('show');
 }
@@ -1082,6 +1127,7 @@ function openDespieceModal(config) {
 function closeDespieceModal() {
   $('#despiece-modal').classList.remove('show');
   currentDespieceConfig = null;
+  pendingDespieceAdd = null;
 }
 
 function despieceQtyDelta(delta) {
@@ -1102,6 +1148,7 @@ function confirmDespiece() {
   const qty = parseInt($('#despiece-qty').value) || 0;
   if (qty <= 0) { showToast('Enter a valid quantity', 'warning'); return; }
   if (qty > currentDespieceConfig.sourceStock) { showToast('Only ' + currentDespieceConfig.sourceStock + ' available', 'error'); return; }
+  const pending = pendingDespieceAdd;
   showLoading(true);
   const url = '/im/product/despiece/' + currentDespieceConfig.configId + '/process/';
   const fd = new FormData();
@@ -1115,13 +1162,38 @@ function confirmDespiece() {
     try { data = JSON.parse(xhr.responseText); } catch (e) {}
     if (xhr.status >= 200 && xhr.status < 300 && data && data.success) {
       showToast('✅ Despiece: ' + data.source_quantity + ' → ' + data.destination_quantity + ' units created', 'success');
-      closeDespieceModal();
-      showToast('Reloading...', 'info');
-      setTimeout(() => location.reload(), 500);
+      if (pending) {
+        // Conversion created sellable inventory: add the pending product to cart
+        closeDespieceModal();
+        refreshProductAndAdd(pending.product, pending.qty);
+      } else {
+        closeDespieceModal();
+        showToast('Reloading...', 'info');
+        setTimeout(() => location.reload(), 500);
+      }
     } else { showToast('❌ ' + ((data && data.error) || 'Despiece failed'), 'error'); }
   };
   xhr.onerror = function() { showLoading(false); showToast('❌ Network error', 'error'); };
   xhr.send(fd);
+}
+
+// After a conversion, re-fetch the product (now ready to sell) and add it to cart.
+function refreshProductAndAdd(product, qty) {
+  fetch('/pos/product/?id=' + encodeURIComponent(product.id))
+    .then(r => r.json())
+    .then(data => {
+      if (!data || data.error) {
+        showToast('Inventario creado. Agrega el producto nuevamente', 'info');
+        return;
+      }
+      if (qty > data.stock) {
+        showToast('Solo ' + data.stock + ' disponibles tras la conversión', 'warning');
+        return;
+      }
+      addScannedToCart(data, qty);
+      if (searchQuery) fetchSearchResults(searchQuery);
+    })
+    .catch(() => showToast('Inventario creado. Agrega el producto nuevamente', 'info'));
 }
 
 // ==================== CUSTOMER DISPLAY ====================
@@ -1153,11 +1225,11 @@ function showToast(message, type) {
 }
 
 // ==================== CONFIRM ====================
-function showConfirm(message, onConfirm) {
+function showConfirm(message, onConfirm, onCancel) {
   $('#confirm-modal').classList.add('show');
   $('#confirm-message').textContent = message;
   $('#confirm-yes').onclick = () => { $('#confirm-modal').classList.remove('show'); if (onConfirm) onConfirm(); };
-  $('#confirm-no').onclick = () => { $('#confirm-modal').classList.remove('show'); };
+  $('#confirm-no').onclick = () => { $('#confirm-modal').classList.remove('show'); if (onCancel) onCancel(); };
 }
 
 // ==================== LOADING ====================
@@ -1166,7 +1238,7 @@ function showLoading(show) { $('#loading-overlay').style.display = show ? 'flex'
 // ==================== GLOBAL ESCAPE ====================
 function handleGlobalEscape() {
   if ($('#print-modal.show')) { $('#print-modal').classList.remove('show'); return; }
-  if ($('#confirm-modal.show')) { $('#confirm-modal').classList.remove('show'); return; }
+  if ($('#confirm-modal.show')) { $('#confirm-no').click(); return; }
   if ($('#despiece-modal.show')) { closeDespieceModal(); return; }
   if ($('#checkout-modal.show')) { closeCheckout(); return; }
   if ($('#settings-modal.show')) { closeSettings(); return; }
@@ -1259,6 +1331,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Init native keyboard
   initNativeKeyboard();
+
+  // Init keyboard safe area (keeps modal buttons above on-screen keyboard)
+  initKeyboardSafeArea();
 
   // Init search
   initSearch();

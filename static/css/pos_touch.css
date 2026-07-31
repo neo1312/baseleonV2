@@ -832,6 +832,18 @@ html, body {
   justify-content: center;
 }
 
+.touch-modal.align-top {
+  align-items: flex-start;
+}
+
+.touch-modal.align-top .touch-modal-content {
+  margin-top: 20px;
+}
+
+.touch-modal.keyboard-open .touch-modal-content {
+  padding-bottom: var(--kb-safe, 0);
+}
+
 .touch-modal-content {
   background: #fff;
   border-radius: 12px;

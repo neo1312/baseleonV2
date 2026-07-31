@@ -8,7 +8,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{{ title }} · Touch</title>
-    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}?v=7">
+    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}?v=10">
 </head>
 <body class="pos-touch">
     <div id="toast-container"></div>
@@ -228,6 +228,6 @@
     <script>
     const DISPLAY_SESSION_KEY = '{{ session_key|escapejs }}';
     </script>
-    <script src="{% static 'js/pos_touch.js' %}?v=9"></script>
+    <script src="{% static 'js/pos_touch.js' %}?v=12"></script>
 </body>
 </html>

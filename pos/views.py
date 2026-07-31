@@ -64,6 +64,42 @@ def _get_pos_context(request):
         'session_key': request.session.session_key,
     }
 
+def _get_despiece_map():
+    """Cached mapping of destination product id -> DespieceConfig (60s TTL)."""
+    dc_map = cache.get('pos_despiece_map')
+    if dc_map is None:
+        dc_map = {}
+        for dc in DespieceConfig.objects.select_related('source_product').all():
+            dc_map[dc.destination_product_id] = dc
+        cache.set('pos_despiece_map', dc_map, 60)
+    return dc_map
+
+
+def _product_to_dict(p):
+    """Enrich a product with price, stock, and despiece info (search/scan shape)."""
+    dc = _get_despiece_map().get(p.id)
+    granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
+    return {
+        'id': p.id,
+        'barcode': p.barcode,
+        'clave': p.clave or '',
+        'name': p.name,
+        'brand': p.brand.name if p.brand else '',
+        'compose_name': p.compose_name,
+        'price': float(p.priceLista),
+        'price_mayoreo': float(p.priceMayoreo),
+        'price_granel': float(granel_price) if granel_price else None,
+        'stock': p.stock_ready_to_sale,
+        'granel': p.granel,
+        'Granel_Item': p.Granel_Item,
+        'minimo': p.minimo,
+        'despiece_config_id': dc.id if dc else None,
+        'despiece_source_name': dc.source_product.compose_name if dc else None,
+        'despiece_source_id': dc.source_product.id if dc else None,
+        'despiece_source_stock': dc.source_product.stock_ready_to_sale if dc else None,
+        'despiece_units_per': float(dc.units_per_source) if dc else None,
+    }
+
 @login_required(login_url='/login/')
 def pos_index(request):
     """Main POS interface"""
@@ -89,65 +125,33 @@ def pos_index_touch(request):
 
 @csrf_exempt
 def search_products(request):
-    """Search products by name (word match regardless of order), SKU, or barcode"""
+    """Search products by name, brand, SKU, or barcode (per-word, order-independent)."""
     if request.method == 'GET':
         query = request.GET.get('q', '').strip()
         
         if not query:
-            products = Product.objects.filter(active=True)[:50]
+            products = Product.objects.filter(active=True)[:200]
         else:
-            # Split query into words, match any word in barcode/clave,
-            # and require ALL words to appear in name (order-independent)
+            # Split query into words; each word must appear in name, brand,
+            # clave, or barcode. All words required (AND), order-independent.
             words = query.split()
-            
-            filters = models.Q()
+            combined = None
             for word in words:
-                filters &= models.Q(name__icontains=word)
-            
-            filters |= models.Q(barcode__icontains=query)
-            filters |= models.Q(clave__icontains=query)
-            
-            products = Product.objects.filter(active=True).filter(filters)[:50]
+                word_q = models.Q(name__icontains=word) | models.Q(brand__name__icontains=word) \
+                    | models.Q(clave__icontains=word) | models.Q(barcode__icontains=word)
+                combined = word_q if combined is None else (combined & word_q)
+            products = Product.objects.filter(active=True).filter(combined)[:200]
         
-        # Pre-load despiece configs
-        despiece_map = {}
-        for dc in DespieceConfig.objects.select_related('source_product').all():
-            despiece_map[dc.destination_product_id] = dc
-
         # Include products with stock, granel items, or despiece-eligible (even at 0 stock)
+        despiece_map = _get_despiece_map()
         products_list = [
             p for p in products
             if p.stock_ready_to_sale > 0 or p.Granel_Item or p.id in despiece_map
         ]
         products_list.sort(key=lambda p: p.stock_ready_to_sale, reverse=True)
+        products_list = products_list[:50]
         
-        # Enrich with price data - USE STOCK_READY_TO_SALE (only source of truth)
-        results = []
-        for p in products_list:
-            granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
-            available_stock = p.stock_ready_to_sale
-            dc = despiece_map.get(p.id)
-            results.append({
-                'id': p.id,
-                'barcode': p.barcode,
-                'clave': p.clave or '',
-                'name': p.name,
-                'brand': p.brand.name if p.brand else '',
-                'compose_name': p.compose_name,
-                'price': float(p.priceLista),
-                'price_mayoreo': float(p.priceMayoreo),
-                'price_granel': float(granel_price) if granel_price else None,
-                'stock': available_stock,
-                'granel': p.granel,
-                'Granel_Item': p.Granel_Item,
-                'minimo': p.minimo,
-                'despiece_config_id': dc.id if dc else None,
-                'despiece_source_name': dc.source_product.compose_name if dc else None,
-                'despiece_source_id': dc.source_product.id if dc else None,
-                'despiece_source_stock': dc.source_product.stock_ready_to_sale if dc else None,
-                'despiece_units_per': float(dc.units_per_source) if dc else None,
-            })
-        
+        results = [_product_to_dict(p) for p in products_list]
         return JsonResponse(results, safe=False)
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
@@ -164,33 +168,7 @@ def scan_product(request):
         if not product:
             return JsonResponse({'error': 'Not found'}, status=404)
         
-        despiece_map = {}
-        for dc in DespieceConfig.objects.select_related('source_product').all():
-            despiece_map[dc.destination_product_id] = dc
-        dc = despiece_map.get(product.id)
-        
-        available_stock = product.stock_ready_to_sale
-        granel_price = product.priceListaGranel if product.priceListaGranel != 'N/A' else None
-        
-        return JsonResponse({
-            'id': product.id,
-            'barcode': product.barcode,
-            'clave': product.clave or '',
-            'name': product.name,
-            'compose_name': product.compose_name,
-            'price': float(product.priceLista),
-            'price_mayoreo': float(product.priceMayoreo),
-            'price_granel': float(granel_price) if granel_price else None,
-            'stock': available_stock,
-            'granel': product.granel,
-            'Granel_Item': product.Granel_Item,
-            'minimo': product.minimo,
-            'despiece_config_id': dc.id if dc else None,
-            'despiece_source_name': dc.source_product.compose_name if dc else None,
-            'despiece_source_id': dc.source_product.id if dc else None,
-            'despiece_source_stock': dc.source_product.stock_ready_to_sale if dc else None,
-            'despiece_units_per': float(dc.units_per_source) if dc else None,
-        })
+        return JsonResponse(_product_to_dict(product))
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
@@ -293,33 +271,13 @@ def validate_stock(request):
 
 @csrf_exempt
 def get_product(request):
-    """Get single product details"""
+    """Get single product details (enriched: price, stock, despiece info)"""
     if request.method == 'GET':
         product_id = request.GET.get('id')
-        tipo = request.GET.get('tipo', 'menudeo')  # menudeo or mayoreo
         
         try:
             product = Product.objects.get(id=product_id)
-            
-            # Get price based on sale type
-            if tipo == 'mayoreo':
-                price = product.priceMayoreo
-            else:  # menudeo (default)
-                price = product.priceLista
-            
-            granel_price = product.priceListaGranel if product.priceListaGranel != 'N/A' else None
-            
-            return JsonResponse({
-                'id': product.id,
-                'barcode': product.barcode,
-                'name': product.name,
-                'compose_name': product.compose_name,
-                'price': float(price),
-                'price_granel': float(granel_price) if granel_price else None,
-                'stock': product.stock_ready_to_sale,
-                'granel': product.granel,
-                'minimo': product.minimo,
-            })
+            return JsonResponse(_product_to_dict(product))
         except Product.DoesNotExist:
             return JsonResponse({'error': 'Product not found'}, status=404)
     
