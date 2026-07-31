@@ -84,7 +84,7 @@
     <div id="qty-modal" class="touch-modal align-top">
         <div class="touch-modal-content qty-modal-content">
             <div class="qty-layout">
-                <button class="modal-btn primary qty-add-btn" onclick="confirmQty()">✓ Agregar</button>
+                <button class="modal-btn secondary qty-cancel-btn" onclick="closeQtyModal()">Cancelar</button>
                 <div class="qty-info">
                     <div class="qty-name" id="qty-modal-title"></div>
                     <div class="qty-price" id="qty-modal-product"></div>
@@ -94,7 +94,7 @@
                     <input type="number" id="qty-modal-input" value="1" min="1" inputmode="numeric" autocomplete="off">
                     <button class="qty-step-btn" onclick="qtyDelta(1)">+</button>
                 </div>
-                <button class="modal-btn secondary qty-cancel-btn" onclick="closeQtyModal()">Cancelar</button>
+                <button class="modal-btn primary qty-add-btn" onclick="confirmQty()">✓ Agregar</button>
             </div>
         </div>
     </div>
