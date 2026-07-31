@@ -8,7 +8,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{{ title }} · Touch</title>
-    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}?v=10">
+    <link rel="stylesheet" href="{% static 'css/pos_touch.css' %}?v=11">
 </head>
 <body class="pos-touch">
     <div id="toast-container"></div>
@@ -81,18 +81,20 @@
     </div>
 
     <!-- QUANTITY MODAL (shown when product selected) -->
-    <div id="qty-modal" class="touch-modal">
-        <div class="touch-modal-content" style="max-width:360px;">
-            <h2 id="qty-modal-title">✏️ Cantidad</h2>
-            <p id="qty-modal-product" style="font-size:1.1rem;color:var(--text-muted);margin-bottom:16px;text-align:center;"></p>
-            <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px;">
-                <button class="modal-btn secondary" style="font-size:24px;padding:8px 20px;" onclick="qtyDelta(-1)">−</button>
-                <input type="number" id="qty-modal-input" value="1" min="1" style="width:80px;padding:12px;font-size:24px;text-align:center;border:2px solid var(--border);border-radius:8px;">
-                <button class="modal-btn secondary" style="font-size:24px;padding:8px 20px;" onclick="qtyDelta(1)">+</button>
-            </div>
-            <div class="modal-actions">
-                <button class="modal-btn secondary" onclick="closeQtyModal()">Cancelar</button>
-                <button class="modal-btn primary" onclick="confirmQty()">✓ Agregar</button>
+    <div id="qty-modal" class="touch-modal align-top">
+        <div class="touch-modal-content qty-modal-content">
+            <div class="qty-layout">
+                <button class="modal-btn primary qty-add-btn" onclick="confirmQty()">✓ Agregar</button>
+                <div class="qty-info">
+                    <div class="qty-name" id="qty-modal-title"></div>
+                    <div class="qty-price" id="qty-modal-product"></div>
+                </div>
+                <div class="qty-stepper">
+                    <button class="qty-step-btn" onclick="qtyDelta(-1)">−</button>
+                    <input type="number" id="qty-modal-input" value="1" min="1" inputmode="numeric" autocomplete="off">
+                    <button class="qty-step-btn" onclick="qtyDelta(1)">+</button>
+                </div>
+                <button class="modal-btn secondary qty-cancel-btn" onclick="closeQtyModal()">Cancelar</button>
             </div>
         </div>
     </div>

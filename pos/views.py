@@ -125,15 +125,26 @@ def pos_index_touch(request):
 
 @csrf_exempt
 def search_products(request):
-    """Search products by name, brand, SKU, or barcode (per-word, order-independent)."""
+    """Search products. Exact match on name/clave/barcode first; otherwise
+    per-word filter (name, brand, clave, or barcode, all words required)."""
     if request.method == 'GET':
         query = request.GET.get('q', '').strip()
         
         if not query:
             products = Product.objects.filter(active=True)[:200]
         else:
-            # Split query into words; each word must appear in name, brand,
-            # clave, or barcode. All words required (AND), order-independent.
+            # 1) Exact match first: name, clave, or barcode (case-insensitive).
+            #    Return ONLY the exact matches (even if out of stock).
+            exact = Product.objects.filter(active=True).filter(
+                models.Q(name__iexact=query) | models.Q(clave__iexact=query) | models.Q(barcode__iexact=query)
+            )
+            if exact.exists():
+                products_list = list(exact)[:50]
+                results = [_product_to_dict(p) for p in products_list]
+                return JsonResponse(results, safe=False)
+            
+            # 2) Fallback: each word must appear in name, brand, clave, or
+            #    barcode. All words required (AND), order-independent.
             words = query.split()
             combined = None
             for word in words:
