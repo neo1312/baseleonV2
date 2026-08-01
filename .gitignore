@@ -36,6 +36,10 @@ db.sqlite3
 staticfiles/
 media/
 
+# POS runtime state (printer queue, scanner buffer)
+.print_queue/
+.scanner_barcode
+
 # -----------------------------
 # Migrations (optional)
 # Uncomment if you DON'T want them in git

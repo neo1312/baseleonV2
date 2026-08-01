@@ -65,13 +65,20 @@ def _get_pos_context(request):
     }
 
 def _get_despiece_map():
-    """Cached mapping of destination product id -> DespieceConfig (60s TTL)."""
-    dc_map = cache.get('pos_despiece_map')
+    """Cached mapping of destination product id -> DespieceConfig (60s TTL).
+    Cache is optional: if it's unavailable (e.g. no cache table), rebuild per call."""
+    try:
+        dc_map = cache.get('pos_despiece_map')
+    except Exception:
+        dc_map = None
     if dc_map is None:
         dc_map = {}
         for dc in DespieceConfig.objects.select_related('source_product').all():
             dc_map[dc.destination_product_id] = dc
-        cache.set('pos_despiece_map', dc_map, 60)
+        try:
+            cache.set('pos_despiece_map', dc_map, 60)
+        except Exception:
+            pass
     return dc_map
 
 
@@ -764,6 +771,40 @@ def print_ticket(request):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Invalid method'}, status=405)
 
+PRINT_TTL_SECONDS = 120
+PRINT_QUEUE_DIR = os.path.join(getattr(settings, 'BASE_DIR', '/tmp'), '.print_queue')
+
+
+def _print_queue_dir():
+    """Return a writable directory for the print queue (BASE_DIR, then /tmp)."""
+    for base in (getattr(settings, 'BASE_DIR', '/tmp'), '/tmp'):
+        path = os.path.join(base, '.print_queue')
+        try:
+            os.makedirs(path, exist_ok=True)
+            probe = os.path.join(path, '.write_test')
+            with open(probe, 'w') as f:
+                f.write('1')
+            os.remove(probe)
+            return path
+        except OSError:
+            continue
+    return os.path.join('/tmp', '.print_queue')
+
+
+def _load_pending_ids():
+    try:
+        with open(os.path.join(_print_queue_dir(), 'pending.json')) as f:
+            ids = json.load(f)
+        return [i for i in ids if isinstance(i, str)]
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def _save_pending_ids(ids):
+    with open(os.path.join(_print_queue_dir(), 'pending.json'), 'w') as f:
+        json.dump(ids, f)
+
+
 @csrf_exempt
 def queue_print(request):
     """Queue a print job. Browser calls this (same-origin, no CORS issues)."""
@@ -775,10 +816,12 @@ def queue_print(request):
             if not sale_id:
                 return JsonResponse({'error': 'sale_id required'}, status=400)
             job_id = 'print_{}_{}_{}'.format(ticket_type, int(time.time()), sale_id)
-            cache.set(job_id, {'sale_id': sale_id, 'ticket_type': ticket_type}, 120)
-            pending = cache.get('print_pending', [])
-            pending.append(job_id)
-            cache.set('print_pending', pending, 120)
+            with open(os.path.join(_print_queue_dir(), job_id + '.json'), 'w') as f:
+                json.dump({'sale_id': sale_id, 'ticket_type': ticket_type, 'ts': time.time()}, f)
+            pending = _load_pending_ids()
+            if job_id not in pending:
+                pending.append(job_id)
+            _save_pending_ids(pending)
             return JsonResponse({'success': True, 'job_id': job_id})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
@@ -786,30 +829,46 @@ def queue_print(request):
 
 def get_pending_prints(request):
     """Return pending print jobs. Polled by the local printer server."""
-    pending = cache.get('print_pending', [])
+    pending = _load_pending_ids()
+    now = time.time()
     jobs = []
-    for job_id in list(pending):
-        job = cache.get(job_id)
-        if job:
-            job['job_id'] = job_id
-            if 'ticket_type' not in job:
-                parts = job_id.split('_')
-                job['ticket_type'] = parts[1] if len(parts) >= 4 and parts[0] == 'print' else 'sale'
-            jobs.append(job)
-        else:
-            pending.remove(job_id)
-    cache.set('print_pending', pending, 120)
+    clean = []
+    for job_id in pending:
+        job_path = os.path.join(_print_queue_dir(), job_id + '.json')
+        try:
+            with open(job_path) as f:
+                job = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            continue
+        # Drop jobs older than the TTL (same expiry as the old cache)
+        if now - job.get('ts', 0) > PRINT_TTL_SECONDS:
+            try:
+                os.remove(job_path)
+            except OSError:
+                pass
+            continue
+        job['job_id'] = job_id
+        if 'ticket_type' not in job:
+            parts = job_id.split('_')
+            job['ticket_type'] = parts[1] if len(parts) >= 4 and parts[0] == 'print' else 'sale'
+        jobs.append(job)
+        clean.append(job_id)
+    if clean != pending:
+        _save_pending_ids(clean)
     return JsonResponse(jobs, safe=False)
 
 @csrf_exempt
 def ack_print(request, job_id):
     """Mark a print job as completed. Called by the printer server."""
     if request.method == 'POST':
-        pending = cache.get('print_pending', [])
+        pending = _load_pending_ids()
         if job_id in pending:
             pending.remove(job_id)
-            cache.set('print_pending', pending, 120)
-            cache.delete(job_id)
+            _save_pending_ids(pending)
+        try:
+            os.remove(os.path.join(_print_queue_dir(), job_id + '.json'))
+        except OSError:
+            pass
         return JsonResponse({'success': True})
     return JsonResponse({'error': 'Invalid method'}, status=405)
 
