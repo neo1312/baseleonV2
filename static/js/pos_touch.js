@@ -41,6 +41,12 @@ let scanDebounceMs = 1500;
 let barcodeBuf = '';
 let barcodeBufTimer = 0;
 
+// Local search index (downloaded at page load) + stock refresh
+let searchIndex = [];
+let searchIndexById = {};
+let searchStockTimer = null;
+let searchFetchCtrl = null;
+
 // --- DOM REFS ---
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -236,6 +242,7 @@ function initKeyboardSafeArea() {
 
 // ==================== SEARCH & PRODUCTS LIST ====================
 function initSearch() {
+  loadSearchIndex();
   const clearBtn = $('#search-clear');
   clearBtn.addEventListener('click', function(e) {
     e.stopPropagation();
@@ -251,17 +258,128 @@ function initSearch() {
   });
 }
 
-function fetchSearchResults(q) {
-  fetch('/pos/search/?q=' + encodeURIComponent(q))
+function escHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function normSearch(s) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function searchWordTokens(q) {
+  return normSearch(q).split(/[^a-z0-9]+/).filter(Boolean);
+}
+
+// Highlight query words inside a product name (token-exact/prefix/contains).
+function highlightName(name, q) {
+  const words = searchWordTokens(q);
+  if (!words.length) return escHtml(name);
+  const re = /[\p{L}\p{N}]+/gu;
+  let out = '';
+  let last = 0;
+  let m;
+  while ((m = re.exec(name)) !== null) {
+    out += escHtml(name.slice(last, m.index));
+    const ntok = normSearch(m[0]);
+    const hit = words.some(w => ntok === w || ntok.startsWith(w) || ntok.includes(w));
+    out += hit ? '<b class="hl">' + escHtml(m[0]) + '</b>' : escHtml(m[0]);
+    last = re.lastIndex;
+  }
+  out += escHtml(name.slice(last));
+  return out;
+}
+
+// Local search over the downloaded index, mirroring the backend rules:
+// 1 word  -> exact barcode/clave only
+// 2+ words-> description over compose_name, all words (AND), ranked
+//           exact(3) > prefix(2) > contains(1); in-stock first, agotados last.
+function localSearch(q) {
+  const words = searchWordTokens(q);
+  if (!words.length) return [];
+  if (words.length <= 1) {
+    const nq = normSearch(q);
+    return searchIndex.filter(p =>
+      (p.barcode && normSearch(p.barcode) === nq) ||
+      (p.clave && normSearch(p.clave) === nq)
+    );
+  }
+  const scored = [];
+  for (const p of searchIndex) {
+    const tokens = normSearch(p.compose_name || p.name).split(/[^a-z0-9]+/).filter(Boolean);
+    let total = 0;
+    let ok = true;
+    for (const w of words) {
+      let best = 0;
+      for (const t of tokens) {
+        if (t === w) { best = 3; break; }
+        if (t.startsWith(w)) { if (best < 2) best = 2; }
+        else if (best === 0 && t.includes(w)) best = 1;
+      }
+      if (best === 0) { ok = false; break; }
+      total += best;
+    }
+    if (ok) scored.push([total, p]);
+  }
+  scored.sort((a, b) => {
+    const aOut = a[1].stock > 0 ? 0 : 1;
+    const bOut = b[1].stock > 0 ? 0 : 1;
+    if (aOut !== bOut) return aOut - bOut;
+    if (b[0] !== a[0]) return b[0] - a[0];
+    return (b[1].stock - a[1].stock) || (a[1].id - b[1].id);
+  });
+  return scored.map(x => x[1]).slice(0, 50);
+}
+
+function loadSearchIndex() {
+  fetch('/pos/search-index/')
     .then(r => r.json())
     .then(items => {
-      if (!items || !items.length) {
-        renderNoResults();
-        return;
+      searchIndex = Array.isArray(items) ? items : [];
+      searchIndexById = {};
+      searchIndex.forEach(p => { searchIndexById[p.id] = p; });
+      clearTimeout(searchStockTimer);
+      searchStockTimer = setTimeout(refreshSearchStock, 60000);
+    })
+    .catch(() => { searchIndex = []; });
+}
+
+function refreshSearchStock() {
+  clearTimeout(searchStockTimer);
+  fetch('/pos/search-stock/')
+    .then(r => r.json())
+    .then(map => {
+      if (map) {
+        Object.keys(map).forEach(id => {
+          const p = searchIndexById[id];
+          if (p) p.stock = map[id];
+        });
+        if (searchQuery && !$('.touch-modal.show')) fetchSearchResults(searchQuery);
       }
+    })
+    .catch(() => {})
+    .finally(() => {
+      if (searchIndex.length) searchStockTimer = setTimeout(refreshSearchStock, 60000);
+    });
+}
+
+function fetchSearchResults(q) {
+  if (searchIndex.length) {
+    const items = localSearch(q);
+    if (items.length) { renderSearchResults(items); return; }
+    renderNoResults();
+    return;
+  }
+  if (searchFetchCtrl) searchFetchCtrl.abort();
+  const ctrl = new AbortController();
+  searchFetchCtrl = ctrl;
+  fetch('/pos/search/?q=' + encodeURIComponent(q), { signal: ctrl.signal })
+    .then(r => r.json())
+    .then(items => {
+      if (ctrl.signal.aborted) return;
+      if (!items || !items.length) { renderNoResults(); return; }
       renderSearchResults(items);
     })
-    .catch(() => renderNoResults());
+    .catch(() => { if (!ctrl.signal.aborted) renderNoResults(); });
 }
 
 function renderSearchResults(items) {
@@ -307,7 +425,7 @@ function renderSearchResults(items) {
 
     div.innerHTML =
       '<div class="pl-item-info">' +
-        '<div class="pl-item-name">' + (p.compose_name || p.name) + '</div>' +
+        '<div class="pl-item-name">' + highlightName(p.compose_name || p.name, searchQuery) + '</div>' +
         '<div class="pl-item-meta">' +
           (p.clave ? '<span class="pl-item-clave">' + p.clave + '</span>' : '') +
           granelTag +
@@ -1058,6 +1176,7 @@ function confirmCheckout() {
       const labels = { sale: 'Sale', devolucion: 'Devolución', cotizacion: 'Cotización' };
       const label = labels[currentMode] || 'Sale';
       showToast('✅ ' + label + ' #' + data.sale_id + ' completed! $' + data.total, 'success');
+      refreshSearchStock();
       window.lastSaleId = data.sale_id;
       $('#print-sale-info').textContent = label + ' #' + data.sale_id + ' — Total: $' + data.total.toFixed(2);
       $('#print-modal').classList.add('show');

@@ -283,6 +283,12 @@ html, body {
   text-overflow: ellipsis;
 }
 
+.pl-item-name .hl {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-radius: 3px;
+}
+
 .pl-item-meta {
   display: flex;
   gap: 10px;

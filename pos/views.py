@@ -1,6 +1,8 @@
 import json
+import re
 import time
 import os
+import unicodedata
 from decimal import Decimal
 
 import requests
@@ -12,6 +14,7 @@ from django.contrib.sessions.models import Session
 from django.conf import settings
 from im.models import Product, DespieceConfig
 from django.core.cache import cache
+from django.db.models import Count, Q
 from crm.models import Sale, saleItem, Client, Devolution, devolutionItem, Quote, quoteItem
 from django.utils import timezone
 from django.db import transaction
@@ -39,6 +42,7 @@ def _get_pos_context(request):
         granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
         available_stock = p.stock_ready_to_sale
         dc = despiece_map.get(p.id)
+        despiece_source_stock = dc.source_product.stock_ready_to_sale if dc else None
         products_data.append({
             'id': p.id,
             'barcode': p.barcode,
@@ -55,7 +59,7 @@ def _get_pos_context(request):
             'despiece_config_id': dc.id if dc else None,
             'despiece_source_name': dc.source_product.compose_name if dc else None,
             'despiece_source_id': dc.source_product.id if dc else None,
-            'despiece_source_stock': dc.source_product.stock_ready_to_sale if dc else None,
+            'despiece_source_stock': despiece_source_stock,
             'despiece_units_per': float(dc.units_per_source) if dc else None,
         })
     return {
@@ -82,10 +86,38 @@ def _get_despiece_map():
     return dc_map
 
 
-def _product_to_dict(p):
+def _get_despiece_source_stocks():
+    """{source_product_id: ready-to-sale stock} for every despiece source (1 query)."""
+    try:
+        cached = cache.get('pos_despiece_src_stocks')
+        if cached is not None:
+            return cached
+    except Exception:
+        cached = None
+    stocks = dict(
+        Product.objects.filter(granel_conversion_as_source__isnull=False).annotate(
+            s=Count('inventory_units', filter=Q(inventory_units__status='ready_to_sale'))
+        ).values_list('id', 's')
+    )
+    try:
+        cache.set('pos_despiece_src_stocks', stocks, 60)
+    except Exception:
+        pass
+    return stocks
+
+
+def _product_to_dict(p, stock=None, despiece_map=None, src_stocks=None):
     """Enrich a product with price, stock, and despiece info (search/scan shape)."""
-    dc = _get_despiece_map().get(p.id)
+    if despiece_map is None:
+        despiece_map = _get_despiece_map()
+    dc = despiece_map.get(p.id)
     granel_price = p.priceListaGranel if p.priceListaGranel != 'N/A' else None
+    if dc:
+        despiece_source_stock = (src_stocks.get(dc.source_product_id, 0)
+                                 if src_stocks is not None
+                                 else dc.source_product.stock_ready_to_sale)
+    else:
+        despiece_source_stock = None
     return {
         'id': p.id,
         'barcode': p.barcode,
@@ -96,7 +128,7 @@ def _product_to_dict(p):
         'price': float(p.priceLista),
         'price_mayoreo': float(p.priceMayoreo),
         'price_granel': float(granel_price) if granel_price else None,
-        'stock': p.stock_ready_to_sale,
+        'stock': stock if stock is not None else p.stock_ready_to_sale,
         'granel': p.granel,
         'Granel_Item': p.Granel_Item,
         'minimo': p.minimo,
@@ -130,49 +162,107 @@ def pos_index_touch(request):
     }
     return render(request, 'pos/index_touch.html', context)
 
+def _norm_text(s):
+    """Normalize text for search: lowercase + strip accents."""
+    return unicodedata.normalize('NFKD', s or '').encode('ascii', 'ignore').decode('ascii').lower()
+
+
+def _query_words(q):
+    """Split a search query into normalized words (separated by non-alphanumeric chars)."""
+    return [w for w in re.split(r'[^a-z0-9]+', _norm_text(q)) if w]
+
+
+def _product_tokens(p):
+    """Normalized tokens (words) of compose_name (name + brand)."""
+    return [w for w in re.split(r'[^a-z0-9]+', _norm_text(p.compose_name)) if w]
+
+
+def _match_score(tokens, words):
+    """Total score if every word matches a token (exact=3, prefix=2, contains=1).
+    Returns None if any word is missing."""
+    total = 0
+    for word in words:
+        best = 0
+        for tok in tokens:
+            if tok == word:
+                best = 3
+                break
+            if tok.startswith(word):
+                if best < 2:
+                    best = 2
+            elif best == 0 and word in tok:
+                best = 1
+        if best == 0:
+            return None
+        total += best
+    return total
+
+
 @csrf_exempt
 def search_products(request):
-    """Search products. Exact match on name/clave/barcode first; otherwise
-    per-word filter (name, brand, clave, or barcode, all words required)."""
-    if request.method == 'GET':
-        query = request.GET.get('q', '').strip()
-        
-        if not query:
-            products = Product.objects.filter(active=True)[:200]
-        else:
-            # 1) Exact match first: name, clave, or barcode (case-insensitive).
-            #    Return ONLY the exact matches (even if out of stock).
-            exact = Product.objects.filter(active=True).filter(
-                models.Q(name__iexact=query) | models.Q(clave__iexact=query) | models.Q(barcode__iexact=query)
-            )
-            if exact.exists():
-                products_list = list(exact)[:50]
-                results = [_product_to_dict(p) for p in products_list]
-                return JsonResponse(results, safe=False)
-            
-            # 2) Fallback: each word must appear in name, brand, clave, or
-            #    barcode. All words required (AND), order-independent.
-            words = query.split()
-            combined = None
-            for word in words:
-                word_q = models.Q(name__icontains=word) | models.Q(brand__name__icontains=word) \
-                    | models.Q(clave__icontains=word) | models.Q(barcode__icontains=word)
-                combined = word_q if combined is None else (combined & word_q)
-            products = Product.objects.filter(active=True).filter(combined)[:200]
-        
-        # Include products with stock, granel items, or despiece-eligible (even at 0 stock)
+    """Search products.
+    - Single word  -> exact barcode/clave only (no fuzzy, no description fallback).
+    - 2+ words     -> description over compose_name (name + brand): all words
+      required (AND), ranked exact(3) > prefix(2) > contains(1); in-stock
+      first, out-of-stock at the end.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse([], safe=False)
+
+    words = _query_words(query)
+
+    if len(words) <= 1:
+        qs = Product.objects.filter(active=True).filter(
+            Q(barcode__iexact=query) | Q(clave__iexact=query)
+        ).select_related('brand').annotate(
+            stock_annot=Count('inventory_units', filter=Q(inventory_units__status='ready_to_sale'))
+        )[:20]
         despiece_map = _get_despiece_map()
-        products_list = [
-            p for p in products
-            if p.stock_ready_to_sale > 0 or p.Granel_Item or p.id in despiece_map
-        ]
-        products_list.sort(key=lambda p: p.stock_ready_to_sale, reverse=True)
-        products_list = products_list[:50]
-        
-        results = [_product_to_dict(p) for p in products_list]
+        src_stocks = _get_despiece_source_stocks()
+        results = [_product_to_dict(p, stock=p.stock_annot, despiece_map=despiece_map, src_stocks=src_stocks) for p in qs]
         return JsonResponse(results, safe=False)
-    
-    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+    qs = Product.objects.filter(active=True).select_related('brand').annotate(
+        stock_annot=Count('inventory_units', filter=Q(inventory_units__status='ready_to_sale'))
+    )
+    scored = []
+    for p in qs:
+        score = _match_score(_product_tokens(p), words)
+        if score is not None:
+            scored.append((score, p.stock_annot, p.id, p))
+    scored.sort(key=lambda x: (0 if x[1] > 0 else 1, -x[0], -x[1], x[2]))
+    despiece_map = _get_despiece_map()
+    src_stocks = _get_despiece_source_stocks()
+    results = [_product_to_dict(p, stock=p.stock_annot, despiece_map=despiece_map, src_stocks=src_stocks) for _, _, _, p in scored[:50]]
+    return JsonResponse(results, safe=False)
+
+
+@csrf_exempt
+def search_index(request):
+    """Compact catalog of active products for client-side instant search."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    qs = Product.objects.filter(active=True).select_related('brand').annotate(
+        stock_annot=Count('inventory_units', filter=Q(inventory_units__status='ready_to_sale'))
+    )
+    despiece_map = _get_despiece_map()
+    src_stocks = _get_despiece_source_stocks()
+    results = [_product_to_dict(p, stock=p.stock_annot, despiece_map=despiece_map, src_stocks=src_stocks) for p in qs]
+    return JsonResponse(results, safe=False)
+
+
+@csrf_exempt
+def search_stock(request):
+    """Lightweight {id: stock} map for refreshing the client index."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+    qs = Product.objects.filter(active=True).annotate(
+        s=Count('inventory_units', filter=Q(inventory_units__status='ready_to_sale'))
+    ).values_list('id', 's')
+    return JsonResponse(dict(qs))
 
 @csrf_exempt
 def scan_product(request):
@@ -506,9 +596,6 @@ def complete_sale(request):
             return JsonResponse({'error': str(e)}, status=500)
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
-
-# Import models.Q for search
-from django.db import models
 
 
 @csrf_exempt
