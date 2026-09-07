@@ -2,7 +2,8 @@
 set -e
 
 ENV="${1:-local}"
-COMMIT_MSG="${2:-deploy}"
+PORT_ARG="${2:-all}"
+COMMIT_MSG="${3:-deploy}"
 
 case $ENV in
 	local)
@@ -40,30 +41,61 @@ case $ENV in
 		;;
 
 	prod)
-		echo "Starting production deployment..."
+		# ─── Lista explícita de instancias de ESTE proyecto ─────────────
+		# Cada entrada: <puerto>|<carpeta>|<archivo-compose>|<env-file>
+		# El script SOLO toca estas. Otros sistemas del VPS no se tocan.
+		INSTANCES=(
+			"443|.|docker-compose.prod.yml|.env.prod"
+			"8087|clone|clone/docker-compose.clone.yml|clone/.env.clone"
+		)
+
+		# Seleccionar las instancias a actualizar (local, en orden de la lista)
+		SELECTED=()
+		for inst in "${INSTANCES[@]}"; do
+			port="${inst%%|*}"
+			if [ "$PORT_ARG" = "all" ] || [ "$PORT_ARG" = "$port" ]; then
+				SELECTED+=("$inst")
+			fi
+		done
+
+		if [ "${#SELECTED[@]}" -eq 0 ]; then
+			echo "ERROR: puerto '$PORT_ARG' no es una instancia de este proyecto."
+			echo "Puertos válidos: all, 443, 8087"
+			exit 1
+		fi
+
+		echo "Starting production deployment (instancias: ${PORT_ARG})..."
 		git add .
 		git commit -m "$COMMIT_MSG" --allow-empty
 		git push
-		ssh root@5.75.162.179 <<-EOF
-		set -e
-		cd /app
-		if [ ! -d /app/baseleonV2/.git ]; then
-			echo "No .git found — cloning fresh copy..."
-			rm -rf baseleonV2
-			git clone git@github.com:neo1312/baseleonV2.git baseleonV2
-		fi
-		cd /app/baseleonV2
-		git pull
 
-		docker compose -f docker-compose.prod.yml --env-file .env.prod down
+		# Construir el bloque de comandos que se ejecutará en el VPS
+		CMDS="set -e
+if [ ! -d /app/baseleonV2/.git ]; then
+	echo \"No .git found — cloning fresh copy...\"
+	rm -rf /app/baseleonV2
+	git clone git@github.com:neo1312/baseleonV2.git /app/baseleonV2
+fi
+cd /app/baseleonV2
+git pull
+"
+		for inst in "${SELECTED[@]}"; do
+			port="${inst%%|*}"
+			rest="${inst#*|}"
+			dir="${rest%%|*}"
+			rest2="${rest#*|}"
+			compose="${rest2%%|*}"
+			envfile="${rest2#*|}"
+			CMDS+="echo \">>> Updating instancia puerto $port (compose: $compose)...\"
+cd /app/baseleonV2/$dir
+docker compose -f \"$compose\" --env-file \"$envfile\" up --build -d --remove-orphans
+echo \">>> Estado puerto $port:\"
+docker compose -f \"$compose\" ps
+"
+		done
 
-		# Start db first so healthcheck passes before web starts
-		docker compose -f docker-compose.prod.yml --env-file .env.prod up -d db
-
-		# Build and start all services (migration runs inside web entrypoint)
-		docker compose -f docker-compose.prod.yml --env-file .env.prod up --build -d --remove-orphans
-		EOF
-		echo "production deployment completed"
+		ssh root@5.75.162.179 "$CMDS"
+		echo "production deployment completed (instancias: ${PORT_ARG})"
 		;;
 	       *)
 		echo "no valido adios"
