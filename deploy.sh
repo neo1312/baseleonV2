@@ -46,7 +46,7 @@ case $ENV in
 		# El script SOLO toca estas. Otros sistemas del VPS no se tocan.
 		INSTANCES=(
 			"443|.|docker-compose.prod.yml|.env.prod"
-			"8087|clone|clone/docker-compose.clone.yml|clone/.env.clone"
+			"8087|clone|docker-compose.clone.yml|.env.clone"
 		)
 
 		# Seleccionar las instancias a actualizar (local, en orden de la lista)
