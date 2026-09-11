@@ -511,3 +511,50 @@ class PurchaseOrderWorkflowTests(TestCase):
         
         self.assertNotEqual(po1.po_number, po2.po_number)
 
+    def test_create_po_from_manual_merges_duplicate_products(self):
+        """Duplicate product_ids must be merged into a single PO item, not crash"""
+        from scm.po_operations import create_po_from_manual
+
+        po = create_po_from_manual(
+            self.provider,
+            [
+                {'product_id': self.product1.id, 'quantity': 2, 'cost_per_unit': '10.00'},
+                {'product_id': self.product1.id, 'quantity': 3, 'cost_per_unit': '10.00'},
+                {'product_id': self.product2.id, 'quantity': 4, 'cost_per_unit': '8.00'},
+            ],
+            created_by='test_user'
+        )
+
+        self.assertEqual(po.items.count(), 2)
+        item1 = po.items.get(product=self.product1)
+        item2 = po.items.get(product=self.product2)
+        self.assertEqual(item1.ordered_quantity, 5)
+        self.assertEqual(item2.ordered_quantity, 4)
+        self.assertEqual(po.total_items, 9)
+
+    def test_po_upload_csv_confirm_with_duplicate_pv1(self):
+        """Uploading a CSV with the same PV1 twice must create one PO item with summed quantity"""
+        from scm.models import PurchaseOrder
+
+        csv_content = 'pv1,quantity,cost\npv1-101,2,10.00\npv1-101,3,10.00\npv1-102,4,8.00\n'
+        upload = SimpleUploadedFile('order.csv', csv_content.encode('utf-8'), content_type='text/csv')
+
+        client = Client()
+        post_url = reverse('scm:po_upload_csv')
+        self.assertEqual(client.get(post_url).status_code, 200)
+
+        response = client.post(post_url, {'provider_id': self.provider.id, 'csv': upload})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Parsed <strong>2</strong>')
+
+        confirm_response = client.post(reverse('scm:po_upload_csv_confirm'))
+        self.assertEqual(confirm_response.status_code, 302)
+
+        po = PurchaseOrder.objects.latest('id')
+        self.assertEqual(po.items.count(), 2)
+        item1 = po.items.get(product=self.product1)
+        self.assertEqual(item1.ordered_quantity, 5)
+        self.assertEqual(item1.ordered_cost_per_unit, Decimal('10.00'))
+        item2 = po.items.get(product=self.product2)
+        self.assertEqual(item2.ordered_quantity, 4)
+

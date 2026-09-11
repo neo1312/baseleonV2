@@ -106,6 +106,16 @@ def create_po_from_manual(provider, items_data, created_by='system'):
     if not items_data:
         raise ValueError("items_data cannot be empty")
     
+    # Merge duplicate product_ids (one PO item per product is allowed)
+    merged = {}
+    for item_data in items_data:
+        pid = item_data['product_id']
+        if pid in merged:
+            merged[pid]['quantity'] += int(item_data['quantity'])
+        else:
+            merged[pid] = dict(item_data)
+    items_data = list(merged.values())
+    
     with transaction.atomic():
         po = PurchaseOrder.objects.create(
             po_number=create_po_number(),

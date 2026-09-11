@@ -686,7 +686,17 @@ def _parse_po_csv(csv_file, provider):
             'total': quantity * cost,
         })
 
-    return rows, errors
+    # Merge duplicate products (same product_id) — one PO item per product is allowed
+    merged = {}
+    for r in rows:
+        existing = merged.get(r['product_id'])
+        if existing:
+            existing['quantity'] += r['quantity']
+            existing['total'] = existing['quantity'] * existing['cost']
+        else:
+            merged[r['product_id']] = dict(r)
+
+    return list(merged.values()), errors
 
 
 def po_upload_csv_confirm(request):
