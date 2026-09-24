@@ -49,7 +49,7 @@
     </form>
 
     {% if configs %}
-        {% for config, available_stock, dest_stock in configs %}
+        {% for config, available_stock, dest_stock, last_log in configs %}
         <div class="conversion-card p-4 mb-3">
             <div class="row align-items-center">
                 <div class="col-md-4">
@@ -101,6 +101,22 @@
                         </div>
                     </form>
                     <small class="text-muted">→ <span class="dest-qty-preview" data-pk="{{ config.pk }}">{{ config.units_per_source|floatformat:0 }}</span> {{ config.destination_product.get_unidad_display }}</small>
+                    {% if last_log %}
+                    <div class="mt-2 pt-2 border-top">
+                        <small class="text-muted d-block mb-1">
+                            <i class="fas fa-history"></i> Última conversión:
+                            {{ last_log.source_quantity|floatformat:0 }} → {{ last_log.destination_quantity|floatformat:0 }} pz
+                            ({{ last_log.date_created|date:"d/m H:i" }})
+                        </small>
+                        <button type="button" class="btn btn-outline-danger btn-sm btn-revert-despiece"
+                                data-pk="{{ config.pk }}"
+                                data-name="{{ config.source_product.compose_name }}"
+                                data-src-qty="{{ last_log.source_quantity|floatformat:0 }}"
+                                data-dest-qty="{{ last_log.destination_quantity|floatformat:0 }}">
+                            <i class="fas fa-undo mr-1"></i>Revertir última conversión
+                        </button>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -411,6 +427,50 @@ document.querySelectorAll('.btn-despiece').forEach(btn => {
         .finally(() => {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i>Despiece';
+        });
+    });
+});
+
+document.querySelectorAll('.btn-revert-despiece').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const pk = this.dataset.pk;
+        const name = this.dataset.name;
+        const srcQty = this.dataset.srcQty;
+        const destQty = this.dataset.destQty;
+
+        if (!confirm('¿Revertir la última conversión de "' + name + '"?\nSe restaurarán ' + srcQty + ' unidad(es) de origen y se quitarán ' + destQty + ' piezas creadas.')) {
+            return;
+        }
+
+        const body = new URLSearchParams();
+        body.append('config_id', pk);
+        body.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        fetch('{% url "im:despiece_revert" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: body,
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Conversión revertida!\n\nOrigen restaurado: ' + data.source_restored + ' ud(s)\nPiezas removidas: ' + data.dest_removed);
+                location.reload();
+            } else {
+                alert('❌ ' + (data.error || 'Error desconocido'));
+            }
+        })
+        .catch(err => {
+            alert('❌ Error de conexión: ' + err);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-undo mr-1"></i>Revertir última conversión';
         });
     });
 });

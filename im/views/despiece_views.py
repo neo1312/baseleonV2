@@ -31,7 +31,8 @@ def despiece_list(request):
     for config in configs:
         available = config.source_product.stock_ready_to_sale
         dest_stock = config.destination_product.stock_ready_to_sale
-        configs_with_stock.append((config, available, dest_stock))
+        last_log = config.conversion_logs.filter(reverted=False).order_by('-date_created').first()
+        configs_with_stock.append((config, available, dest_stock, last_log))
 
     data = {
         'configs': configs_with_stock,
@@ -105,10 +106,12 @@ def despiece_process(request, pk):
 
     retired_count = 0
     total_source_cost = Decimal('0')
+    retired_tracking_ids = []
     for unit in units_to_retire:
         unit.status = 'retired_converted'
         unit.save()
         retired_count += 1
+        retired_tracking_ids.append(unit.tracking_id)
         if unit.purchase_cost:
             total_source_cost += Decimal(str(unit.purchase_cost))
 
@@ -170,9 +173,12 @@ def despiece_process(request, pk):
     next_num = max_num + 1
 
     dest_units = []
+    dest_tracking_ids = []
     for i in range(actual_dest):
+        tid = f'{config.destination_product_id}-{next_num + i}'
+        dest_tracking_ids.append(tid)
         dest_units.append(InventoryUnit(
-            tracking_id=f'{config.destination_product_id}-{next_num + i}',
+            tracking_id=tid,
             product_id=config.destination_product_id,
             status='ready_to_sale',
             purchase_cost=cost_per_dest_unit,
@@ -187,12 +193,14 @@ def despiece_process(request, pk):
         ))
     InventoryUnit.objects.bulk_create(dest_units)
 
-    # 4. Log the conversion
+    # 4. Log the conversion (with full traceability for revert)
     DespieceLog.objects.create(
         config=config,
         source_quantity=actual_source,
         destination_quantity=actual_dest,
         user=request.user if request.user.is_authenticated else None,
+        source_unit_ids=retired_tracking_ids,
+        destination_unit_ids=dest_tracking_ids,
     )
 
     return JsonResponse({
@@ -385,4 +393,73 @@ def despiece_create(request):
         'name': destination.compose_name,
         'barcode': destination.barcode,
         'bundle_price': float(cost_per_piece),
+    })
+
+
+@login_required
+@role_required('Admin', 'Manager')
+@csrf_exempt
+@transaction.atomic
+def despiece_revert(request):
+    """
+    Revert the last non-reverted conversion of a despiece config.
+    - Restores the retired source units back to 'ready_to_sale'.
+    - Deletes the despiece PurchaseOrder (cascade removes the created destination units).
+    - If any destination piece was sold/converted, it BLOCKS the revert (no changes made).
+    """
+    from im.models import InventoryUnit
+    from scm.models import PurchaseOrder
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        config_id = int(request.POST.get('config_id', 0))
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Configuración inválida'}, status=400)
+
+    config = get_object_or_404(DespieceConfig, pk=config_id)
+
+    log = DespieceLog.objects.filter(config=config, reverted=False).order_by('-date_created').first()
+    if not log:
+        return JsonResponse({'error': 'No hay conversión para revertir'}, status=400)
+
+    source_ids = log.source_unit_ids or []
+    dest_ids = log.destination_unit_ids or []
+
+    dest_units = InventoryUnit.objects.filter(tracking_id__in=dest_ids)
+    if dest_units.exists():
+        non_saleable = dest_units.exclude(status='ready_to_sale')
+        if non_saleable.exists():
+            sold = non_saleable.filter(status='sold').count()
+            others = non_saleable.exclude(status='sold').count()
+            msg = 'No se puede revertir: piezas de la conversión ya vendidas' if sold else \
+                  'No se puede revertir: piezas de la conversión ya modificadas/convertidas'
+            return JsonResponse({'error': msg}, status=400)
+
+    # Restore source units back to saleable inventory
+    restored = 0
+    for unit in InventoryUnit.objects.filter(tracking_id__in=source_ids):
+        if unit.status == 'retired_converted':
+            unit.status = 'ready_to_sale'
+            unit.retired_date = None
+            unit.save()
+            restored += 1
+
+    # Delete the despiece PO (cascade removes its items + the created destination units)
+    dest_unit = dest_units.filter(purchase_order__isnull=False).first()
+    if dest_unit and dest_unit.purchase_order_id:
+        po = PurchaseOrder.objects.filter(pk=dest_unit.purchase_order_id).first()
+        if po:
+            po.delete()
+
+    log.reverted = True
+    log.save()
+
+    return JsonResponse({
+        'success': True,
+        'source_restored': restored,
+        'dest_removed': len(dest_ids),
+        'source_stock': config.source_product.stock_ready_to_sale,
+        'destination_stock': config.destination_product.stock_ready_to_sale,
     })

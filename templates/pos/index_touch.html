@@ -209,6 +209,7 @@
             </div>
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeDespieceModal()">Cancelar</button>
+                <button class="modal-btn warning" id="despiece-revert-btn" onclick="revertLastConversion()">↩️ Revertir última</button>
                 <button class="modal-btn primary" onclick="confirmDespiece()">✓ Convertir</button>
             </div>
         </div>
@@ -230,6 +231,6 @@
     <script>
     const DISPLAY_SESSION_KEY = '{{ session_key|escapejs }}';
     </script>
-    <script src="{% static 'js/pos_touch.js' %}?v=12"></script>
+    <script src="{% static 'js/pos_touch.js' %}?v=13"></script>
 </body>
 </html>

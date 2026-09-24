@@ -413,12 +413,7 @@ function renderSearchResults(items) {
     }
 
     const despieceBtn = p.despiece_config_id
-      ? '<button class="pl-item-despiece" data-despiece=\'' + JSON.stringify({
-          configId: p.despiece_config_id,
-          sourceName: p.despiece_source_name,
-          sourceStock: p.despiece_source_stock,
-          unitsPer: p.despiece_units_per,
-        }) + '\'>📦→</button>'
+      ? '<button class="pl-item-despiece">📦→</button>'
       : '';
 
     const granelTag = p.Granel_Item ? '<span class="pl-item-meta-badge granel">📦 Granel</span>' : '';
@@ -442,10 +437,15 @@ function renderSearchResults(items) {
     // Despiece button handler
     const dpBtn = div.querySelector('.pl-item-despiece');
     if (dpBtn) {
+      const cfg = {
+        configId: p.despiece_config_id,
+        sourceName: p.despiece_source_name,
+        sourceStock: p.despiece_source_stock,
+        unitsPer: p.despiece_units_per,
+      };
       dpBtn.addEventListener('click', function(e) {
         e.stopPropagation();
-        const config = JSON.parse(this.dataset.despiece);
-        openDespieceModal(config);
+        openDespieceModal(cfg);
       });
     }
 
@@ -1294,6 +1294,34 @@ function confirmDespiece() {
   };
   xhr.onerror = function() { showLoading(false); showToast('❌ Network error', 'error'); };
   xhr.send(fd);
+}
+
+// Revert the last conversion of the current despiece config
+function revertLastConversion() {
+  if (!currentDespieceConfig || !currentDespieceConfig.configId) return;
+  const configId = currentDespieceConfig.configId;
+  showConfirm('¿Revertir la última conversión de este despiece?\nSe restaurará el origen y se quitarán las piezas creadas.', function() {
+    showLoading(true);
+    const fd = new FormData();
+    fd.append('config_id', configId);
+    fd.append('csrfmiddlewaretoken', getCSRFToken());
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/im/product/despiece/revert/', true);
+    xhr.onload = function() {
+      showLoading(false);
+      var data = null;
+      try { data = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status >= 200 && xhr.status < 300 && data && data.success) {
+        showToast('✅ Revertido: ' + data.source_restored + ' unidad(es) de origen restaurada(s)', 'success');
+        closeDespieceModal();
+        setTimeout(() => location.reload(), 500);
+      } else {
+        showToast('❌ ' + ((data && data.error) || 'No se pudo revertir'), 'error');
+      }
+    };
+    xhr.onerror = function() { showLoading(false); showToast('❌ Error de conexión', 'error'); };
+    xhr.send(fd);
+  });
 }
 
 // After a conversion, re-fetch the product (now ready to sell) and add it to cart.

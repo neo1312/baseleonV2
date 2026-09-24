@@ -1229,6 +1229,9 @@ class DespieceLog(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, verbose_name='Usuario'
     )
+    source_unit_ids = models.JSONField(default=list, blank=True, verbose_name='Unidades origen retiradas', help_text='Tracking IDs de las unidades del origen retiradas en esta conversión')
+    destination_unit_ids = models.JSONField(default=list, blank=True, verbose_name='Unidades destino creadas', help_text='Tracking IDs de las unidades del destino creadas en esta conversión')
+    reverted = models.BooleanField(default=False, verbose_name='Revertido')
     date_created = models.DateTimeField(auto_now_add=True, verbose_name='Fecha')
 
     def __str__(self):
