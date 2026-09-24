@@ -2,6 +2,8 @@
 {% load static %}
 
 {% block head %}
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2/css/select2.min.css' %}" rel="stylesheet" />
+<link href="{% static 'lib/AdminLTE-3.1.0/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css' %}" rel="stylesheet" />
 <style>
     .conversion-card {
         background: #fff;
@@ -28,6 +30,9 @@
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-exchange-alt mr-2"></i>Despiece de Productos</h2>
+        <button type="button" class="btn btn-success" data-toggle="modal" data-target="#despiece-create-modal">
+            <i class="fas fa-plus mr-1"></i>Crear Despiece (Auto)
+        </button>
     </div>
 
     <!-- Search -->
@@ -112,10 +117,204 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Auto-create despiece modal -->
+<div class="modal fade" id="despiece-create-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-magic mr-2"></i>Crear Despiece (Auto)</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                {% csrf_token %}
+                <div id="dc-create-alert"></div>
+
+                <!-- Step 1: source search -->
+                <div class="mb-4">
+                    <h6 class="text-muted">Paso 1 · Busca el producto ORIGEN (a granel / bulto)</h6>
+                    <select id="dc-source-search" class="form-control" style="width:100%;"></select>
+                    <small class="text-muted">Busca por código de barras, clave o nombre. Se creará automáticamente un nuevo producto
+                        <strong>"{nombre} - GRANEL"</strong> con la misma clave.</small>
+                </div>
+
+                <!-- Step 2: details (hidden until a source is picked) -->
+                <div id="dc-step2" style="display:none;">
+                    <hr>
+                    <h6 class="text-muted">Paso 2 · Configuración del despiece</h6>
+
+                    <div class="card mb-3">
+                        <div class="card-body py-2">
+                            <strong>Origen:</strong> <span id="dc-source-name"></span>
+                            <span class="badge badge-secondary ml-2">Stock: <span id="dc-source-stock">0</span></span>
+                            <br><small class="text-muted">El producto origen no se modifica.</small>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Piezas por unidad de origen</label>
+                        <input type="number" id="dc-units" class="form-control" min="0" step="any" value="1" required>
+                        <small class="text-muted">Ej: 1 bulto → 100 piezas ⇒ ingresa 100</small>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Costo por pieza</label>
+                                <input type="number" id="dc-cost" class="form-control" min="0" step="any" value="0" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Margen % por pieza</label>
+                                <input type="number" id="dc-margin" class="form-control" min="0" step="any" value="0" required>
+                                <small class="text-muted">Ej: 0.35 = 35%</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-light border">
+                        <strong>Se creará:</strong>
+                        <span id="dc-dest-preview"></span> <span class="badge badge-warning">GRANEL</span>
+                        <br>
+                        <small class="text-muted">
+                            Clave igual al origen · Código de barras generado automáticamente ·
+                            Costo de proveedor "Despiece" = costo del origen ÷ piezas por unidad
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" id="dc-submit" class="btn btn-success" disabled>
+                    <i class="fas fa-plus mr-1"></i>Crear Despiece
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block javascrip %}
+<script src="{% static 'lib/AdminLTE-3.1.0/plugins/select2/js/select2.min.js' %}"></script>
 <script>
+// Auto-create despiece wizard
+(function() {
+    var searchEl = document.getElementById('dc-source-search');
+    if (!searchEl || typeof $(searchEl).select2 !== 'function') return;
+
+    var selected = null;
+
+    function setAlert(type, msg) {
+        var box = document.getElementById('dc-create-alert');
+        box.innerHTML = msg ? '<div class="alert alert-' + type + ' py-2">' + msg + '</div>' : '';
+    }
+
+    function updateStep2() {
+        var step2 = document.getElementById('dc-step2');
+        var submit = document.getElementById('dc-submit');
+        if (!selected) {
+            step2.style.display = 'none';
+            submit.disabled = true;
+            return;
+        }
+        step2.style.display = '';
+        submit.disabled = false;
+        document.getElementById('dc-source-name').textContent = selected.name;
+        document.getElementById('dc-source-stock').textContent = selected.stock;
+        var preview = document.getElementById('dc-dest-preview');
+        preview.textContent = selected.name.split(' - GRANEL')[0].split(' (')[0] + ' - GRANEL';
+    }
+
+    $('#dc-source-search').select2({
+        theme: 'bootstrap4',
+        placeholder: 'Código de barras, clave o nombre...',
+        allowClear: true,
+        minimumInputLength: 1,
+        dropdownParent: $('#despiece-create-modal'),
+        ajax: {
+            url: '{% url "im:despiece_source_search" %}',
+            dataType: 'json',
+            delay: 300,
+            data: function(params) { return { q: params.term }; },
+            processResults: function(data) { return { results: data.results || [] }; },
+            cache: true
+        },
+        templateResult: function(product) {
+            if (product.loading) return product.text;
+            return $('<span>' + product.text + '</span>');
+        },
+        templateSelection: function(product) {
+            return product.text || product.id;
+        }
+    });
+
+    $('#dc-source-search').on('select2:select', function(e) {
+        var data = e.params.data;
+        selected = {
+            id: data.id,
+            name: data.name || data.text,
+            clave: data.clave || '',
+            barcode: data.barcode || '',
+            stock: data.stock || 0
+        };
+        setAlert('');
+        updateStep2();
+    }).on('select2:unselect', function() {
+        selected = null;
+        updateStep2();
+    });
+
+    document.getElementById('dc-submit').addEventListener('click', function() {
+        var btn = this;
+        if (!selected) return;
+
+        var units = parseFloat(document.getElementById('dc-units').value);
+        var cost = parseFloat(document.getElementById('dc-cost').value);
+        var margin = parseFloat(document.getElementById('dc-margin').value);
+
+        if (!units || units <= 0) { setAlert('danger', 'Ingresa un número válido de piezas por unidad de origen.'); return; }
+        if (isNaN(cost) || cost < 0) { setAlert('danger', 'Ingresa un costo válido.'); return; }
+        if (isNaN(margin) || margin < 0) { setAlert('danger', 'Ingresa un margen válido.'); return; }
+
+        var body = new URLSearchParams();
+        body.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        body.append('source_product_id', selected.id);
+        body.append('units_per_source', units);
+        body.append('piece_cost', cost);
+        body.append('piece_margin', margin);
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando...';
+        setAlert('');
+
+        fetch('{% url "im:despiece_create" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: body,
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                alert('✅ Despiece creado!\n\nOrigen: ' + selected.name + '\nNuevo: ' + data.name + ' (GRANEL)\nCódigo: ' + data.barcode + '\nCosto proveedor "Despiece": $' + data.bundle_price);
+                location.reload();
+            } else {
+                setAlert('danger', (data.error || 'Error desconocido'));
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-plus mr-1"></i>Crear Despiece';
+            }
+        })
+        .catch(function(err) {
+            setAlert('danger', 'Error de conexión: ' + err);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-plus mr-1"></i>Crear Despiece';
+        });
+    });
+})();
+
 document.querySelectorAll('input[name="source_quantity"]').forEach(input => {
     input.addEventListener('input', function() {
         const pk = this.closest('.conversion-card').querySelector('.btn-despiece').dataset.pk;

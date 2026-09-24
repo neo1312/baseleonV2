@@ -3,8 +3,10 @@ from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
 from decimal import Decimal, ROUND_HALF_UP
-from im.models import Product, DespieceConfig, DespieceLog
+from im.models import Product, DespieceConfig, DespieceLog, ProductProvider
+from crm.decorators import role_required
 
 
 def despiece_list(request):
@@ -198,4 +200,156 @@ def despiece_process(request, pk):
         'source_quantity': float(actual_source),
         'destination_quantity': float(actual_dest),
         'destination_stock': config.destination_product.stock_ready_to_sale,
+    })
+
+
+@login_required
+@role_required('Admin', 'Manager')
+def despiece_source_search(request):
+    """AJAX endpoint to search source products by clave, barcode, or name.
+    Excludes products that already have a DespieceConfig (OneToOne source)."""
+    q = request.GET.get('q', '').strip()
+
+    if len(q) < 1:
+        return JsonResponse({'results': []})
+
+    products = Product.objects.filter(active=True).filter(
+        Q(clave__icontains=q) |
+        Q(barcode__icontains=q) |
+        Q(name__icontains=q)
+    )
+
+    taken_sources = DespieceConfig.objects.values_list(
+        'source_product_id', flat=True
+    )
+    products = products.exclude(id__in=taken_sources)
+    products = products[:20]
+
+    results = []
+    for p in products:
+        label = p.compose_name
+        bits = []
+        if p.clave:
+            bits.append(f'Clave: {p.clave}')
+        if p.barcode:
+            bits.append(f'Código: {p.barcode}')
+        if bits:
+            label += f' ({"; ".join(bits)})'
+        results.append({
+            'id': p.id,
+            'text': label,
+            'clave': p.clave or '',
+            'barcode': p.barcode or '',
+            'stock': p.stock_ready_to_sale,
+        })
+
+    return JsonResponse({'results': results})
+
+
+def _generate_unique_barcode(source, suffix):
+    """Generate a unique barcode for the auto-created product."""
+    base = f'{source.barcode}{suffix}' if source.barcode else f'DESP-{source.id}{suffix}'
+    candidate = base
+    counter = 2
+    while Product.objects.filter(barcode=candidate).exists():
+        candidate = f'{base}-{counter}'
+        counter += 1
+    return candidate
+
+
+@login_required
+@role_required('Admin', 'Manager')
+@csrf_exempt
+@transaction.atomic
+def despiece_create(request):
+    """
+    Create a despiece config and auto-create the destination product
+    (a GRANEL sellable piece) from a source bulk product.
+    Also creates the ProductProvider for the destination linked to the
+    'Despiece' provider with cost calculated from the source.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        source_product_id = int(request.POST.get('source_product_id', 0))
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Producto origen inválido'}, status=400)
+
+    source = get_object_or_404(Product, pk=source_product_id)
+
+    if DespieceConfig.objects.filter(source_product=source).exists():
+        return JsonResponse({
+            'error': f'"{source.compose_name}" ya tiene un despiece configurado.'
+        }, status=400)
+
+    try:
+        units_per_source = Decimal(str(request.POST.get('units_per_source', 0)))
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Unidades por origen inválidas'}, status=400)
+
+    if units_per_source <= 0:
+        return JsonResponse({'error': 'Las unidades por origen deben ser mayores a 0'}, status=400)
+
+    try:
+        piece_cost = Decimal(str(request.POST.get('piece_cost', 0)) or 0)
+        piece_margin = Decimal(str(request.POST.get('piece_margin', 0)) or 0)
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Costo o margen inválidos'}, status=400)
+
+    if piece_cost < 0 or piece_margin < 0:
+        return JsonResponse({'error': 'Costo y margen no pueden ser negativos'}, status=400)
+
+    # 1. Auto-create destination (GRANEL) product
+    destination = Product.objects.create(
+        name=f'{source.name} - GRANEL',
+        clave=source.clave,
+        barcode=_generate_unique_barcode(source, '-G'),
+        active=True,
+        Granel_Item=True,
+        granel=True,
+        minimo=0,
+        costo=piece_cost,
+        margen=str(piece_margin),
+        margenMayoreo=source.margenMayoreo,
+        margenGranel=str(piece_margin),
+        unidad='Pieza',
+        category_id=source.category_id,
+        brand_id=source.brand_id,
+        pricing_mode='margin',
+        mayoreo_pricing_mode='margin',
+        granel_pricing_mode='margin',
+    )
+
+    # 2. Create/update ProductProvider for destination (cost from source)
+    provider = _get_or_create_despiece_provider()
+    source_cost = Decimal(str(source.costo or 0))
+    bundle_price = (source_cost / units_per_source).quantize(
+        Decimal('0.01'), rounding=ROUND_HALF_UP
+    )
+    ProductProvider.objects.update_or_create(
+        product=destination,
+        provider=provider,
+        defaults={
+            'pv1': source.barcode,
+            'bundle_price': bundle_price,
+            'unidad_empaque': '1',
+        }
+    )
+
+    # 3. Create the config (its save() re-runs the same idempotent update_or_create)
+    config = DespieceConfig.objects.create(
+        source_product=source,
+        destination_product=destination,
+        units_per_source=units_per_source,
+        user=request.user if request.user.is_authenticated else None,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'config_id': config.id,
+        'product_id': destination.id,
+        'name': destination.compose_name,
+        'barcode': destination.barcode,
+        'bundle_price': float(bundle_price),
     })

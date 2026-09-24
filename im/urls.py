@@ -11,7 +11,7 @@ from im.views.audit_views import (
 )
 from im.views.scan_views import audit_scan, audit_scan_lookup, audit_scan_save, audit_scan_finish
 from im.views.import_products import import_products_csv_view
-from im.views.despiece_views import despiece_list, despiece_process
+from im.views.despiece_views import despiece_list, despiece_process, despiece_source_search, despiece_create
 from im.views.alarm_views import alarm_list, alarm_skip, alarm_skip_all, alarm_config, alarm_adjust, alarm_delete
 from im.views.group_views import group_list, group_create, group_edit, group_delete, group_product_search, group_add_product, group_remove_product
 
@@ -50,6 +50,8 @@ urlpatterns=[
         # Despiece URLs
         path('product/despiece/', despiece_list, name='despiece_list'),
         path('product/despiece/<int:pk>/process/', despiece_process, name='despiece_process'),
+        path('product/despiece/create/', despiece_create, name='despiece_create'),
+        path('product/despiece/source-search/', despiece_source_search, name='despiece_source_search'),
 
         # Group URLs
         path('group/list', group_list, name='groupList'),
