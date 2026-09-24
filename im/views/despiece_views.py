@@ -241,6 +241,7 @@ def despiece_source_search(request):
             'clave': p.clave or '',
             'barcode': p.barcode or '',
             'stock': p.stock_ready_to_sale,
+            'costo': float(p.costo or 0),
         })
 
     return JsonResponse({'results': results})
@@ -291,14 +292,48 @@ def despiece_create(request):
     if units_per_source <= 0:
         return JsonResponse({'error': 'Las unidades por origen deben ser mayores a 0'}, status=400)
 
-    try:
-        piece_cost = Decimal(str(request.POST.get('piece_cost', 0)) or 0)
-        piece_margin = Decimal(str(request.POST.get('piece_margin', 0)) or 0)
-    except (ValueError, TypeError):
-        return JsonResponse({'error': 'Costo o margen inválidos'}, status=400)
+    # Cost per piece is always auto-calculated from the source bulk cost
+    source_cost = Decimal(str(source.costo or 0))
+    cost_per_piece = (source_cost / units_per_source).quantize(
+        Decimal('0.01'), rounding=ROUND_HALF_UP
+    )
 
-    if piece_cost < 0 or piece_margin < 0:
-        return JsonResponse({'error': 'Costo y margen no pueden ser negativos'}, status=400)
+    # Price or margin: mutually exclusive, exactly one must be provided
+    raw_price = request.POST.get('piece_price', '').strip()
+    raw_margin = request.POST.get('piece_margin', '').strip()
+
+    if raw_price and raw_margin:
+        return JsonResponse({'error': 'Elige solo uno: precio o margen'}, status=400)
+    if not raw_price and not raw_margin:
+        return JsonResponse({'error': 'Especifica precio o margen'}, status=400)
+
+    pricing_mode = 'margin'
+    granel_pricing_mode = 'margin'
+    margen = None
+    margen_granel = None
+    precio_manual = None
+    precio_granel_manual = None
+
+    if raw_price:
+        try:
+            precio = Decimal(str(raw_price))
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Precio inválido'}, status=400)
+        if precio < 0:
+            return JsonResponse({'error': 'El precio no puede ser negativo'}, status=400)
+        pricing_mode = 'price'
+        granel_pricing_mode = 'price'
+        precio_manual = precio
+        precio_granel_manual = precio
+    else:
+        try:
+            margen_val = Decimal(str(raw_margin))
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Margen inválido'}, status=400)
+        if margen_val < 0:
+            return JsonResponse({'error': 'El margen no puede ser negativo'}, status=400)
+        margen = str(margen_val)
+        margen_granel = str(margen_val)
 
     # 1. Auto-create destination (GRANEL) product
     destination = Product.objects.create(
@@ -309,30 +344,28 @@ def despiece_create(request):
         Granel_Item=True,
         granel=True,
         minimo=0,
-        costo=piece_cost,
-        margen=str(piece_margin),
+        costo=cost_per_piece,
+        margen=margen or '0',
         margenMayoreo=source.margenMayoreo,
-        margenGranel=str(piece_margin),
+        margenGranel=margen_granel or '0',
         unidad='Pieza',
         category_id=source.category_id,
         brand_id=source.brand_id,
-        pricing_mode='margin',
+        pricing_mode=pricing_mode,
         mayoreo_pricing_mode='margin',
-        granel_pricing_mode='margin',
+        granel_pricing_mode=granel_pricing_mode,
+        precio_manual=precio_manual,
+        precio_granel_manual=precio_granel_manual,
     )
 
     # 2. Create/update ProductProvider for destination (cost from source)
     provider = _get_or_create_despiece_provider()
-    source_cost = Decimal(str(source.costo or 0))
-    bundle_price = (source_cost / units_per_source).quantize(
-        Decimal('0.01'), rounding=ROUND_HALF_UP
-    )
     ProductProvider.objects.update_or_create(
         product=destination,
         provider=provider,
         defaults={
             'pv1': source.barcode,
-            'bundle_price': bundle_price,
+            'bundle_price': cost_per_piece,
             'unidad_empaque': '1',
         }
     )
@@ -351,5 +384,5 @@ def despiece_create(request):
         'product_id': destination.id,
         'name': destination.compose_name,
         'barcode': destination.barcode,
-        'bundle_price': float(bundle_price),
+        'bundle_price': float(cost_per_piece),
     })
