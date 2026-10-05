@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'im.apps.ImConfig',
     'crm.apps.CrmConfig',
     'statModul.apps.StatmodulConfig',
+    'pos.apps.PosConfig',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -128,6 +129,15 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 
 # ─── Misc ──────────────────────────────────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ─── Printing ──────────────────────────────────────────────────────
+# Name shown on printed tickets/labels (per instance).
+STORE_NAME = os.getenv('STORE_NAME', 'Ferreteria Leon')
+# Shared secret required by the tablet print-bridge on queue endpoints.
+# Leave empty to disable the check (not recommended in production).
+PRINT_API_TOKEN = os.getenv('PRINT_API_TOKEN', '')
+# Seconds before a queued job is considered stale.
+PRINT_TTL_SECONDS = int(os.getenv('PRINT_TTL_SECONDS', '300'))
 
 # Barcode scanner WebSocket bridge
 CACHES = {

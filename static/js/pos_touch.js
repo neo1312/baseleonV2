@@ -1196,7 +1196,7 @@ function doPrintTicket() {
   showToast('🖶 Printing ticket...', 'success');
   const ticketTypeMap = { sale: 'sale', devolucion: 'devolution', cotizacion: 'quote' };
   const ticketType = ticketTypeMap[currentMode] || 'sale';
-  fetch('/pos/queue-print/', {
+  fetch('/pos/print-jobs/', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({sale_id: window.lastSaleId, ticket_type: ticketType})

@@ -344,9 +344,6 @@ def saleLast(request):
        return HttpResponse('We had some errors <pre>' + html + '</pre>')
     return response
 
-def print_ticket_view(request, pk):
-    return render(request, "sale/print_termal.html", {"sale_id": pk})
-
 
 @csrf_exempt
 def saleItemUpdateQuantity(request):

@@ -25,9 +25,11 @@ urlpatterns = [
     path('scan/', views.scan_product, name='scan'),
     path('scanner-push/', views.scanner_push, name='scanner_push'),
     path('scanner-poll/', views.scanner_poll, name='scanner_poll'),
-    path('print-ticket/', views.print_ticket, name='print_ticket'),
-    path('queue-print/', views.queue_print, name='queue_print'),
-    path('get-pending-prints/', views.get_pending_prints, name='get_pending_prints'),
-    path('ack-print/<str:job_id>/', views.ack_print, name='ack_print'),
+    path('print-jobs/', views.create_print_job, name='create_print_job'),
+    path('print-jobs/pending/', views.pending_print_jobs, name='pending_print_jobs'),
+    path('print-jobs/<int:job_id>/bytes/', views.print_job_bytes, name='print_job_bytes'),
+    path('print-jobs/<int:job_id>/ack/', views.ack_print_job, name='ack_print_job'),
+    path('print-jobs/<int:job_id>/fail/', views.fail_print_job, name='fail_print_job'),
+    path('label/', views.label_page, name='label'),
 ]
 

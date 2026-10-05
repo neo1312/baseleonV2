@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Etiquetas - {{ store_name }}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f0f0f0;color:#333;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;justify-content:center;padding:16px;min-height:100dvh}
+.container{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px}
+.header{background:#fff;border-radius:10px;padding:16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.header h1{font-size:1.2rem;color:#444;font-weight:600}
+.header p{font-size:.8rem;color:#999;margin-top:4px}
+.card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;flex-direction:column;gap:12px}
+label{font-size:.85rem;color:#666;font-weight:500}
+input[type=text],input[type=number]{width:100%;padding:14px;font-size:1.2rem;border:1px solid #ccc;border-radius:8px;background:#fafafa;color:#333;outline:none}
+input:focus{border-color:#888;background:#fff}
+.hint{font-size:.75rem;color:#999}
+.btn{width:100%;padding:14px;font-size:1.05rem;border:none;border-radius:8px;cursor:pointer;color:#fff;font-weight:600}
+.btn-print{background:#2a7a4a}
+.btn-test{background:#777}
+.btn:active{opacity:.85}
+.row{display:flex;gap:10px}
+.row .btn{flex:1}
+#feedback{padding:12px;border-radius:8px;text-align:center;font-weight:600;font-size:.95rem;display:none}
+#feedback.ok{background:#d4edda;color:#155724;display:block}
+#feedback.err{background:#f8d7da;color:#721c24;display:block}
+.footer{text-align:center;font-size:.75rem;color:#aaa}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>{{ store_name }}</h1>
+    <p>Impresion de codigos de barras (58mm)</p>
+  </div>
+  <div class="card">
+    <label for="value">Numero del codigo de barras</label>
+    <input type="text" id="value" inputmode="numeric" autocomplete="off" placeholder="Ej. 812021">
+    <label for="copies">Etiquetas a imprimir</label>
+    <input type="number" id="copies" value="1" min="1" max="200">
+    <div class="row">
+      <button class="btn btn-print" onclick="printLabel(false)">Imprimir etiqueta</button>
+    </div>
+    <button class="btn btn-test" onclick="printLabel(true)">Hoja en blanco (test)</button>
+    <div id="feedback"></div>
+    <div class="hint">La impresora se conecta sola desde la app de la tablet. No cierres esta pagina de inmediato.</div>
+  </div>
+  <div class="footer">Ferreteria - Sistema de etiquetas</div>
+</div>
+<script>
+function showFeedback(msg, ok) {
+  var el = document.getElementById('feedback');
+  el.textContent = msg;
+  el.className = ok ? 'ok' : 'err';
+}
+function printLabel(blank) {
+  var value = document.getElementById('value').value.trim();
+  var copies = parseInt(document.getElementById('copies').value) || 1;
+  if (!blank && !value) { showFeedback('Ingresa el numero del codigo', false); return; }
+  if (!blank && !/^[0-9]+$/.test(value)) { showFeedback('Solo se permiten digitos', false); return; }
+  fetch('/pos/print-jobs/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({job_type: 'label', value: value, copies: copies, blank: blank})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.success) { showFeedback('Etiqueta enviada a la cola (# ' + d.job_id + ')', true); }
+    else { showFeedback('Error: ' + (d.error || 'desconocido'), false); }
+  })
+  .catch(function(err) { showFeedback('Error de red: ' + err.message, false); });
+}
+</script>
+</body>
+</html>

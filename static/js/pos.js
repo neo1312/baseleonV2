@@ -977,7 +977,7 @@ function confirmCheckout() {
 
             // Queue print job for all modes
             const ticketTypeMap = { sale: 'sale', devolucion: 'devolution', cotizacion: 'quote' };
-            fetch('/pos/queue-print/', {
+            fetch('/pos/print-jobs/', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({sale_id: data.sale_id, ticket_type: ticketTypeMap[currentMode] || 'sale'})

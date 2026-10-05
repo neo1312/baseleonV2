@@ -1,11 +1,13 @@
+import base64
+import hmac
 import json
 import re
 import time
 import os
 import unicodedata
+from datetime import timedelta
 from decimal import Decimal
 
-import requests
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -19,6 +21,8 @@ from crm.models import Sale, saleItem, Client, Devolution, devolutionItem, Quote
 from django.utils import timezone
 from django.db import transaction
 from crm.decorators import role_required
+from pos.models import PrintJob
+from pos import printing
 
 def _get_pos_context(request):
     """Shared helper to build POS context data."""
@@ -845,119 +849,225 @@ def customer_display(request):
         'sk': sk or '',
     })
 
+# ─── Print queue (tablet Bluetooth bridge) ─────────────────────────
+
+def _print_token_ok(request):
+    required = getattr(settings, 'PRINT_API_TOKEN', '') or ''
+    if not required:
+        return True
+    supplied = request.headers.get('X-Print-Token', '') or ''
+    return hmac.compare_digest(supplied, required)
+
+
+def _ticket_json_for(ticket_type, pk):
+    """Same shape as the crm *_ticket_json endpoints, for server-side formatting."""
+    if ticket_type == 'sale':
+        obj = Sale.objects.get(id=pk)
+        items = obj.saleitem_set.all()
+        return {
+            'sale_id': obj.id,
+            'total': float(obj.total_amount),
+            'client': obj.client.name if obj.client else 'Público en general',
+            'date': obj.date_created,
+            'items': [
+                {
+                    'name': i.product.compose_name if i.product else 'Deleted Product',
+                    'price': float(i.price),
+                    'quantity': float(i.quantity),
+                    'item_total': float(i.price) * float(i.quantity),
+                }
+                for i in items
+            ],
+        }
+    if ticket_type == 'quote':
+        obj = Quote.objects.get(id=pk)
+        items = obj.quoteitem_set.all()
+        return {
+            'sale_id': obj.id,
+            'total': float(obj.get_cart_total),
+            'client': obj.client.name if obj.client else 'Público en general',
+            'date': obj.date_created,
+            'items': [
+                {
+                    'name': i.product.compose_name if i.product else 'Deleted Product',
+                    'price': float(i.precioUnitario),
+                    'quantity': float(i.quantity),
+                    'item_total': float(i.get_total),
+                }
+                for i in items
+            ],
+        }
+    if ticket_type == 'devolution':
+        obj = Devolution.objects.get(id=pk)
+        items = obj.devolutionitem_set.all()
+        return {
+            'sale_id': obj.id,
+            'total': float(obj.get_cart_total),
+            'client': obj.client.name if obj.client else 'Público en general',
+            'date': obj.date_created,
+            'items': [
+                {
+                    'name': i.product.compose_name if i.product else 'Deleted Product',
+                    'price': float(i.precioUnitario),
+                    'quantity': float(i.quantity),
+                    'item_total': float(i.get_total),
+                }
+                for i in items
+            ],
+        }
+    raise ValueError('invalid ticket_type')
+
+
+def _serialize_job(job):
+    """Return (filename, base64 ESC/POS bytes) for a job."""
+    if job.job_type == PrintJob.JOB_TICKET:
+        data = _ticket_json_for(job.ticket_type, job.ref_id)
+        raw = printing.build_ticket_bytes(data, job.ticket_type)
+        filename = 'ticket_{}_{}.bin'.format(job.ticket_type, job.ref_id)
+    else:
+        raw = printing.build_label_bytes(job.value, job.copies, job.blank)
+        filename = 'label_{}.bin'.format(job.value or 'blank')
+    return filename, base64.b64encode(raw).decode('ascii')
+
+
 @csrf_exempt
-def print_ticket(request):
-    """Proxy print request to the local thermal printer server."""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            printer_url = 'http://192.168.1.100:5000/print'
-            resp = requests.post(printer_url, json=data, timeout=10)
-            return JsonResponse(resp.json())
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
-    return JsonResponse({'error': 'Invalid method'}, status=405)
-
-PRINT_TTL_SECONDS = 120
-PRINT_QUEUE_DIR = os.path.join(getattr(settings, 'BASE_DIR', '/tmp'), '.print_queue')
-
-
-def _print_queue_dir():
-    """Return a writable directory for the print queue (BASE_DIR, then /tmp)."""
-    for base in (getattr(settings, 'BASE_DIR', '/tmp'), '/tmp'):
-        path = os.path.join(base, '.print_queue')
-        try:
-            os.makedirs(path, exist_ok=True)
-            probe = os.path.join(path, '.write_test')
-            with open(probe, 'w') as f:
-                f.write('1')
-            os.remove(probe)
-            return path
-        except OSError:
-            continue
-    return os.path.join('/tmp', '.print_queue')
-
-
-def _load_pending_ids():
+def create_print_job(request):
+    """Queue a ticket or label. Called by the browser (same-origin)."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid method'}, status=405)
     try:
-        with open(os.path.join(_print_queue_dir(), 'pending.json')) as f:
-            ids = json.load(f)
-        return [i for i in ids if isinstance(i, str)]
-    except (OSError, json.JSONDecodeError):
-        return []
+        data = json.loads(request.body or '{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-
-def _save_pending_ids(ids):
-    with open(os.path.join(_print_queue_dir(), 'pending.json'), 'w') as f:
-        json.dump(ids, f)
-
-
-@csrf_exempt
-def queue_print(request):
-    """Queue a print job. Browser calls this (same-origin, no CORS issues)."""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
+    job_type = data.get('job_type') or ('ticket' if data.get('sale_id') else 'label')
+    try:
+        if job_type == PrintJob.JOB_TICKET:
             sale_id = data.get('sale_id')
             ticket_type = data.get('ticket_type', 'sale')
-            if not sale_id:
+            if sale_id in (None, ''):
                 return JsonResponse({'error': 'sale_id required'}, status=400)
-            job_id = 'print_{}_{}_{}'.format(ticket_type, int(time.time()), sale_id)
-            with open(os.path.join(_print_queue_dir(), job_id + '.json'), 'w') as f:
-                json.dump({'sale_id': sale_id, 'ticket_type': ticket_type, 'ts': time.time()}, f)
-            pending = _load_pending_ids()
-            if job_id not in pending:
-                pending.append(job_id)
-            _save_pending_ids(pending)
-            return JsonResponse({'success': True, 'job_id': job_id})
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
-    return JsonResponse({'error': 'Invalid method'}, status=405)
+            if ticket_type not in printing.TICKET_LABELS:
+                return JsonResponse({'error': 'invalid ticket_type'}, status=400)
+            job = PrintJob.objects.create(
+                job_type=PrintJob.JOB_TICKET,
+                ticket_type=ticket_type,
+                ref_id=int(sale_id),
+            )
+        elif job_type == PrintJob.JOB_LABEL:
+            value = str(data.get('value', '')).strip()
+            blank = bool(data.get('blank', False))
+            if not value and not blank:
+                return JsonResponse({'error': 'value required'}, status=400)
+            copies = int(data.get('copies', 1) or 1)
+            job = PrintJob.objects.create(
+                job_type=PrintJob.JOB_LABEL,
+                value=value,
+                copies=max(1, copies),
+                blank=blank,
+            )
+        else:
+            return JsonResponse({'error': 'invalid job_type'}, status=400)
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'invalid payload'}, status=400)
 
-def get_pending_prints(request):
-    """Return pending print jobs. Polled by the local printer server."""
-    pending = _load_pending_ids()
-    now = time.time()
-    jobs = []
-    clean = []
-    for job_id in pending:
-        job_path = os.path.join(_print_queue_dir(), job_id + '.json')
-        try:
-            with open(job_path) as f:
-                job = json.load(f)
-        except (OSError, json.JSONDecodeError):
-            continue
-        # Drop jobs older than the TTL (same expiry as the old cache)
-        if now - job.get('ts', 0) > PRINT_TTL_SECONDS:
-            try:
-                os.remove(job_path)
-            except OSError:
-                pass
-            continue
-        job['job_id'] = job_id
-        if 'ticket_type' not in job:
-            parts = job_id.split('_')
-            job['ticket_type'] = parts[1] if len(parts) >= 4 and parts[0] == 'print' else 'sale'
-        jobs.append(job)
-        clean.append(job_id)
-    if clean != pending:
-        _save_pending_ids(clean)
-    return JsonResponse(jobs, safe=False)
+    return JsonResponse({'success': True, 'job_id': job.id})
+
 
 @csrf_exempt
-def ack_print(request, job_id):
-    """Mark a print job as completed. Called by the printer server."""
-    if request.method == 'POST':
-        pending = _load_pending_ids()
-        if job_id in pending:
-            pending.remove(job_id)
-            _save_pending_ids(pending)
+def pending_print_jobs(request):
+    """Atomically claim pending jobs and return them with ESC/POS bytes."""
+    if not _print_token_ok(request):
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid method'}, status=405)
+
+    ttl = getattr(settings, 'PRINT_TTL_SECONDS', 300)
+    cutoff = timezone.now() - timedelta(seconds=ttl)
+    with transaction.atomic():
+        PrintJob.objects.filter(
+            status=PrintJob.STATUS_PENDING, created_at__lt=cutoff
+        ).update(status=PrintJob.STATUS_FAILED, error='expired')
+        jobs = list(
+            PrintJob.objects.select_for_update()
+            .filter(status=PrintJob.STATUS_PENDING)
+            .order_by('created_at')[:10]
+        )
+        now = timezone.now()
+        for job in jobs:
+            job.status = PrintJob.STATUS_PROCESSING
+            job.claimed_at = now
+            job.save(update_fields=['status', 'claimed_at', 'updated_at'])
+
+    result = []
+    for job in jobs:
         try:
-            os.remove(os.path.join(_print_queue_dir(), job_id + '.json'))
-        except OSError:
-            pass
-        return JsonResponse({'success': True})
-    return JsonResponse({'error': 'Invalid method'}, status=405)
+            filename, data_b64 = _serialize_job(job)
+        except Exception as e:
+            job.status = PrintJob.STATUS_FAILED
+            job.error = str(e)
+            job.save(update_fields=['status', 'error', 'updated_at'])
+            continue
+        result.append({
+            'job_id': job.id,
+            'job_type': job.job_type,
+            'ticket_type': job.ticket_type,
+            'filename': filename,
+            'data_b64': data_b64,
+        })
+    return JsonResponse(result, safe=False)
+
+
+@csrf_exempt
+def print_job_bytes(request, job_id):
+    """Return ESC/POS bytes for a single job (optional direct fetch)."""
+    if not _print_token_ok(request):
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+    try:
+        job = PrintJob.objects.get(id=job_id)
+    except PrintJob.DoesNotExist:
+        return JsonResponse({'error': 'not found'}, status=404)
+    try:
+        filename, data_b64 = _serialize_job(job)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'filename': filename, 'data_b64': data_b64})
+
+
+@csrf_exempt
+def ack_print_job(request, job_id):
+    if not _print_token_ok(request):
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid method'}, status=405)
+    PrintJob.objects.filter(id=job_id).update(status=PrintJob.STATUS_DONE)
+    return JsonResponse({'success': True})
+
+
+@csrf_exempt
+def fail_print_job(request, job_id):
+    if not _print_token_ok(request):
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid method'}, status=405)
+    error = ''
+    retry = False
+    try:
+        data = json.loads(request.body or '{}')
+        error = str(data.get('error', ''))[:1000]
+        retry = bool(data.get('retry', False))
+    except (ValueError, TypeError):
+        pass
+    status = PrintJob.STATUS_PENDING if retry else PrintJob.STATUS_FAILED
+    PrintJob.objects.filter(id=job_id).update(status=status, error=error)
+    return JsonResponse({'success': True, 'status': status})
+
+
+def label_page(request):
+    """Page to queue barcode labels (same 58mm printer)."""
+    return render(request, 'pos/label.html', {
+        'store_name': getattr(settings, 'STORE_NAME', 'Ferreteria Leon'),
+    })
 
 
 
