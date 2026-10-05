@@ -1075,10 +1075,46 @@ def fail_print_job(request, job_id):
 
 
 def label_page(request):
-    """Page to queue barcode labels (same 58mm printer)."""
+    """Page to generate a barcode label sheet PDF."""
     return render(request, 'pos/label.html', {
         'store_name': getattr(settings, 'STORE_NAME', 'Ferreteria Leon'),
     })
+
+
+@csrf_exempt
+def label_pdf(request):
+    """Generate and download the barcode label sheet (PDF file)."""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body or '{}')
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    else:
+        data = request.GET
+
+    blank = str(data.get('blank', '')).lower() in ('1', 'true', 'on', 'yes')
+    number = str(data.get('number', '')).strip()
+    if not blank:
+        if not number:
+            return JsonResponse({'error': 'Numero requerido'}, status=400)
+        if not number.isdigit():
+            return JsonResponse({'error': 'El numero debe contener solo digitos'}, status=400)
+
+    try:
+        sheets = int(data.get('sheets', 1) or 1)
+        if sheets < 1:
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Hojas debe ser un entero >= 1'}, status=400)
+
+    try:
+        buf = printing.generate_barcode_pdf(number, sheets, blank=blank)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+    filename = 'test_blanco_s16986.pdf' if blank else 'codigo_{}_s16986.pdf'.format(number)
+    return FileResponse(buf, as_attachment=True, filename=filename,
+                        content_type='application/pdf')
 
 
 def ticket_page(request):

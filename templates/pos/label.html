@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
-<title>Etiquetas - {{ store_name }}</title>
+<title>Códigos de Barras - {{ store_name }}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#f0f0f0;color:#333;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;justify-content:center;padding:16px;min-height:100dvh}
@@ -15,13 +15,14 @@ body{background:#f0f0f0;color:#333;font-family:-apple-system,BlinkMacSystemFont,
 label{font-size:.85rem;color:#666;font-weight:500}
 input[type=text],input[type=number]{width:100%;padding:14px;font-size:1.2rem;border:1px solid #ccc;border-radius:8px;background:#fafafa;color:#333;outline:none}
 input:focus{border-color:#888;background:#fff}
+input.small{width:100px;font-size:1rem;padding:10px 14px}
 .hint{font-size:.75rem;color:#999}
-.btn{width:100%;padding:14px;font-size:1.05rem;border:none;border-radius:8px;cursor:pointer;color:#fff;font-weight:600}
-.btn-print{background:#2a7a4a}
-.btn-test{background:#777}
+.toggle-row{display:flex;align-items:center;gap:10px;padding:4px 0}
+.toggle-row input[type=checkbox]{width:20px;height:20px;accent-color:#2a7a4a;cursor:pointer}
+.toggle-row label{cursor:pointer;user-select:none}
+.btn{width:100%;padding:14px;font-size:1.1rem;border:none;border-radius:8px;cursor:pointer;color:#fff;font-weight:600;background:#2a7a4a}
 .btn:active{opacity:.85}
-.row{display:flex;gap:10px}
-.row .btn{flex:1}
+.btn:disabled{opacity:.4;cursor:not-allowed}
 #feedback{padding:12px;border-radius:8px;text-align:center;font-weight:600;font-size:.95rem;display:none}
 #feedback.ok{background:#d4edda;color:#155724;display:block}
 #feedback.err{background:#f8d7da;color:#721c24;display:block}
@@ -32,21 +33,25 @@ input:focus{border-color:#888;background:#fff}
 <div class="container">
   <div class="header">
     <h1>{{ store_name }}</h1>
-    <p>Impresion de codigos de barras (58mm)</p>
+    <p>Generador de hojas de códigos de barras (PDF)</p>
   </div>
   <div class="card">
-    <label for="value">Numero del codigo de barras</label>
-    <input type="text" id="value" inputmode="numeric" autocomplete="off" placeholder="Ej. 812021">
-    <label for="copies">Etiquetas a imprimir</label>
-    <input type="number" id="copies" value="1" min="1" max="200">
-    <div class="row">
-      <button class="btn btn-print" onclick="printLabel(false)">Imprimir etiqueta</button>
+    <label for="bc_number">Número del código de barras</label>
+    <input type="text" id="bc_number" placeholder="Ej: 123456" inputmode="numeric" autocomplete="off">
+    <div class="toggle-row">
+      <input type="checkbox" id="bc_blank">
+      <label for="bc_blank">Hoja en blanco (solo bordes, test)</label>
     </div>
-    <button class="btn btn-test" onclick="printLabel(true)">Hoja en blanco (test)</button>
+    <label for="bc_sheets">Cantidad de hojas</label>
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="number" class="small" id="bc_sheets" value="1" min="1">
+      <span class="hint">224 etiquetas / hoja</span>
+    </div>
+    <button class="btn" id="barcodeBtn" onclick="downloadBarcode()">📥 Generar PDF</button>
     <div id="feedback"></div>
-    <div class="hint">La impresora se conecta sola desde la app de la tablet. No cierres esta pagina de inmediato.</div>
+    <div class="hint">El PDF se descarga; se imprime en una impresora normal (hoja de etiquetas).</div>
   </div>
-  <div class="footer">Ferreteria - Sistema de etiquetas</div>
+  <div class="footer">Ferretería - Sistema de etiquetas</div>
 </div>
 <script>
 function showFeedback(msg, ok) {
@@ -54,22 +59,41 @@ function showFeedback(msg, ok) {
   el.textContent = msg;
   el.className = ok ? 'ok' : 'err';
 }
-function printLabel(blank) {
-  var value = document.getElementById('value').value.trim();
-  var copies = parseInt(document.getElementById('copies').value) || 1;
-  if (!blank && !value) { showFeedback('Ingresa el numero del codigo', false); return; }
-  if (!blank && !/^[0-9]+$/.test(value)) { showFeedback('Solo se permiten digitos', false); return; }
-  fetch('/pos/print-jobs/', {
+function downloadBarcode() {
+  var blank = document.getElementById('bc_blank').checked;
+  var num = '';
+  if (!blank) {
+    num = document.getElementById('bc_number').value.trim();
+    if (!num) { showFeedback('Ingresa un número', false); return; }
+    if (!/^\d+$/.test(num)) { showFeedback('Solo dígitos permitidos', false); return; }
+  }
+  var sheets = parseInt(document.getElementById('bc_sheets').value) || 1;
+  if (sheets < 1) { showFeedback('Hojas debe ser >= 1', false); return; }
+  var btn = document.getElementById('barcodeBtn');
+  btn.disabled = true;
+  btn.textContent = 'Generando...';
+  fetch('/pos/label-pdf/', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({job_type: 'label', value: value, copies: copies, blank: blank})
+    body: JSON.stringify({number: num, sheets: sheets, blank: blank})
   })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (d.success) { showFeedback('Etiqueta enviada a la cola (# ' + d.job_id + ')', true); }
-    else { showFeedback('Error: ' + (d.error || 'desconocido'), false); }
+  .then(function(r) {
+    if (!r.ok) { return r.json().then(function(d) { throw new Error(d.error || 'Error al generar'); }); }
+    return r.blob();
   })
-  .catch(function(err) { showFeedback('Error de red: ' + err.message, false); });
+  .then(function(blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = blank ? 'test_blanco_s16986.pdf' : ('codigo_' + num + '_s16986.pdf');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showFeedback('PDF generado exitosamente', true);
+  })
+  .catch(function(e) { showFeedback('Error: ' + e.message, false); })
+  .finally(function() { btn.disabled = false; btn.textContent = '📥 Generar PDF'; });
 }
 </script>
 </body>

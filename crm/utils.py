@@ -201,7 +201,7 @@ ADDONS_SECTION = {
     'category': 'Addons',
     'items': [
         {'title': 'Descargar APK Impresora', 'description': 'App para la tablet (Bluetooth)', 'icon': '📲', 'url': '/pos/download-apk/', 'color': '#2A7A4A'},
-        {'title': 'Imprimir Etiquetas', 'description': 'Códigos de barras 58mm', 'icon': '🏷️', 'url': '/pos/label/', 'color': '#0F766E'},
+        {'title': 'Generar Etiquetas PDF', 'description': 'Hoja de códigos de barras', 'icon': '🏷️', 'url': '/pos/label/', 'color': '#0F766E'},
         {'title': 'Imprimir Tickets', 'description': 'Reimpresión de ticket por ID', 'icon': '🧾', 'url': '/pos/ticket/', 'color': '#1D4ED8'},
     ],
 }
