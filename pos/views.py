@@ -1081,4 +1081,11 @@ def label_page(request):
     })
 
 
+def ticket_page(request):
+    """Page to reprint a ticket by ID (sale / quote / devolution)."""
+    return render(request, 'pos/ticket.html', {
+        'store_name': getattr(settings, 'STORE_NAME', 'Ferreteria Leon'),
+    })
+
+
 
