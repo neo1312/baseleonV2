@@ -33,5 +33,6 @@ urlpatterns = [
     path('print-jobs/<int:job_id>/fail/', views.fail_print_job, name='fail_print_job'),
     path('label/', views.label_page, name='label'),
     path('ticket/', views.ticket_page, name='ticket'),
+    path('download-apk/', views.download_apk, name='download_apk'),
 ]
 

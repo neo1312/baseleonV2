@@ -9,7 +9,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, FileResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.contrib.sessions.models import Session
@@ -1086,6 +1086,19 @@ def ticket_page(request):
     return render(request, 'pos/ticket.html', {
         'store_name': getattr(settings, 'STORE_NAME', 'Ferreteria Leon'),
     })
+
+
+def download_apk(request):
+    """Serve the tablet print-bridge APK bundled with the project."""
+    path = os.path.join(settings.BASE_DIR, 'static', 'downloads', 'ferre-impresora.apk')
+    if not os.path.exists(path):
+        return JsonResponse({'error': 'APK not available'}, status=404)
+    return FileResponse(
+        open(path, 'rb'),
+        as_attachment=True,
+        filename='ferre-impresora.apk',
+        content_type='application/vnd.android.package-archive',
+    )
 
 
 
