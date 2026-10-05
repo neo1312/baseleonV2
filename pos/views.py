@@ -1035,6 +1035,17 @@ def print_job_bytes(request, job_id):
 
 
 @csrf_exempt
+def print_ping(request):
+    """Lightweight connectivity/auth check for the tablet bridge."""
+    if not _print_token_ok(request):
+        return JsonResponse({'error': 'unauthorized'}, status=401)
+    return JsonResponse({
+        'ok': True,
+        'store': getattr(settings, 'STORE_NAME', 'Ferreteria Leon'),
+    })
+
+
+@csrf_exempt
 def ack_print_job(request, job_id):
     if not _print_token_ok(request):
         return JsonResponse({'error': 'unauthorized'}, status=401)

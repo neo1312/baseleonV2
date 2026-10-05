@@ -12,6 +12,7 @@ import java.security.cert.X509Certificate
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
@@ -25,8 +26,16 @@ import javax.net.ssl.X509TrustManager
 class Api(context: Context, baseUrl: String, private val token: String) {
 
     private val appContext = context.applicationContext
-    private val baseUrl = baseUrl.trim().trimEnd('/')
+    private val baseUrl = normalize(baseUrl)
     private val sslContext: SSLContext? by lazy { buildSslContext() }
+
+    private fun normalize(raw: String): String {
+        var u = raw.trim().trimEnd('/')
+        if (u.isNotEmpty() && !u.startsWith("http://") && !u.startsWith("https://")) {
+            u = "https://$u"
+        }
+        return u
+    }
 
     private fun loadBundledCert(): X509Certificate? = try {
         val cf = CertificateFactory.getInstance("X.509")
@@ -60,7 +69,8 @@ class Api(context: Context, baseUrl: String, private val token: String) {
 
         val combined = object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-                defaultTm?.checkClientTrusted(chain, authType)
+                val c = chain ?: throw CertificateException("empty chain")
+                defaultTm?.checkClientTrusted(c, authType)
             }
 
             override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
@@ -78,7 +88,7 @@ class Api(context: Context, baseUrl: String, private val token: String) {
         }
 
         return SSLContext.getInstance("TLS").apply {
-            init(null, arrayOf<X509TrustManager>(combined), null)
+            init(null, arrayOf<TrustManager>(combined), null)
         }
     }
 
@@ -102,6 +112,22 @@ class Api(context: Context, baseUrl: String, private val token: String) {
         val conn = open("/pos/print-jobs/pending/", "GET")
         return try {
             conn.inputStream.bufferedReader().use { JSONArray(it.readText()) }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /** Connectivity/auth check. Returns the store name on success, throws otherwise. */
+    fun ping(): String {
+        val conn = open("/pos/print-jobs/ping/", "GET")
+        return try {
+            val code = conn.responseCode
+            if (code in 200..299) {
+                conn.inputStream?.bufferedReader()?.use { it.readText() } ?: ""
+            } else {
+                val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                throw IllegalStateException("HTTP $code $err")
+            }
         } finally {
             conn.disconnect()
         }

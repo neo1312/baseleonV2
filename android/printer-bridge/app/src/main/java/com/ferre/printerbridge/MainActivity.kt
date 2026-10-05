@@ -8,7 +8,8 @@ import android.bluetooth.BluetoothDevice
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.view.Gravity
+import android.os.Handler
+import android.os.Looper
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -33,6 +34,14 @@ class MainActivity : Activity() {
     private val pairedDevices = mutableListOf<BluetoothDevice>()
     private var pendingPermissions = false
 
+    private val handler = Handler(Looper.getMainLooper())
+    private val statusTick = object : Runnable {
+        override fun run() {
+            refreshStatus()
+            handler.postDelayed(this, 1000)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
@@ -40,11 +49,21 @@ class MainActivity : Activity() {
         requestRuntimePermissions()
         loadPairedDevices()
         refreshStatus()
+
+        // Auto-start the bridge if it was already configured.
+        if (prefs.baseUrl.isNotBlank() && prefs.printerMac.isNotBlank() && !PrintService.running) {
+            PrintService.start(this)
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        refreshStatus()
+        handler.post(statusTick)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(statusTick)
     }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
@@ -59,7 +78,7 @@ class MainActivity : Activity() {
 
         col.addView(label("Servidor (URL base)", top = 0))
         urlInput = EditText(this).apply {
-            hint = "https://5.75.162.179"
+            hint = "5.75.162.179  o  http://5.75.162.179:8087"
             setText(prefs.baseUrl)
             inputType = android.text.InputType.TYPE_TEXT_VARIATION_URI
         }
@@ -112,11 +131,18 @@ class MainActivity : Activity() {
         row.addView(stopBtn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         col.addView(row)
 
+        val row2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val testBtn = Button(this).apply {
-            text = "Probar impresion"
+            text = "Probar impresión"
             setOnClickListener { testPrint() }
         }
-        col.addView(testBtn)
+        val pingBtn = Button(this).apply {
+            text = "Probar conexión"
+            setOnClickListener { testConnection() }
+        }
+        row2.addView(testBtn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        row2.addView(pingBtn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        col.addView(row2)
 
         statusText = TextView(this).apply {
             setPadding(0, dp(16), 0, 0)
@@ -192,6 +218,25 @@ class MainActivity : Activity() {
         refreshStatus()
     }
 
+    private fun testConnection() {
+        saveConfig()
+        val baseUrl = prefs.baseUrl
+        if (baseUrl.isBlank()) {
+            Toast.makeText(this, "Escribe la URL del servidor", Toast.LENGTH_LONG).show()
+            return
+        }
+        Toast.makeText(this, "Probando conexión...", Toast.LENGTH_SHORT).show()
+        Thread {
+            try {
+                val api = Api(this, baseUrl, prefs.token)
+                val body = api.ping()
+                runOnUiThread { Toast.makeText(this, "Conexión OK: $body", Toast.LENGTH_LONG).show() }
+            } catch (e: Exception) {
+                runOnUiThread { Toast.makeText(this, "Falló: ${e.message}", Toast.LENGTH_LONG).show() }
+            }
+        }.start()
+    }
+
     private fun testPrint() {
         saveConfig()
         val mac = prefs.printerMac
@@ -219,8 +264,10 @@ class MainActivity : Activity() {
     private fun refreshStatus() {
         val running = PrintService.running
         statusText.text = buildString {
-            append("Estado del servicio: ")
-            append(if (running) "ACTIVO" else "detenido")
+            append("Servicio: ")
+            append(if (running) "ACTIVO" else "DETENIDO")
+            append("\nEstado: ")
+            append(PrintService.lastStatus)
             append("\nImpresora: ")
             append(prefs.printerName.ifBlank { prefs.printerMac.ifBlank { "(sin seleccionar)" } })
             append("\nServidor: ")

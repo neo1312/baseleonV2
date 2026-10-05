@@ -27,6 +27,7 @@ urlpatterns = [
     path('scanner-poll/', views.scanner_poll, name='scanner_poll'),
     path('print-jobs/', views.create_print_job, name='create_print_job'),
     path('print-jobs/pending/', views.pending_print_jobs, name='pending_print_jobs'),
+    path('print-jobs/ping/', views.print_ping, name='print_ping'),
     path('print-jobs/<int:job_id>/bytes/', views.print_job_bytes, name='print_job_bytes'),
     path('print-jobs/<int:job_id>/ack/', views.ack_print_job, name='ack_print_job'),
     path('print-jobs/<int:job_id>/fail/', views.fail_print_job, name='fail_print_job'),

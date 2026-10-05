@@ -28,6 +28,9 @@ class PrintService : Service() {
         var running = false
             private set
 
+        @Volatile
+        var lastStatus: String = "Iniciando..."
+
         fun start(context: Context) {
             val i = Intent(context, PrintService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(i)
@@ -43,9 +46,6 @@ class PrintService : Service() {
 
     @Volatile
     private var alive = true
-
-    @Volatile
-    private var lastStatus: String = "Iniciando..."
 
     override fun onCreate() {
         super.onCreate()
@@ -127,21 +127,26 @@ class PrintService : Service() {
     }
 
     private fun buildNotification(text: String): Notification {
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            Notification.Builder(this, CHANNEL_ID) else @Suppress("DEPRECATION") Notification.Builder(this)
-
         val pi = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        return builder
+        return newBuilder()
             .setContentTitle("Ferreteria - Impresora")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
             .setContentIntent(pi)
             .setOngoing(true)
             .build()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun newBuilder(): Notification.Builder {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            Notification.Builder(this, CHANNEL_ID)
+        else
+            Notification.Builder(this)
     }
 
     private fun updateNotification() {
