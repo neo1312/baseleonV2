@@ -1090,7 +1090,7 @@ def ticket_page(request):
 
 def download_apk(request):
     """Serve the tablet print-bridge APK bundled with the project."""
-    path = os.path.join(settings.BASE_DIR, 'static', 'downloads', 'ferre-impresora.apk')
+    path = os.path.join(settings.BASE_DIR, 'static', 'apk', 'ferre-impresora.apk')
     if not os.path.exists(path):
         return JsonResponse({'error': 'APK not available'}, status=404)
     return FileResponse(
