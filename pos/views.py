@@ -919,20 +919,18 @@ def _ticket_json_for(ticket_type, pk):
 
 
 def _serialize_job(job):
-    """Return (filename, base64 ESC/POS bytes) for a job."""
-    if job.job_type == PrintJob.JOB_TICKET:
-        data = _ticket_json_for(job.ticket_type, job.ref_id)
-        raw = printing.build_ticket_bytes(data, job.ticket_type)
-        filename = 'ticket_{}_{}.bin'.format(job.ticket_type, job.ref_id)
-    else:
-        raw = printing.build_label_bytes(job.value, job.copies, job.blank)
-        filename = 'label_{}.bin'.format(job.value or 'blank')
+    """Return (filename, base64 ESC/POS bytes) for a ticket job."""
+    if job.job_type != PrintJob.JOB_TICKET:
+        raise ValueError('unsupported job type: {}'.format(job.job_type))
+    data = _ticket_json_for(job.ticket_type, job.ref_id)
+    raw = printing.build_ticket_bytes(data, job.ticket_type)
+    filename = 'ticket_{}_{}.bin'.format(job.ticket_type, job.ref_id)
     return filename, base64.b64encode(raw).decode('ascii')
 
 
 @csrf_exempt
 def create_print_job(request):
-    """Queue a ticket or label. Called by the browser (same-origin)."""
+    """Queue a ticket job. Called by the browser (same-origin)."""
     if request.method != 'POST':
         return JsonResponse({'error': 'Invalid method'}, status=405)
     try:
@@ -940,36 +938,20 @@ def create_print_job(request):
     except (ValueError, TypeError):
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-    job_type = data.get('job_type') or ('ticket' if data.get('sale_id') else 'label')
+    sale_id = data.get('sale_id')
+    ticket_type = data.get('ticket_type', 'sale')
+    if sale_id in (None, ''):
+        return JsonResponse({'error': 'sale_id required'}, status=400)
+    if ticket_type not in printing.TICKET_LABELS:
+        return JsonResponse({'error': 'invalid ticket_type'}, status=400)
     try:
-        if job_type == PrintJob.JOB_TICKET:
-            sale_id = data.get('sale_id')
-            ticket_type = data.get('ticket_type', 'sale')
-            if sale_id in (None, ''):
-                return JsonResponse({'error': 'sale_id required'}, status=400)
-            if ticket_type not in printing.TICKET_LABELS:
-                return JsonResponse({'error': 'invalid ticket_type'}, status=400)
-            job = PrintJob.objects.create(
-                job_type=PrintJob.JOB_TICKET,
-                ticket_type=ticket_type,
-                ref_id=int(sale_id),
-            )
-        elif job_type == PrintJob.JOB_LABEL:
-            value = str(data.get('value', '')).strip()
-            blank = bool(data.get('blank', False))
-            if not value and not blank:
-                return JsonResponse({'error': 'value required'}, status=400)
-            copies = int(data.get('copies', 1) or 1)
-            job = PrintJob.objects.create(
-                job_type=PrintJob.JOB_LABEL,
-                value=value,
-                copies=max(1, copies),
-                blank=blank,
-            )
-        else:
-            return JsonResponse({'error': 'invalid job_type'}, status=400)
+        job = PrintJob.objects.create(
+            job_type=PrintJob.JOB_TICKET,
+            ticket_type=ticket_type,
+            ref_id=int(sale_id),
+        )
     except (ValueError, TypeError):
-        return JsonResponse({'error': 'invalid payload'}, status=400)
+        return JsonResponse({'error': 'invalid sale_id'}, status=400)
 
     return JsonResponse({'success': True, 'job_id': job.id})
 

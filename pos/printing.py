@@ -5,19 +5,13 @@ bytes to the Bluetooth (SPP) printer, so any device/browser can trigger a job.
 Ported from the old local ``ticket_printer/main.py`` server.
 """
 
-import io
 import re
 import unicodedata
 
 from django.conf import settings
 
-ESC = b'\x1b'
-GS = b'\x1d'
 INIT = b'\x1b\x40'          # ESC @  -> initialize
 ALIGN_LEFT = b'\x1b\x61\x00'
-ALIGN_CENTER = b'\x1b\x61\x01'
-TEXT_DOUBLE_HEIGHT = b'\x1b\x21\x10'
-TEXT_NORMAL = b'\x1b\x21\x00'
 
 LINE_WIDTH = 32             # 58mm paper, Font A
 
@@ -99,85 +93,6 @@ def build_ticket_bytes(sale_data, ticket_type='sale', store_name=None):
     text = format_ticket(sale_data, store_name, ticket_type)
     # This printer has no auto-cutter: finish with paper feed only.
     return INIT + ALIGN_LEFT + _encode(text) + b'\n\n\n'
-
-
-# ─── Labels (barcode) ──────────────────────────────────────────────
-
-def _raster_command(img):
-    """Wrap a 1-bit PIL image into an ESC/POS GS v 0 raster command."""
-    width = img.width
-    height = img.height
-    width_bytes = (width + 7) // 8
-    out = bytearray()
-    out += GS + b'v0' + bytes([
-        0,
-        width_bytes & 0xFF, (width_bytes >> 8) & 0xFF,
-        height & 0xFF, (height >> 8) & 0xFF,
-    ])
-    pixels = img.load()
-    black = 0
-    for y in range(height):
-        row = bytearray(width_bytes)
-        for x in range(width):
-            if pixels[x, y] == black:
-                row[x >> 3] |= (0x80 >> (x & 7))
-        out += row
-    return bytes(out)
-
-
-def _barcode_raster(value, max_width=384):
-    from barcode import Code128
-    from barcode.writer import ImageWriter
-    from PIL import Image
-
-    buf = io.BytesIO()
-    Code128(str(value), writer=ImageWriter()).write(buf, options={
-        'module_width': 0.35,
-        'module_height': 10.0,
-        'font_size': 0,
-        'text_distance': 0,
-        'quiet_zone': 1.0,
-        'write_text': False,
-    })
-    buf.seek(0)
-    src = Image.open(buf).convert('L')
-    src = src.point(lambda p: 255 if p > 128 else 0, '1')
-    if src.width > max_width:
-        ratio = max_width / src.width
-        src = src.resize((max_width, max(1, int(src.height * ratio))))
-    canvas = Image.new('1', (max_width, src.height), 1)  # white background
-    canvas.paste(src, ((max_width - src.width) // 2, 0))
-    return _raster_command(canvas)
-
-
-def _barcode_native(value):
-    data = b'{B' + str(value).encode('ascii', 'ignore')
-    n = len(data)
-    return GS + b'h' + bytes([80]) + GS + b'w' + bytes([3]) + GS + b'H' + bytes([2]) + GS + b'k' + bytes([73, n]) + data
-
-
-def build_label_bytes(value, copies=1, blank=False, store_name=None):
-    """Return ESC/POS bytes for one or more barcode labels (58mm)."""
-    if store_name is None:
-        store_name = getattr(settings, 'STORE_NAME', 'Ferreteria Leon')
-    mode = getattr(settings, 'LABEL_BARCODE_MODE', 'raster')
-    out = bytearray()
-    out += INIT + ALIGN_CENTER
-
-    for _ in range(max(1, int(copies or 1))):
-        if not blank:
-            store = clean_text(store_name)
-            if store:
-                out += TEXT_NORMAL + _encode(store) + b'\n'
-            if mode == 'native':
-                out += _barcode_native(value)
-                out += b'\n'
-            else:
-                out += _barcode_raster(value)
-                out += b'\n'
-            out += TEXT_DOUBLE_HEIGHT + _encode(str(value)) + b'\n' + TEXT_NORMAL
-        out += b'\n\n\n'
-    return bytes(out)
 
 
 # ─── Label sheet PDF (A4 letter-style, 14 x 16 = 224 labels) ───────
